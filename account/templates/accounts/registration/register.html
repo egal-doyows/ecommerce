@@ -14,9 +14,9 @@
     <br>
     <div class="container bg-white shadow-md p-5 form-layout">
         <h3>Create your account</h3>
-        <h5>Purchase your favourite item today</h5>
+        
 
-        <br>
+   
         <br>
         <form method="POST" autocomplete="off" >
             {% csrf_token %}
@@ -32,9 +32,20 @@
             {{form.password2|as_crispy_field}}
 
             <br>
-            <br>
-            <button type="submit" class="btn btn-secondary btn-lg w-100 btn-block p-2">Create Account</button>
+        
+            <button type="submit" class="btn btn-primary btn-lg w-100 btn-block p-2">Create Account</button>
         </form>
+
+
+         <br>
+        <div class="text-center">
+        <a href="{% url 'my-login'%}"> Already have an account? </a>
+        
+        </div>
+
+
+
+
     </div>
 </body>
 <br>

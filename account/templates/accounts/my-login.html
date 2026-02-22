@@ -13,10 +13,9 @@
     </style>
     <br>
     <div class="container bg-white shadow-md p-5 form-layout">
-        <h3>Create your account</h3>
-        <h5>Purchase your favourite item today</h5>
-
-        <br>
+        <h3>Login to your account</h3>
+        <hr>
+        
         <br>
         <form method="POST" autocomplete="off" >
             {% csrf_token %}
@@ -29,8 +28,14 @@
 
             <br>
             <br>
-            <button type="submit" class="btn btn-secondary btn-lg w-100 btn-block p-2">Login</button>
+            <button type="submit" class="btn btn-primary btn-lg w-100 btn-block p-2"> <i class="fa fa-sign-in" aria-hidden="true"></i> &nbsp; Login</button>
         </form>
+        <br>
+        <div class="text-center">
+        <a href="{% url 'register'%}"> Dont have an account? </a>
+        <br>
+        <a href="#"> Forgotten password? </a>
+        </div>
     </div>
 </body>
 <br>

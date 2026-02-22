@@ -1,1 +1,51 @@
-<h1>Welcome to the dashboard</h1>
+{% include 'store/base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+
+ <body>
+
+    <style>
+        body{
+            background-color: gray;
+        }
+    </style>
+    <br>
+    <div class="container bg-white shadow-md p-5 form-layout">
+        <h3>Welcome {{user}}</h3>
+        <hr>
+        <h5>You can perform the following:</h5>
+       
+        <li>Track your orders</li>
+        <li>Manage your account</li>
+        <li>Logout</li>
+
+        <br>
+        <br>
+        
+    </div>
+    <br>
+    <div class="container bg-white shadow-md p-5 form-layout">
+
+        <h3>Track Your orders</h3>
+        <hr>
+        <p>Track all your orders</p>
+        <a class="btn btn-info" type="button" href="">My orders</a> 
+    </div>
+    <br>
+    <div class="container bg-white shadow-md p-5 form-layout">
+
+        <h3>Manage Your account</h3>
+        <hr>
+        <p>Update or delete your account</p>
+        <a class="btn btn-info" type="button" href="{% url 'profile-management' %}">Account Management</a> <br><br>
+        
+    </div>
+    <br>
+    
+</body>
+<br>
+
+ {% endblock content %}

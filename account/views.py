@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .forms import CreateUserForm, LoginForm
+from .forms import CreateUserForm, LoginForm,UserUpdateForm
 from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes,force_str
@@ -7,6 +7,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.models import User
 from django.contrib.auth.models import auth
 from django.contrib.auth import authenticate, login,logout
+from django.contrib.auth.decorators import login_required
 
 
 
@@ -107,10 +108,57 @@ def my_login(request):
     return render(request, 'accounts/my-login.html', context)
 
 
-
+@login_required(login_url='my-login')
 def dashboard(request):
     return render(request, 'accounts/dashboard.html',{})
 
+
+
+def user_logout(request):
+    auth.logout(request)
+
+    return redirect('store')
+
+
+@login_required(login_url='my-login')
+def profile_management(request):
+
+    user_form=UserUpdateForm(instance=request.user)
+
+    if request.method=='POST':
+
+
+        user_form=UserUpdateForm(request.POST, instance=request.user)
+
+        if user_form.is_valid():
+
+            user_form.save()
+
+            return redirect('dashboard')
+    
+    
+
+    context={'user_form':user_form}
+    
+
+
+
+
+    return render(request, 'accounts/profile-management.html',context)
+
+
+@login_required(login_url='my-login')
+def delete_account(request):
+
+    user=User.objects.get(id=request.user.id)
+
+    if request.method=='POST':
+
+        user.delete()
+        return redirect('store')
+    
+
+    return render(request, 'accounts/delete-account.html',{})
 
 
 
