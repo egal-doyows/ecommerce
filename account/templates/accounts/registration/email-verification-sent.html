@@ -1,39 +1,59 @@
-{% include 'store/base.html' %}
+{% extends "menu/base.html" %}
 {% load static %}
-
 
 {% block content %}
 
-<body>
+<style>
+    .verify-wrapper {
+        min-height: calc(100vh - 60px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--pos-light);
+        padding: 20px;
+    }
 
-    <style>
-        body{
-            background-color: gray;
-        }
-    </style>
+    .verify-card {
+        max-width: 420px;
+        background: #fff;
+        border-radius: 16px;
+        padding: 48px 36px;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        text-align: center;
+    }
 
-    <br>
-    <br>
+    .verify-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 28px;
+    }
 
- 
- <div class="container bg-white shahow-md form-layout p-5">
+    .verify-card h4 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 8px;
+    }
 
-    <div class="text-center">
+    .verify-card p {
+        font-size: 14px;
+        color: var(--pos-muted);
+    }
+</style>
 
-        <i class="fa fa-envelope fa-3x text-info" aria-hidden="true"></i>
-        <br>
-        <br>
-    
-<h5> <strong>A verification link has been sent to your email</strong></h5>
-<hr>
-<p>Please click on the link</p>
-
+<div class="verify-wrapper">
+    <div class="verify-card">
+        <div class="verify-icon" style="background:#e3f2fd; color:#1565c0;">
+            <i class="fa fa-envelope"></i>
+        </div>
+        <h4>Verification Email Sent</h4>
+        <p>A verification link has been sent to your email. Please click the link to activate your account.</p>
+    </div>
 </div>
 
-</div>
-
-</body>
-
-
-{% endblock content %}
-
+{% endblock %}

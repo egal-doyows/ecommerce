@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'store',
+    'menu',
     'cart',
     'mathfilters',
     'django.contrib.humanize',
@@ -57,7 +57,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'ecommerce.urls'
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
@@ -69,14 +69,14 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'store.views.categories',
+                'menu.views.categories',
                 'cart.context_processors.cart',
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'ecommerce.wsgi.application'
+WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database

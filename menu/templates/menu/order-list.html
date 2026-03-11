@@ -1,0 +1,125 @@
+{% extends "./base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .ol-page { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+
+    .ol-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .ol-header h2 { font-size: 18px; font-weight: 700; color: var(--pos-text); margin: 0; }
+
+    .ol-new-btn {
+        padding: 8px 18px;
+        background: var(--pos-dark);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+
+    .ol-new-btn:hover { background: var(--pos-blue); color: #fff; }
+
+    .ol-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        overflow: hidden;
+        margin-bottom: 10px;
+        transition: all 0.15s;
+        text-decoration: none;
+        display: block;
+        color: var(--pos-text);
+        border-left: 4px solid transparent;
+    }
+
+    .ol-card:hover {
+        box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        color: var(--pos-text);
+    }
+
+    .ol-card-active { border-left-color: #3b5bdb; }
+
+    .ol-card-body {
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .ol-card-id {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--pos-text);
+        min-width: 70px;
+    }
+
+    .ol-card-info { flex: 1; }
+
+    .ol-card-info-row {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--pos-muted);
+    }
+
+    .ol-card-total {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        min-width: 100px;
+        text-align: right;
+    }
+
+    .ol-empty {
+        text-align: center;
+        padding: 60px;
+        color: var(--pos-muted);
+    }
+
+    .ol-empty i { font-size: 40px; color: #ddd; }
+    .ol-empty h4 { font-size: 15px; font-weight: 600; color: var(--pos-text); margin: 12px 0 4px; }
+</style>
+
+<div class="ol-page">
+    <div class="ol-header">
+        <h2><i class="fa fa-list-alt"></i> &nbsp; Active Orders</h2>
+        <a href="{% url 'pos' %}" class="ol-new-btn"><i class="fa fa-plus"></i> &nbsp; New Order</a>
+    </div>
+
+    {% for order in orders %}
+    <a href="{% url 'order-detail' order.id %}" class="ol-card ol-card-{{ order.status }}">
+        <div class="ol-card-body">
+            <div class="ol-card-id">#{{ order.id }}</div>
+            <div class="ol-card-info">
+                <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{{ order.table }}</div>
+                <div class="ol-card-info-row">
+                    <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
+                    <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
+                    <span><i class="fa fa-shopping-basket"></i> {{ order.get_item_count }} items</span>
+                </div>
+            </div>
+            <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+            <div class="ol-card-total">Ksh {{ order.get_total|intcomma }}</div>
+        </div>
+    </a>
+    {% empty %}
+    <div class="ol-empty">
+        <i class="fa fa-check-circle"></i>
+        <h4>No active orders</h4>
+        <p>All orders have been completed</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

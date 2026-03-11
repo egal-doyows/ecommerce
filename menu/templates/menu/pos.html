@@ -1,0 +1,990 @@
+{% extends "./base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .pos-container {
+        display: flex;
+        height: calc(100vh - 56px);
+        overflow: hidden;
+    }
+
+    /* ---- Left: Menu Panel ---- */
+    .pos-menu {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--pos-light);
+    }
+
+    .pos-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 24px 0;
+        flex-shrink: 0;
+    }
+
+    .pos-search {
+        flex: 1;
+        position: relative;
+    }
+
+    .pos-search i {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #b0b8c1;
+        font-size: 14px;
+    }
+
+    .pos-search input {
+        width: 100%;
+        padding: 10px 14px 10px 40px;
+        border: 2px solid var(--pos-border);
+        border-radius: 10px;
+        font-size: 14px;
+        background: #fff;
+        color: var(--pos-text);
+        transition: border-color 0.2s;
+        outline: none;
+    }
+
+    .pos-search input:focus {
+        border-color: #7c83ff;
+        box-shadow: 0 0 0 3px rgba(124,131,255,0.1);
+    }
+
+    .pos-search input::placeholder { color: #b0b8c1; }
+
+    .pos-categories {
+        display: flex;
+        gap: 8px;
+        padding: 16px 24px 12px;
+        overflow-x: auto;
+        flex-shrink: 0;
+    }
+
+    .pos-categories::-webkit-scrollbar { height: 0; }
+
+    .pos-cat-btn {
+        padding: 8px 20px;
+        border-radius: 24px;
+        border: none;
+        background: #fff;
+        color: var(--pos-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .pos-cat-btn:hover { color: var(--pos-text); box-shadow: 0 2px 8px rgba(0,0,0,0.08); background: #f0f1ff; }
+    .pos-cat-btn.active {
+        background: linear-gradient(135deg, #7c83ff 0%, #6366f1 100%);
+        color: #fff;
+        box-shadow: 0 3px 12px rgba(124,131,255,0.35);
+    }
+
+    .pos-cat-btn i { margin-right: 4px; font-size: 12px; }
+
+    /* ---- Items Grid ---- */
+    .pos-items-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+        gap: 16px;
+        padding: 4px 24px 24px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .pos-item-card {
+        background: #fff;
+        border-radius: 14px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        position: relative;
+    }
+
+    .pos-item-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(99,102,241,0.15);
+        border-color: #7c83ff;
+    }
+
+    .pos-item-card.adding {
+        transform: scale(0.95);
+        border-color: #7c83ff;
+        box-shadow: 0 0 0 3px rgba(124,131,255,0.2);
+    }
+
+    .pos-item-card.unavailable {
+        opacity: 0.35;
+        pointer-events: none;
+        filter: grayscale(1);
+    }
+
+    .pos-item-img-wrap {
+        position: relative;
+        width: 100%;
+        height: 110px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+        overflow: hidden;
+    }
+
+    .pos-item-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.3s;
+    }
+
+    .pos-item-card:hover .pos-item-img { transform: scale(1.05); }
+
+    .pos-item-noimg {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #cdd5dc;
+        font-size: 30px;
+    }
+
+    .pos-item-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(27,31,59,0.75);
+        color: #c0c4e0;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 6px;
+        backdrop-filter: blur(6px);
+    }
+
+    .pos-item-info { padding: 12px 14px; }
+
+    .pos-item-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 6px;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .pos-item-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .pos-item-price {
+        font-size: 15px;
+        font-weight: 800;
+        color: #6366f1;
+    }
+
+    .pos-item-time {
+        font-size: 11px;
+        color: var(--pos-muted);
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+
+    .pos-empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 80px 20px;
+        color: var(--pos-muted);
+    }
+
+    .pos-empty-state i {
+        font-size: 48px;
+        color: #dde1e6;
+        margin-bottom: 16px;
+        display: block;
+    }
+
+    .pos-empty-state p {
+        margin: 4px 0 0;
+        font-size: 14px;
+    }
+
+    /* ---- Right: Order Panel ---- */
+    .pos-order-panel {
+        width: 360px;
+        background: #1b1f3b;
+        border-left: none;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+    }
+
+    .pos-order-header {
+        padding: 20px 22px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .pos-order-header h3 {
+        font-size: 17px;
+        font-weight: 800;
+        color: #fff;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .pos-order-header h3 i {
+        font-size: 15px;
+        color: #7c83ff;
+    }
+
+    .pos-order-count {
+        font-size: 12px;
+        font-weight: 700;
+        color: #fff;
+        background: #7c83ff;
+        padding: 3px 12px;
+        border-radius: 12px;
+    }
+
+    /* ---- Order Items ---- */
+    .pos-order-items {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 0;
+    }
+
+    .pos-order-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 20px;
+        gap: 12px;
+        transition: background 0.15s;
+    }
+
+    .pos-order-item:hover { background: rgba(255,255,255,0.04); }
+
+    .pos-order-item + .pos-order-item {
+        border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .pos-qty-controls {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .pos-qty-btn {
+        width: 26px;
+        height: 26px;
+        border: 1.5px solid rgba(255,255,255,0.15);
+        border-radius: 6px;
+        background: rgba(255,255,255,0.06);
+        color: #c0c4e0;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        padding: 0;
+    }
+
+    .pos-qty-btn:hover {
+        border-color: #7c83ff;
+        color: #7c83ff;
+        background: rgba(124,131,255,0.12);
+    }
+
+    .pos-qty-value {
+        width: 28px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .pos-order-item-details { flex: 1; min-width: 0; }
+
+    .pos-order-item-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #e8e9f3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.4;
+    }
+
+    .pos-order-item-unit { font-size: 11px; color: #7a7f9e; }
+
+    .pos-order-item-price {
+        font-size: 13px;
+        font-weight: 700;
+        color: #7c83ff;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    .pos-order-item-remove {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: none;
+        color: #4a4f6e;
+        cursor: pointer;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        flex-shrink: 0;
+        transition: all 0.15s;
+    }
+
+    .pos-order-item-remove:hover { color: #ff6b7a; background: rgba(255,107,122,0.1); }
+
+    .pos-order-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #7a7f9e;
+        gap: 8px;
+        padding: 40px 20px;
+    }
+
+    .pos-order-empty i {
+        font-size: 42px;
+        color: #2e3354;
+    }
+
+    .pos-order-empty p { font-size: 13px; margin: 0; color: #7a7f9e; }
+    .pos-order-empty .pos-hint { font-size: 12px; color: #52567a; }
+
+    /* ---- Order Footer ---- */
+    .pos-order-footer {
+        border-top: 1px solid rgba(255,255,255,0.06);
+        padding: 18px 22px;
+        background: #161938;
+    }
+
+    .pos-table-select {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .pos-table-select label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #7a7f9e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .pos-table-select select {
+        flex: 1;
+        padding: 9px 12px;
+        border: 2px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        background: rgba(255,255,255,0.05);
+        color: #e8e9f3;
+        outline: none;
+        transition: border-color 0.2s;
+        cursor: pointer;
+    }
+
+    .pos-table-select select:focus {
+        border-color: #7c83ff;
+    }
+
+    .pos-table-select select option {
+        background: #1b1f3b;
+        color: #e8e9f3;
+    }
+
+    .pos-notes-input {
+        width: 100%;
+        padding: 9px 12px;
+        border: 2px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        font-size: 13px;
+        font-family: inherit;
+        color: #e8e9f3;
+        resize: none;
+        outline: none;
+        transition: border-color 0.2s;
+        margin-bottom: 14px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    .pos-notes-input:focus { border-color: #7c83ff; }
+    .pos-notes-input::placeholder { color: #52567a; }
+
+    .pos-order-summary {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+    }
+
+    .pos-summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .pos-summary-row + .pos-summary-row {
+        margin-top: 8px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .pos-summary-label { font-size: 13px; color: #7a7f9e; font-weight: 500; }
+    .pos-summary-value { font-size: 13px; color: #c0c4e0; font-weight: 600; }
+
+    .pos-summary-row.total .pos-summary-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: #e8e9f3;
+    }
+
+    .pos-summary-row.total .pos-summary-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: #7c83ff;
+    }
+
+    .pos-btn-group {
+        display: flex;
+        gap: 10px;
+    }
+
+    .pos-place-btn {
+        flex: 1;
+        padding: 14px 20px;
+        background: linear-gradient(135deg, #7c83ff 0%, #6366f1 100%);
+        color: #fff;
+        border: none;
+        border-radius: 14px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        letter-spacing: 0.3px;
+        box-shadow: 0 4px 15px rgba(124,131,255,0.25);
+    }
+
+    .pos-place-btn:hover {
+        background: linear-gradient(135deg, #8b91ff 0%, #7c7dff 100%);
+        box-shadow: 0 6px 25px rgba(124,131,255,0.4);
+        transform: translateY(-2px);
+    }
+
+    .pos-place-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 10px rgba(124,131,255,0.3);
+    }
+
+    .pos-place-btn:disabled {
+        background: #2e3354;
+        color: #52567a;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
+
+    .pos-clear-btn {
+        padding: 14px 18px;
+        background: rgba(255,107,122,0.08);
+        color: #ff6b7a;
+        border: 2px solid rgba(255,107,122,0.2);
+        border-radius: 14px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pos-clear-btn:hover {
+        background: rgba(255,107,122,0.15);
+        border-color: rgba(255,107,122,0.4);
+        color: #ff8a95;
+        transform: translateY(-1px);
+    }
+
+    /* ---- Toast ---- */
+    .pos-toast {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(80px);
+        background: #1b1f3b;
+        color: #e8e9f3;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 2000;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 8px 30px rgba(27,31,59,0.4);
+        border: 1px solid rgba(124,131,255,0.2);
+    }
+
+    .pos-toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+
+    /* ---- Breadcrumb ---- */
+    .pos-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 24px;
+        margin-bottom: 2px;
+        flex-shrink: 0;
+    }
+
+    .pos-breadcrumb-item {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--pos-muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .pos-breadcrumb-item a {
+        color: #6366f1;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.15s;
+        cursor: pointer;
+    }
+
+    .pos-breadcrumb-item a:hover {
+        color: #7c83ff;
+        text-decoration: underline;
+    }
+
+    .pos-breadcrumb-sep {
+        color: #cdd5dc;
+        font-size: 11px;
+    }
+
+    .pos-breadcrumb-current {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-text);
+    }
+
+    .pos-breadcrumb-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: #fff;
+        background: #6366f1;
+        padding: 1px 8px;
+        border-radius: 8px;
+        margin-left: 4px;
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 900px) {
+        .pos-container { flex-direction: column; }
+        .pos-order-panel { width: 100%; height: 50vh; border-left: none; border-top: none; }
+        .pos-items-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+</style>
+
+<div class="pos-container">
+    <!-- Menu Panel -->
+    <div class="pos-menu">
+        <div class="pos-toolbar">
+            <div class="pos-search">
+                <i class="fa fa-search"></i>
+                <input type="text" id="pos-search-input" placeholder="Search menu items...">
+            </div>
+        </div>
+
+        <div class="pos-categories">
+            <button class="pos-cat-btn active" data-category="all">
+                <i class="fa fa-th"></i> All
+            </button>
+            {% for category in all_categories %}
+            <button class="pos-cat-btn" data-category="{{ category.slug }}">
+                {% if category.icon %}<i class="fa {{ category.icon }}"></i> {% endif %}{{ category.name|capfirst }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div class="pos-breadcrumb" id="pos-breadcrumb">
+            <span class="pos-breadcrumb-item">
+                <i class="fa fa-home" style="font-size:12px;"></i>
+                <a id="breadcrumb-home">POS</a>
+            </span>
+            <span class="pos-breadcrumb-sep"><i class="fa fa-angle-right"></i></span>
+            <span class="pos-breadcrumb-current" id="breadcrumb-category">All Items</span>
+            <span class="pos-breadcrumb-count" id="breadcrumb-count">{{ all_products|length }}</span>
+        </div>
+
+        <div class="pos-items-grid" id="pos-items-grid">
+            {% for product in all_products %}
+            <div class="pos-item-card {% if not product.is_available %}unavailable{% endif %}"
+                 data-id="{{ product.id }}"
+                 data-category="{{ product.category.slug }}"
+                 data-name="{{ product.title }}"
+                 data-price="{{ product.price }}">
+                <div class="pos-item-img-wrap">
+                    {% if product.image %}
+                    <img class="pos-item-img" src="{{ product.image.url }}" alt="{{ product.title }}" loading="lazy">
+                    {% else %}
+                    <div class="pos-item-noimg"><i class="fa fa-cutlery"></i></div>
+                    {% endif %}
+                    <span class="pos-item-badge"><i class="fa fa-clock-o"></i> {{ product.preparation_time }}m</span>
+                </div>
+                <div class="pos-item-info">
+                    <div class="pos-item-name">{{ product.title|capfirst }}</div>
+                    <div class="pos-item-meta">
+                        <span class="pos-item-price">Ksh {{ product.price|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="pos-empty-state">
+                <i class="fa fa-cutlery"></i>
+                <p><strong>No menu items yet</strong></p>
+                <p style="color:#b0b8c1;">Add items from the admin panel to get started.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Order Panel -->
+    <div class="pos-order-panel">
+        <div class="pos-order-header">
+            <h3><i class="fa fa-file-text-o"></i> Current Order</h3>
+            <span class="pos-order-count" id="order-count">{{ cart|length }} item{{ cart|length|pluralize }}</span>
+        </div>
+
+        <div class="pos-order-items" id="order-items">
+            {% for item in cart %}
+            {% with product=item.product %}
+            <div class="pos-order-item" data-id="{{ product.id }}">
+                <div class="pos-qty-controls">
+                    <button class="pos-qty-btn qty-minus" data-id="{{ product.id }}">−</button>
+                    <span class="pos-qty-value">{{ item.qty }}</span>
+                    <button class="pos-qty-btn qty-plus" data-id="{{ product.id }}">+</button>
+                </div>
+                <div class="pos-order-item-details">
+                    <div class="pos-order-item-name">{{ product.title|capfirst }}</div>
+                    <div class="pos-order-item-unit">Ksh {{ product.price|intcomma }} each</div>
+                </div>
+                <div class="pos-order-item-price">Ksh {{ item.total|intcomma }}</div>
+                <button class="pos-order-item-remove" data-id="{{ product.id }}" title="Remove item">
+                    <i class="fa fa-trash-o"></i>
+                </button>
+            </div>
+            {% endwith %}
+            {% empty %}
+            <div class="pos-order-empty" id="order-empty">
+                <i class="fa fa-shopping-basket"></i>
+                <p>No items added</p>
+                <p class="pos-hint">Tap menu items to build an order</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="pos-order-footer">
+            <form method="POST" action="{% url 'place-order' %}" id="place-order-form">
+                {% csrf_token %}
+
+                <div class="pos-table-select">
+                    <label><i class="fa fa-th-large"></i> Table</label>
+                    <select name="table_id" id="table-select" required>
+                        <option value="">Select table...</option>
+                        {% for table in tables %}
+                        <option value="{{ table.id }}">
+                            Table {{ table.number }} &middot; {{ table.capacity }} seats
+                            {% if table.status != 'available' %}&mdash; {{ table.get_status_display }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <textarea class="pos-notes-input" name="notes" rows="2" placeholder="Order notes (optional)..."></textarea>
+
+                <div class="pos-order-summary">
+                    <div class="pos-summary-row">
+                        <span class="pos-summary-label">Items</span>
+                        <span class="pos-summary-value" id="summary-items">{{ cart|length }}</span>
+                    </div>
+                    <div class="pos-summary-row total">
+                        <span class="pos-summary-label">Total</span>
+                        <span class="pos-summary-value" id="summary-total">Ksh {{ cart.get_total|intcomma }}</span>
+                    </div>
+                </div>
+
+                <div class="pos-btn-group">
+                    <button type="submit" class="pos-place-btn" {% if cart|length == 0 %}disabled{% endif %}>
+                        <i class="fa fa-check-circle"></i> Place Order
+                    </button>
+                    <button type="button" class="pos-clear-btn" id="clear-order-btn" title="Clear all items">
+                        <i class="fa fa-trash-o"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="pos-toast" id="added-toast"></div>
+
+<script>
+    // ---- Category filter ----
+    document.querySelectorAll('.pos-cat-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.pos-cat-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const cat = this.dataset.category;
+            const search = document.getElementById('pos-search-input').value.toLowerCase();
+            filterItems(cat, search);
+        });
+    });
+
+    // ---- Search ----
+    document.getElementById('pos-search-input').addEventListener('input', function() {
+        const search = this.value.toLowerCase();
+        const activeCat = document.querySelector('.pos-cat-btn.active').dataset.category;
+        filterItems(activeCat, search);
+    });
+
+    function filterItems(cat, search) {
+        let visibleCount = 0;
+        document.querySelectorAll('.pos-item-card').forEach(card => {
+            const matchCat = (cat === 'all' || card.dataset.category === cat);
+            const matchSearch = !search || card.dataset.name.toLowerCase().includes(search);
+            const show = matchCat && matchSearch;
+            card.style.display = show ? '' : 'none';
+            if (show) visibleCount++;
+        });
+        updateBreadcrumb(cat, search, visibleCount);
+    }
+
+    function updateBreadcrumb(cat, search, count) {
+        const breadcrumb = document.getElementById('pos-breadcrumb');
+        const activeBtn = document.querySelector('.pos-cat-btn.active');
+        const catLabel = activeBtn ? activeBtn.textContent.trim() : 'All Items';
+
+        let html = '<span class="pos-breadcrumb-item">'
+            + '<i class="fa fa-home" style="font-size:12px;"></i> '
+            + '<a id="breadcrumb-home">POS</a></span>';
+
+        html += '<span class="pos-breadcrumb-sep"><i class="fa fa-angle-right"></i></span>';
+
+        if (cat !== 'all' && search) {
+            // Category + search: POS > Category (clickable) > "search"
+            html += '<span class="pos-breadcrumb-item"><a class="breadcrumb-cat-link" data-cat="' + cat + '">' + catLabel + '</a></span>';
+            html += '<span class="pos-breadcrumb-sep"><i class="fa fa-angle-right"></i></span>';
+            html += '<span class="pos-breadcrumb-current">"' + escapeHtml(search) + '"</span>';
+        } else if (cat !== 'all') {
+            // Category only: POS > Category
+            html += '<span class="pos-breadcrumb-current">' + catLabel + '</span>';
+        } else if (search) {
+            // Search only: POS > All Items (clickable) > "search"
+            html += '<span class="pos-breadcrumb-item"><a class="breadcrumb-cat-link" data-cat="all">All Items</a></span>';
+            html += '<span class="pos-breadcrumb-sep"><i class="fa fa-angle-right"></i></span>';
+            html += '<span class="pos-breadcrumb-current">"' + escapeHtml(search) + '"</span>';
+        } else {
+            // Default: POS > All Items
+            html += '<span class="pos-breadcrumb-current">All Items</span>';
+        }
+
+        html += '<span class="pos-breadcrumb-count">' + count + '</span>';
+        breadcrumb.innerHTML = html;
+
+        // Re-bind breadcrumb click handlers
+        const homeLink = document.getElementById('breadcrumb-home');
+        if (homeLink) {
+            homeLink.addEventListener('click', function() {
+                document.getElementById('pos-search-input').value = '';
+                document.querySelectorAll('.pos-cat-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('.pos-cat-btn[data-category="all"]').classList.add('active');
+                filterItems('all', '');
+            });
+        }
+
+        document.querySelectorAll('.breadcrumb-cat-link').forEach(link => {
+            link.addEventListener('click', function() {
+                document.getElementById('pos-search-input').value = '';
+                const targetCat = this.dataset.cat;
+                document.querySelectorAll('.pos-cat-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('.pos-cat-btn[data-category="' + targetCat + '"]').classList.add('active');
+                filterItems(targetCat, '');
+            });
+        });
+    }
+
+    function escapeHtml(text) {
+        const d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }
+
+    // ---- Add item to cart ----
+    document.querySelectorAll('.pos-item-card:not(.unavailable)').forEach(card => {
+        card.addEventListener('click', function() {
+            this.classList.add('adding');
+            setTimeout(() => this.classList.remove('adding'), 250);
+
+            $.ajax({
+                type: 'POST',
+                url: '{% url "cart-add" %}',
+                data: {
+                    product_id: this.dataset.id,
+                    product_quantity: 1,
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    action: 'post'
+                },
+                success: function() {
+                    showToast('<i class="fa fa-check"></i> ' + card.dataset.name + ' added');
+                    location.reload();
+                }
+            });
+        });
+    });
+
+    // ---- Quantity controls ----
+    $(document).on('click', '.qty-plus', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        const currentQty = parseInt($(this).siblings('.pos-qty-value').text());
+        $.ajax({
+            type: 'POST',
+            url: '{% url "cart-update" %}',
+            data: {
+                product_id: id,
+                product_quantity: currentQty + 1,
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                action: 'post'
+            },
+            success: function() { location.reload(); }
+        });
+    });
+
+    $(document).on('click', '.qty-minus', function(e) {
+        e.stopPropagation();
+        const id = $(this).data('id');
+        const currentQty = parseInt($(this).siblings('.pos-qty-value').text());
+        if (currentQty <= 1) {
+            $.ajax({
+                type: 'POST',
+                url: '{% url "cart-delete" %}',
+                data: {
+                    product_id: id,
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    action: 'post'
+                },
+                success: function() { location.reload(); }
+            });
+        } else {
+            $.ajax({
+                type: 'POST',
+                url: '{% url "cart-update" %}',
+                data: {
+                    product_id: id,
+                    product_quantity: currentQty - 1,
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    action: 'post'
+                },
+                success: function() { location.reload(); }
+            });
+        }
+    });
+
+    // ---- Remove item ----
+    $(document).on('click', '.pos-order-item-remove', function(e) {
+        e.stopPropagation();
+        $.ajax({
+            type: 'POST',
+            url: '{% url "cart-delete" %}',
+            data: {
+                product_id: $(this).data('id'),
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                action: 'post'
+            },
+            success: function() { location.reload(); }
+        });
+    });
+
+    // ---- Clear all ----
+    document.getElementById('clear-order-btn').addEventListener('click', function() {
+        const items = document.querySelectorAll('.pos-order-item-remove');
+        if (items.length === 0) return;
+        if (!confirm('Clear all items from the order?')) return;
+        let done = 0;
+        items.forEach(btn => {
+            $.ajax({
+                type: 'POST',
+                url: '{% url "cart-delete" %}',
+                data: {
+                    product_id: $(btn).data('id'),
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    action: 'post'
+                },
+                success: function() { done++; if (done >= items.length) location.reload(); }
+            });
+        });
+    });
+
+    // ---- Toast notification ----
+    function showToast(msg) {
+        const t = document.getElementById('added-toast');
+        t.innerHTML = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 1500);
+    }
+</script>
+
+{% endblock %}

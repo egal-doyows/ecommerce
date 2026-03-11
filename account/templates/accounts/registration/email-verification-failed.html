@@ -1,38 +1,72 @@
-{% include 'store/base.html' %}
+{% extends "menu/base.html" %}
 {% load static %}
-
 
 {% block content %}
 
-<body>
+<style>
+    .verify-wrapper {
+        min-height: calc(100vh - 60px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--pos-light);
+        padding: 20px;
+    }
 
-    <style>
-        body{
-            background-color: gray;
-        }
-    </style>
+    .verify-card {
+        max-width: 420px;
+        background: #fff;
+        border-radius: 16px;
+        padding: 48px 36px;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        text-align: center;
+    }
 
-    <br>
-    <br>
+    .verify-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 28px;
+    }
 
- 
- <div class="container bg-white shahow-md form-layout p-5">
+    .verify-card h4 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 8px;
+    }
 
-    <div class="text-center">
+    .verify-card p {
+        font-size: 14px;
+        color: var(--pos-muted);
+        margin-bottom: 20px;
+    }
 
-        <i class="fa fa-exclamation-triangle fa-3x text-danger" aria-hidden="true"></i>
-        <br>
-        <br>
-    
-<h5> <strong>Your Account verification failed. </strong></h5>
-<hr>
-<p>please contact admin for support</p>
+    .verify-card a {
+        display: inline-block;
+        padding: 10px 28px;
+        background: var(--pos-dark);
+        color: #fff;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+    }
+</style>
 
+<div class="verify-wrapper">
+    <div class="verify-card">
+        <div class="verify-icon" style="background:#fff5f5; color:#e94560;">
+            <i class="fa fa-exclamation-triangle"></i>
+        </div>
+        <h4>Verification Failed</h4>
+        <p>The verification link is invalid or has expired. Please contact an administrator for support.</p>
+        <a href="{% url 'register' %}">Try Again</a>
+    </div>
 </div>
 
-</div>
-
-</body>
-
-
-{% endblock content %}
+{% endblock %}

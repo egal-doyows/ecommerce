@@ -1,43 +1,145 @@
-{% include 'store/base.html' %}
+{% extends "menu/base.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
 
 {% block content %}
 
-<body>
+<style>
+    .login-wrapper {
+        min-height: calc(100vh - 60px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        padding: 20px;
+    }
 
-    <style>
-        body{
-            background-color: gray;
-        }
-    </style>
-    <br>
-    <div class="container bg-white shadow-md p-5 form-layout">
-        <h3>Login to your account</h3>
-        <hr>
-        
-        <br>
-        <form method="POST" autocomplete="off" >
+    .login-card {
+        width: 100%;
+        max-width: 420px;
+        background: #fff;
+        border-radius: 16px;
+        padding: 40px 32px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .login-card h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--pos-text);
+        text-align: center;
+        margin-bottom: 4px;
+    }
+
+    .login-card .subtitle {
+        text-align: center;
+        color: var(--pos-muted);
+        font-size: 14px;
+        margin-bottom: 28px;
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 13px;
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .login-btn:hover {
+        box-shadow: 0 6px 20px rgba(15,52,96,0.4);
+        transform: translateY(-1px);
+    }
+
+    .login-links {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .login-links a {
+        display: block;
+        color: var(--pos-muted);
+        font-size: 13px;
+        text-decoration: none;
+        margin-bottom: 8px;
+        transition: color 0.2s;
+    }
+
+    .login-links a:hover {
+        color: var(--pos-blue);
+    }
+
+    .login-divider {
+        display: flex;
+        align-items: center;
+        margin: 20px 0;
+        color: #adb5bd;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #dee2e6;
+    }
+
+    .login-divider::before { margin-right: 12px; }
+    .login-divider::after { margin-left: 12px; }
+
+    .waiter-login-btn {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        background: var(--pos-light);
+        color: var(--pos-text);
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .waiter-login-btn:hover {
+        background: #e2e6ea;
+        color: var(--pos-text);
+    }
+</style>
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <h3>Welcome Back</h3>
+        <p class="subtitle">Sign in to your account</p>
+
+        <form method="POST" autocomplete="off">
             {% csrf_token %}
-            {{form.username|as_crispy_field}}
+            {{ form.username|as_crispy_field }}
             <br>
-
-            
-            {{form.password|as_crispy_field}}
-            
-
+            {{ form.password|as_crispy_field }}
             <br>
-            <br>
-            <button type="submit" class="btn btn-primary btn-lg w-100 btn-block p-2"> <i class="fa fa-sign-in" aria-hidden="true"></i> &nbsp; Login</button>
+            <button type="submit" class="login-btn">Login</button>
         </form>
-        <br>
-        <div class="text-center">
-        <a href="{% url 'register'%}"> Dont have an account? </a>
-        <br>
-        <a href="#"> Forgotten password? </a>
+
+        <div class="login-divider">or</div>
+
+        <a href="{% url 'waiter-login' %}" class="waiter-login-btn">
+            <i class="fa fa-th"></i> &nbsp; Login with Waiter Code
+        </a>
+
+        <div class="login-links">
+            <a href="{% url 'register' %}">Don't have an account? Register</a>
         </div>
     </div>
-</body>
-<br>
-    
-{% endblock content %}
+</div>
+
+{% endblock %}

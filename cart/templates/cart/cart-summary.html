@@ -1,217 +1,599 @@
-
-
-{% include "store/base.html" %}
-
-
+{% extends "menu/base.html" %}
 {% load static %}
 {% load mathfilters %}
 {% load humanize %}
 
-
 {% block content %}
 
+<style>
+    .rp-page {
+        max-width: 900px;
+        margin: 28px auto;
+        padding: 0 20px;
+    }
 
-<main class="pt-5">
-    
-    <div class="container">
-      
-      <h1 class="h5"> Shopping cart </h1>
+    .rp-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--pos-muted);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 16px;
+        transition: color 0.15s;
+    }
 
-	<hr>
+    .rp-back:hover { color: var(--pos-text); }
 
-  {% for item in cart %}
-  {% with product=item.product %}
-      
-      <br>
+    .rp-layout {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 16px;
+        align-items: start;
+    }
 
-      <div class="row mb-4 border product-item">
-        
-        <div class="col-md-3 col-lg-2 order-md-first bg-light">
-        
-            <img class="img-fluid mx-auto d-block" width="200px" alt="Responsive image" src="{{product.image.url}}"> 
-        
-        </div>
+    /* Left: Items */
+    .rp-items-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
 
-        
-        <div class="col-md-9 col-lg-10 ps-md-3 ps-lg-10">
-          
-          <a href="{{product.get_absolute_url}}" class=" text-info text-decoration-none "> <!-- Product get absolute url -->
-          
-            <h1 class="h5 pt-2"> {{product.title}} </h1>
-          
-          </a>
-          
-          <div class="border">
-            
-            <div class="col border-bottom">
-              
-                <div class="row p-3">
-              
-                <div class="col-6"> Product </div>
-              
-                <div class="col-6 text-end"><span class="h6 fw-bold">Ksh {{product.price|mul:item.qty |intcomma }}</span></div>
-            
-              </div>
-            
+    .rp-card-header {
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--pos-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .rp-card-header h2 {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .rp-item-count {
+        background: var(--pos-light);
+        color: var(--pos-blue);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 12px;
+    }
+
+    /* Table header */
+    .rp-table-head {
+        display: grid;
+        grid-template-columns: 1fr 80px 100px 70px;
+        padding: 10px 22px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--pos-border);
+        background: #fafbfc;
+    }
+
+    .rp-table-head span:nth-child(2),
+    .rp-table-head span:nth-child(3) { text-align: center; }
+    .rp-table-head span:last-child { text-align: right; }
+
+    /* Item row */
+    .rp-item {
+        display: grid;
+        grid-template-columns: 1fr 80px 100px 70px;
+        align-items: center;
+        padding: 14px 22px;
+        border-bottom: 1px solid #f5f6f7;
+        transition: background 0.1s;
+    }
+
+    .rp-item:last-child { border-bottom: none; }
+    .rp-item:hover { background: #fafbfc; }
+
+    .rp-item-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .rp-item-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--pos-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--pos-blue);
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .rp-item-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+
+    .rp-item-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .rp-item-unit {
+        font-size: 11px;
+        color: var(--pos-muted);
+    }
+
+    /* Qty controls */
+    .rp-qty-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+    }
+
+    .rp-qty-btn {
+        width: 26px;
+        height: 26px;
+        border: 1.5px solid var(--pos-border);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--pos-text);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.12s;
+    }
+
+    .rp-qty-btn:hover {
+        border-color: var(--pos-blue);
+        color: var(--pos-blue);
+        background: #f0f4ff;
+    }
+
+    .rp-qty-btn.remove:hover {
+        border-color: var(--pos-accent);
+        color: var(--pos-accent);
+        background: #fff5f5;
+    }
+
+    .rp-qty-num {
+        width: 28px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--pos-text);
+    }
+
+    .rp-item-subtotal {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--pos-text);
+        text-align: center;
+    }
+
+    .rp-item-remove {
+        text-align: right;
+    }
+
+    .rp-item-remove button {
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: none;
+        color: #ccc;
+        cursor: pointer;
+        border-radius: 6px;
+        font-size: 13px;
+        transition: all 0.12s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rp-item-remove button:hover {
+        color: var(--pos-accent);
+        background: #fff5f5;
+    }
+
+    /* Right: Summary sidebar */
+    .rp-summary-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        overflow: hidden;
+        position: sticky;
+        top: 72px;
+    }
+
+    .rp-summary-section {
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--pos-border);
+    }
+
+    .rp-summary-section:last-child { border-bottom: none; }
+
+    .rp-summary-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .rp-table-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid var(--pos-border);
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        background: #fff;
+        color: var(--pos-text);
+        transition: border-color 0.15s;
+        cursor: pointer;
+    }
+
+    .rp-table-select:focus {
+        border-color: var(--pos-blue);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(15,52,96,0.1);
+    }
+
+    .rp-notes-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid var(--pos-border);
+        border-radius: 10px;
+        font-size: 13px;
+        background: #fff;
+        color: var(--pos-text);
+        resize: none;
+        height: 70px;
+        font-family: inherit;
+        transition: border-color 0.15s;
+    }
+
+    .rp-notes-input:focus {
+        border-color: var(--pos-blue);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(15,52,96,0.1);
+    }
+
+    .rp-notes-input::placeholder { color: #bbb; }
+
+    .rp-cost-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 0;
+    }
+
+    .rp-cost-label {
+        font-size: 13px;
+        color: var(--pos-muted);
+    }
+
+    .rp-cost-value {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-text);
+    }
+
+    .rp-cost-divider {
+        border: none;
+        border-top: 1px dashed var(--pos-border);
+        margin: 10px 0;
+    }
+
+    .rp-cost-total .rp-cost-label {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+    }
+
+    .rp-cost-total .rp-cost-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--pos-blue);
+    }
+
+    .rp-place-btn {
+        width: 100%;
+        padding: 14px;
+        background: var(--pos-success);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .rp-place-btn:hover {
+        background: #00a884;
+        box-shadow: 0 4px 18px rgba(0,184,148,0.35);
+        transform: translateY(-1px);
+    }
+
+    .rp-place-btn:disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+    }
+
+    .rp-add-more {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        text-align: center;
+        color: var(--pos-muted);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1.5px dashed var(--pos-border);
+        border-radius: 10px;
+        margin-top: 10px;
+        transition: all 0.15s;
+    }
+
+    .rp-add-more:hover {
+        border-color: var(--pos-blue);
+        color: var(--pos-blue);
+        background: #f8f9ff;
+    }
+
+    /* Empty state */
+    .rp-empty {
+        text-align: center;
+        padding: 80px 30px;
+    }
+
+    .rp-empty-icon {
+        width: 72px;
+        height: 72px;
+        background: var(--pos-light);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 18px;
+        font-size: 28px;
+        color: #ccc;
+    }
+
+    .rp-empty h3 {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0 0 6px;
+    }
+
+    .rp-empty p {
+        font-size: 13px;
+        color: var(--pos-muted);
+        margin: 0 0 22px;
+    }
+
+    .rp-empty-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 11px 24px;
+        background: var(--pos-dark);
+        color: #fff;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.15s;
+    }
+
+    .rp-empty-btn:hover {
+        background: var(--pos-blue);
+        color: #fff;
+    }
+</style>
+
+<div class="rp-page">
+    <a href="{% url 'pos' %}" class="rp-back"><i class="fa fa-arrow-left"></i> Back to Menu</a>
+
+    {% if cart|length > 0 %}
+
+    <form method="POST" action="{% url 'place-order' %}" id="place-order-form">
+    {% csrf_token %}
+
+    <div class="rp-layout">
+        <!-- Left: Order items -->
+        <div class="rp-items-card">
+            <div class="rp-card-header">
+                <h2>Review Order</h2>
+                <span class="rp-item-count">{{ cart|length }} items</span>
             </div>
-            
-            <div class="col">
-              
-              <div class="row p-3">
-                
-                <div class="col-12">
-                  
-                  <label for="select">Qty</label>
 
-                  &nbsp; 
-                  
-                  <select id="select{{product.id}}">
-                  
-                    <option selected>
-                  
-                        {{item.qty}}
-                  
-                    </option>
-                  
-                    <option value="">1</option>
-                  
-                    <option value="">2</option>
-                  
-                    <option value="">3</option>
-                  
-                    <option value="">4</option>
-                  
-                  </select>
-                  
-                  <br> <br>
+            <div class="rp-table-head">
+                <span>Item</span>
+                <span>Qty</span>
+                <span>Subtotal</span>
+                <span></span>
+            </div>
 
-                  <button type="button" data-index="{{product.id}}"
-                    class="btn btn-primary btn-sm update-button">
-                    Update
-                  
-                  </button>
-                  
-                  &nbsp;
-
-                  <button type="button" data-index="{{product.id}}"
-                    class="btn btn-danger btn-sm delete-button">
-                    Delete
-        
-                  </button>
-        
-
+            {% for item in cart %}
+            {% with product=item.product %}
+            <div class="rp-item" data-id="{{ product.id }}">
+                <div class="rp-item-info">
+                    <div class="rp-item-icon">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="">
+                        {% else %}
+                        <i class="fa fa-cutlery"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="rp-item-name">{{ product.title|capfirst }}</div>
+                        <div class="rp-item-unit">Ksh {{ product.price|intcomma }}</div>
+                    </div>
                 </div>
-        
+
+                <div class="rp-qty-wrap">
+                    <button type="button" class="rp-qty-btn remove qty-decrease" data-id="{{ product.id }}">-</button>
+                    <span class="rp-qty-num" id="qty-{{ product.id }}">{{ item.qty }}</span>
+                    <button type="button" class="rp-qty-btn qty-increase" data-id="{{ product.id }}">+</button>
+                </div>
+
+                <div class="rp-item-subtotal" id="sub-{{ product.id }}">Ksh {{ product.price|mul:item.qty|intcomma }}</div>
+
+                <div class="rp-item-remove">
+                    <button type="button" class="delete-button" data-id="{{ product.id }}" title="Remove item">
+                        <i class="fa fa-trash-o"></i>
+                    </button>
+                </div>
             </div>
-        
-            </div>
-    
-            </div>
-    
+            {% endwith %}
+            {% endfor %}
         </div>
-      
+
+        <!-- Right: Summary -->
+        <div class="rp-summary-card">
+            <div class="rp-summary-section">
+                <div class="rp-summary-label">Assign Table</div>
+                <select name="table_id" class="rp-table-select" required>
+                    <option value="">-- Select a table --</option>
+                    {% for table in tables %}
+                    <option value="{{ table.id }}" {% if table.status != 'available' %}style="color:var(--pos-muted);"{% endif %}>
+                        Table {{ table.number }} &middot; {{ table.capacity }} seats
+                        {% if table.status != 'available' %} ({{ table.get_status_display }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="rp-summary-section">
+                <div class="rp-summary-label">Order Notes (optional)</div>
+                <textarea name="notes" class="rp-notes-input" placeholder="e.g. No onions, extra sauce..."></textarea>
+            </div>
+
+            <div class="rp-summary-section">
+                <div class="rp-cost-row">
+                    <span class="rp-cost-label">Subtotal</span>
+                    <span class="rp-cost-value" id="cost-subtotal">Ksh {{ cart.get_total|intcomma }}</span>
+                </div>
+                <div class="rp-cost-row">
+                    <span class="rp-cost-label">Items</span>
+                    <span class="rp-cost-value" id="cost-items">{{ cart|length }}</span>
+                </div>
+                <hr class="rp-cost-divider">
+                <div class="rp-cost-row rp-cost-total">
+                    <span class="rp-cost-label">Total</span>
+                    <span class="rp-cost-value" id="cost-total">Ksh {{ cart.get_total|intcomma }}</span>
+                </div>
+            </div>
+
+            <div class="rp-summary-section">
+                <button type="submit" class="rp-place-btn">
+                    <i class="fa fa-check-circle"></i> Place Order
+                </button>
+                <a href="{% url 'pos' %}" class="rp-add-more">
+                    <i class="fa fa-plus"></i> &nbsp; Add More Items
+                </a>
+            </div>
+        </div>
     </div>
-    {% endwith %}
-    {% endfor %}
-    
-      
 
+    </form>
 
-      <div class="col-12 text-end">
- 
-        <div class="h6 fw-bold"> Sub total: Ksh. {{cart.get_total |intcomma}} <div id="total" class="d-inline-flex"> </div></div>
- 
-      </div>
- 
+    {% else %}
 
+    <div class="rp-items-card">
+        <div class="rp-empty">
+            <div class="rp-empty-icon"><i class="fa fa-shopping-basket"></i></div>
+            <h3>Your order is empty</h3>
+            <p>Head back to the menu and tap items to build your order</p>
+            <a href="{% url 'pos' %}" class="rp-empty-btn">
+                <i class="fa fa-cutlery"></i> Browse Menu
+            </a>
+        </div>
     </div>
-    <br>
-    <br>
-  
 
- </main>
+    {% endif %}
+</div>
 
- 
+<script>
+    // Increase quantity
+    $(document).on('click', '.qty-increase', function() {
+        var id = $(this).data('id');
+        var current = parseInt($('#qty-' + id).text());
+        updateQty(id, current + 1);
+    });
 
- <script>
+    // Decrease quantity
+    $(document).on('click', '.qty-decrease', function() {
+        var id = $(this).data('id');
+        var current = parseInt($('#qty-' + id).text());
+        if (current <= 1) {
+            deleteItem(id);
+        } else {
+            updateQty(id, current - 1);
+        }
+    });
 
-  //delete button
-  $(document).on('click', '.delete-button', function(e){
+    // Remove item
+    $(document).on('click', '.delete-button', function() {
+        deleteItem($(this).data('id'));
+    });
 
-        e.preventDefault();
-
-        $.ajax({
-            type: 'POST',
-            url: '{% url "cart-delete" %}',
-            data: {
-                product_id: $(this).data('index'),
-                csrfmiddlewaretoken: "{{csrf_token}}",
-                action: 'post'
-
-            },
-            success: function(json){
-
-              location.reload(true);
-                
-
-                document.getElementById("cart-qty").textContent=json.qty
-                document.getElementById("total").textContent=json.total
-
-            },
-
-            eroor: function(xht, errmsg, err){
-
-
-            }
- 
-
-        });
-
-
-    })
-
-    //update button
-     $(document).on('click', '.update-button', function(e){
-
-        e.preventDefault();
-
-        var theproductid= $(this).data('index');
-
+    function updateQty(productId, qty) {
         $.ajax({
             type: 'POST',
             url: '{% url "cart-update" %}',
             data: {
-                product_id: $(this).data('index'),
-                product_quantity: $('#select' + theproductid + ' option:selected').text(),
-                csrfmiddlewaretoken: "{{csrf_token}}",
+                product_id: productId,
+                product_quantity: qty,
+                csrfmiddlewaretoken: '{{ csrf_token }}',
                 action: 'post'
-
             },
-            success: function(json){
-
-              location.reload(true);
-                
-
-                document.getElementById("cart-qty").textContent=json.qty
-                document.getElementById("total").textContent=json.total
-
-            },
-
-            eroor: function(xht, errmsg, err){
-
-
-            }
- 
-
+            success: function() { location.reload(); }
         });
+    }
 
-
-    })
-
-
- </script>
-
-
+    function deleteItem(productId) {
+        $.ajax({
+            type: 'POST',
+            url: '{% url "cart-delete" %}',
+            data: {
+                product_id: productId,
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                action: 'post'
+            },
+            success: function() { location.reload(); }
+        });
+    }
+</script>
 
 {% endblock %}
-

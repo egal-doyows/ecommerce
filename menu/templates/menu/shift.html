@@ -1,0 +1,382 @@
+{% extends "./base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .shift-page { max-width: 700px; margin: 30px auto; padding: 0 20px; }
+
+    .shift-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .shift-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0;
+    }
+
+    /* Active shift card */
+    .shift-active-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+        padding: 28px;
+        margin-bottom: 28px;
+        border-left: 5px solid #22c55e;
+    }
+
+    .shift-active-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .shift-active-label {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #22c55e;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+
+    .shift-active-label .pulse {
+        width: 8px;
+        height: 8px;
+        background: #22c55e;
+        border-radius: 50%;
+        animation: pulse-dot 1.5s infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+
+    .shift-active-time {
+        font-size: 14px;
+        color: var(--pos-muted);
+        margin-top: 2px;
+    }
+
+    .shift-clock-out-btn {
+        padding: 10px 24px;
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .shift-clock-out-btn:hover {
+        background: #fecaca;
+    }
+
+    .shift-stats {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+    }
+
+    .shift-stat {
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+    }
+
+    .shift-stat-value {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--pos-text);
+        line-height: 1.2;
+    }
+
+    .shift-stat-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-top: 2px;
+    }
+
+    /* No active shift */
+    .shift-inactive-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+        padding: 48px 28px;
+        margin-bottom: 28px;
+        text-align: center;
+    }
+
+    .shift-inactive-card i {
+        font-size: 40px;
+        color: #d1d5db;
+        margin-bottom: 12px;
+    }
+
+    .shift-inactive-card h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0 0 4px;
+    }
+
+    .shift-inactive-card p {
+        font-size: 13px;
+        color: var(--pos-muted);
+        margin: 0 0 20px;
+    }
+
+    .shift-clockin-form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .shift-cash-input-wrap {
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .shift-cash-input-wrap label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        margin-bottom: 6px;
+        text-align: left;
+    }
+
+    .shift-cash-input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--pos-text);
+        text-align: center;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+
+    .shift-cash-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    }
+
+    .shift-cash-input::placeholder { color: #c9cdd3; }
+
+    .shift-clock-in-btn {
+        padding: 12px 32px;
+        background: #6366f1;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .shift-clock-in-btn:hover {
+        background: #4f46e5;
+        box-shadow: 0 4px 14px rgba(99,102,241,0.3);
+    }
+
+    /* Past shifts */
+    .shift-history-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 12px;
+    }
+
+    .shift-history-card {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        margin-bottom: 8px;
+        transition: all 0.15s;
+        display: block;
+        text-decoration: none;
+        color: var(--pos-text);
+    }
+
+    .shift-history-card:hover {
+        box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        color: var(--pos-text);
+        text-decoration: none;
+    }
+
+    .shift-history-body {
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .shift-history-date {
+        min-width: 90px;
+    }
+
+    .shift-history-date-day {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--pos-text);
+    }
+
+    .shift-history-date-time {
+        font-size: 11px;
+        color: var(--pos-muted);
+    }
+
+    .shift-history-info {
+        flex: 1;
+        display: flex;
+        gap: 20px;
+        font-size: 13px;
+        color: var(--pos-muted);
+    }
+
+    .shift-history-info span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .shift-history-sales {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--pos-text);
+        text-align: right;
+        min-width: 100px;
+    }
+
+    .shift-empty {
+        text-align: center;
+        padding: 32px;
+        color: var(--pos-muted);
+        font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+        .shift-stats { grid-template-columns: repeat(2, 1fr); }
+        .shift-history-info { flex-direction: column; gap: 4px; }
+    }
+</style>
+
+<div class="shift-page">
+    <div class="shift-header">
+        <h2><i class="fa fa-clock-o"></i> &nbsp; My Shift</h2>
+    </div>
+
+    {% if active_shift %}
+    <!-- Active shift -->
+    <div class="shift-active-card">
+        <div class="shift-active-top">
+            <div>
+                <div class="shift-active-label">
+                    <span class="pulse"></span> Shift Active
+                </div>
+                <div class="shift-active-time">
+                    Clocked in at {{ active_shift.started_at|date:"h:i A" }} &middot; {{ active_shift.get_duration }}
+                </div>
+            </div>
+            <form method="POST" action="{% url 'shift-clock-out' %}">
+                {% csrf_token %}
+                <button type="submit" class="shift-clock-out-btn" onclick="return confirm('End your current shift?')">
+                    <i class="fa fa-stop-circle"></i> Clock Out
+                </button>
+            </form>
+        </div>
+
+        <div class="shift-stats">
+            <div class="shift-stat">
+                <div class="shift-stat-value">Ksh {{ active_shift.starting_cash|intcomma }}</div>
+                <div class="shift-stat-label">Starting Cash</div>
+            </div>
+            <div class="shift-stat">
+                <div class="shift-stat-value">{{ active_shift.get_order_count }}</div>
+                <div class="shift-stat-label">Orders</div>
+            </div>
+            <div class="shift-stat">
+                <div class="shift-stat-value">{{ active_shift.get_total_items }}</div>
+                <div class="shift-stat-label">Items</div>
+            </div>
+            <div class="shift-stat">
+                <div class="shift-stat-value">{{ active_shift.get_duration }}</div>
+                <div class="shift-stat-label">Duration</div>
+            </div>
+            <div class="shift-stat">
+                <div class="shift-stat-value">Ksh {{ active_shift.get_total_sales|intcomma }}</div>
+                <div class="shift-stat-label">Sales (Paid)</div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No active shift -->
+    <div class="shift-inactive-card">
+        <i class="fa fa-clock-o"></i>
+        <h3>You're not clocked in</h3>
+        <p>Start a shift to begin taking orders. Enter your starting cash amount.</p>
+        <form method="POST" action="{% url 'shift-clock-in' %}" class="shift-clockin-form">
+            {% csrf_token %}
+            <div class="shift-cash-input-wrap">
+                <label for="starting_cash">Starting Cash (Ksh)</label>
+                <input type="number" name="starting_cash" id="starting_cash" min="0" step="0.01" placeholder="0.00" required class="shift-cash-input">
+            </div>
+            <button type="submit" class="shift-clock-in-btn">
+                <i class="fa fa-play-circle"></i> &nbsp; Clock In
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Past shifts -->
+    {% if past_shifts %}
+    <div class="shift-history-title">Recent Shifts</div>
+
+    {% for shift in past_shifts %}
+    <a href="{% url 'shift-detail' shift.id %}" class="shift-history-card">
+        <div class="shift-history-body">
+            <div class="shift-history-date">
+                <div class="shift-history-date-day">{{ shift.started_at|date:"d M Y" }}</div>
+                <div class="shift-history-date-time">{{ shift.started_at|date:"h:i A" }} — {{ shift.ended_at|date:"h:i A" }}</div>
+            </div>
+            <div class="shift-history-info">
+                <span><i class="fa fa-clock-o"></i> {{ shift.get_duration }}</span>
+                <span><i class="fa fa-list-alt"></i> {{ shift.get_order_count }} orders</span>
+                <span><i class="fa fa-shopping-basket"></i> {{ shift.get_total_items }} items</span>
+            </div>
+            <div class="shift-history-sales">Ksh {{ shift.get_total_sales|intcomma }}</div>
+        </div>
+    </a>
+    {% endfor %}
+
+    {% else %}
+    {% if not active_shift %}
+    <div class="shift-empty">No previous shifts found</div>
+    {% endif %}
+    {% endif %}
+</div>
+
+{% endblock %}

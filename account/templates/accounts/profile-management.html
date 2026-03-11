@@ -1,49 +1,98 @@
-{% include 'store/base.html' %}
+{% extends "menu/base.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
 
 {% block content %}
 
-<body>
+<style>
+    .profile-container {
+        max-width: 500px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
 
-    <style>
-        body{
-            background-color: gray;
-        }
-    </style>
-    <br>
+    .profile-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
 
-    <div class="container bg-white shadow-md p-5 form-layout">
-        <h3> <i class="fa fa-address-book" aria-hidden="true"></i> &nbsp; Profile Management</h3>
-        
+    .profile-card-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--pos-border);
+    }
+
+    .profile-card-header h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0;
+    }
+
+    .profile-card-body {
+        padding: 24px;
+    }
+
+    .profile-update-btn {
+        width: 100%;
+        padding: 12px;
+        background: var(--pos-dark);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .profile-update-btn:hover {
+        background: var(--pos-blue);
+    }
+
+    .profile-danger-btn {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        background: none;
+        color: var(--pos-accent);
+        border: 1px solid var(--pos-accent);
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        margin-top: 12px;
+        transition: all 0.2s;
+    }
+
+    .profile-danger-btn:hover {
+        background: var(--pos-accent);
+        color: #fff;
+    }
+</style>
+
+<div class="profile-container">
+    <div class="profile-card">
+        <div class="profile-card-header">
+            <h3><i class="fa fa-user-circle"></i> &nbsp; Account Settings</h3>
+        </div>
+        <div class="profile-card-body">
+            <form method="POST" autocomplete="off">
+                {% csrf_token %}
+                {{ user_form.username|as_crispy_field }}
+                <br>
+                {{ user_form.email|as_crispy_field }}
+                <br>
+                <button type="submit" class="profile-update-btn">Save Changes</button>
+            </form>
+            <a class="profile-danger-btn" href="{% url 'delete-account' %}">
+                <i class="fa fa-trash"></i> &nbsp; Delete Account
+            </a>
+        </div>
     </div>
+</div>
 
-
-    <br>
-
-
-    <div class="container bg-white shadow-md p-5 form-layout">
-        <h3>Update your account</h3>
-        
-        <br>
-        <form method="POST" autocomplete="off" >
-            {% csrf_token %}
-            {{user_form.username|as_crispy_field}}
-            <br>
-
-            
-            {{user_form.email|as_crispy_field}}
-            
-
-            <br>
-            <br>
-            <button type="submit" class="btn btn-secondary btn-lg w-100 btn-block p-2">update</button>
-        </form>
-        <br> <br>
-
-        <a class="btn btn-danger btn-lg w-100 btn-block p-2" href="{% url 'delete-account' %}">Delete Your account</a>
-    </div>
-</body>
-<br>
-    
-{% endblock content %}
+{% endblock %}

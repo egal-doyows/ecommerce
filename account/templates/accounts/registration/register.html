@@ -1,53 +1,100 @@
-{% include 'store/base.html' %}
+{% extends "menu/base.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
 
 {% block content %}
 
-<body>
+<style>
+    .register-wrapper {
+        min-height: calc(100vh - 60px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        padding: 20px;
+    }
 
-    <style>
-        body{
-            background-color: gray;
-        }
-    </style>
-    <br>
-    <div class="container bg-white shadow-md p-5 form-layout">
-        <h3>Create your account</h3>
-        
+    .register-card {
+        width: 100%;
+        max-width: 440px;
+        background: #fff;
+        border-radius: 16px;
+        padding: 40px 32px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
 
-   
-        <br>
-        <form method="POST" autocomplete="off" >
+    .register-card h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--pos-text);
+        text-align: center;
+        margin-bottom: 4px;
+    }
+
+    .register-card .subtitle {
+        text-align: center;
+        color: var(--pos-muted);
+        font-size: 14px;
+        margin-bottom: 28px;
+    }
+
+    .register-btn {
+        width: 100%;
+        padding: 13px;
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .register-btn:hover {
+        box-shadow: 0 6px 20px rgba(15,52,96,0.4);
+        transform: translateY(-1px);
+    }
+
+    .register-links {
+        text-align: center;
+        margin-top: 20px;
+    }
+
+    .register-links a {
+        color: var(--pos-muted);
+        font-size: 13px;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .register-links a:hover {
+        color: var(--pos-blue);
+    }
+</style>
+
+<div class="register-wrapper">
+    <div class="register-card">
+        <h3>Create Account</h3>
+        <p class="subtitle">Set up your staff account</p>
+
+        <form method="POST" autocomplete="off">
             {% csrf_token %}
-            {{form.username|as_crispy_field}}
+            {{ form.username|as_crispy_field }}
             <br>
-
-            {{form.email|as_crispy_field}}
+            {{ form.email|as_crispy_field }}
             <br>
-
-            {{form.password1|as_crispy_field}}
+            {{ form.password1|as_crispy_field }}
             <br>
-
-            {{form.password2|as_crispy_field}}
-
+            {{ form.password2|as_crispy_field }}
             <br>
-        
-            <button type="submit" class="btn btn-primary btn-lg w-100 btn-block p-2">Create Account</button>
+            <button type="submit" class="register-btn">Create Account</button>
         </form>
 
-
-         <br>
-        <div class="text-center">
-        <a href="{% url 'my-login'%}"> Already have an account? </a>
-        
+        <div class="register-links">
+            <a href="{% url 'my-login' %}">Already have an account? Login</a>
         </div>
-
-
-
-
     </div>
-</body>
-<br>
-    
-{% endblock content %}
+</div>
+
+{% endblock %}

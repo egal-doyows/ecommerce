@@ -1,0 +1,202 @@
+{% extends "./base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .sd-page { max-width: 700px; margin: 30px auto; padding: 0 20px; }
+
+    .sd-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--pos-muted);
+        text-decoration: none;
+        margin-bottom: 16px;
+    }
+
+    .sd-back:hover { color: var(--pos-text); }
+
+    .sd-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .sd-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0 0 4px;
+    }
+
+    .sd-subtitle {
+        font-size: 13px;
+        color: var(--pos-muted);
+        margin-bottom: 20px;
+    }
+
+    .sd-stats {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+    }
+
+    .sd-stat {
+        background: #f9fafb;
+        border-radius: 10px;
+        padding: 14px;
+        text-align: center;
+    }
+
+    .sd-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--pos-text);
+    }
+
+    .sd-stat-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-top: 2px;
+    }
+
+    .sd-orders-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 12px;
+    }
+
+    .sd-order {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        margin-bottom: 8px;
+        display: block;
+        text-decoration: none;
+        color: var(--pos-text);
+        border-left: 4px solid transparent;
+        transition: box-shadow 0.15s;
+    }
+
+    .sd-order:hover {
+        box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        color: var(--pos-text);
+        text-decoration: none;
+    }
+
+    .sd-order-paid { border-left-color: #22c55e; }
+    .sd-order-cancelled { border-left-color: #ef4444; }
+    .sd-order-active { border-left-color: #3b82f6; }
+    .sd-order-preparing { border-left-color: #f59e0b; }
+    .sd-order-ready { border-left-color: #10b981; }
+    .sd-order-served { border-left-color: #6b7280; }
+
+    .sd-order-body {
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .sd-order-id {
+        font-size: 14px;
+        font-weight: 700;
+        min-width: 55px;
+    }
+
+    .sd-order-info {
+        flex: 1;
+        font-size: 13px;
+        color: var(--pos-muted);
+    }
+
+    .sd-order-info strong {
+        color: var(--pos-text);
+        display: block;
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+
+    .sd-order-total {
+        font-size: 14px;
+        font-weight: 700;
+        min-width: 90px;
+        text-align: right;
+    }
+
+    .sd-empty {
+        text-align: center;
+        padding: 32px;
+        color: var(--pos-muted);
+        font-size: 13px;
+    }
+
+    @media (max-width: 600px) {
+        .sd-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+
+<div class="sd-page">
+    <a href="{% url 'shift' %}" class="sd-back"><i class="fa fa-arrow-left"></i> Back to Shifts</a>
+
+    <div class="sd-card">
+        <div class="sd-title">Shift #{{ shift.id }}</div>
+        <div class="sd-subtitle">
+            {{ shift.started_at|date:"d M Y, h:i A" }}
+            {% if shift.ended_at %} — {{ shift.ended_at|date:"h:i A" }}{% endif %}
+        </div>
+
+        <div class="sd-stats">
+            <div class="sd-stat">
+                <div class="sd-stat-value">Ksh {{ shift.starting_cash|intcomma }}</div>
+                <div class="sd-stat-label">Starting Cash</div>
+            </div>
+            <div class="sd-stat">
+                <div class="sd-stat-value">{{ shift.get_duration }}</div>
+                <div class="sd-stat-label">Duration</div>
+            </div>
+            <div class="sd-stat">
+                <div class="sd-stat-value">{{ shift.get_order_count }}</div>
+                <div class="sd-stat-label">Orders</div>
+            </div>
+            <div class="sd-stat">
+                <div class="sd-stat-value">{{ shift.get_total_items }}</div>
+                <div class="sd-stat-label">Items</div>
+            </div>
+            <div class="sd-stat">
+                <div class="sd-stat-value">Ksh {{ shift.get_total_sales|intcomma }}</div>
+                <div class="sd-stat-label">Sales (Paid)</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sd-orders-title">Orders in this shift</div>
+
+    {% for order in orders %}
+    <a href="{% url 'order-detail' order.id %}" class="sd-order sd-order-{{ order.status }}">
+        <div class="sd-order-body">
+            <div class="sd-order-id">#{{ order.id }}</div>
+            <div class="sd-order-info">
+                <strong>{{ order.table }}</strong>
+                {{ order.created_at|date:"h:i A" }} &middot; {{ order.get_item_count }} items
+            </div>
+            <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+            <div class="sd-order-total">Ksh {{ order.get_total|intcomma }}</div>
+        </div>
+    </a>
+    {% empty %}
+    <div class="sd-empty">No orders were placed during this shift</div>
+    {% endfor %}
+</div>
+
+{% endblock %}

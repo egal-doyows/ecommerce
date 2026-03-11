@@ -1,0 +1,472 @@
+{% extends "./base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .od-page { max-width: 650px; margin: 30px auto; padding: 0 20px; }
+
+    .od-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    }
+
+    .od-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--pos-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .od-header h2 { font-size: 17px; font-weight: 700; margin: 0; color: var(--pos-text); }
+
+    .od-meta {
+        padding: 16px 24px;
+        background: #fafafa;
+        display: flex;
+        gap: 24px;
+        font-size: 13px;
+        color: var(--pos-muted);
+        border-bottom: 1px solid var(--pos-border);
+    }
+
+    .od-meta strong { color: var(--pos-text); }
+
+    .od-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 24px;
+        gap: 12px;
+        border-bottom: 1px solid #f5f5f5;
+    }
+
+    .od-item-qty {
+        width: 28px;
+        height: 28px;
+        background: var(--pos-light);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-blue);
+    }
+
+    .od-item-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--pos-text); }
+    .od-item-notes { font-size: 11px; color: var(--pos-muted); font-style: italic; }
+    .od-item-price { font-size: 13px; font-weight: 700; color: var(--pos-text); }
+
+    .od-footer {
+        padding: 20px 24px;
+        border-top: 2px solid var(--pos-border);
+    }
+
+    .od-total {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .od-total-label { font-size: 14px; color: var(--pos-muted); }
+    .od-total-amount { font-size: 22px; font-weight: 800; color: var(--pos-text); }
+
+    .od-print-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 14px 20px;
+        border: 2px solid var(--pos-border);
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 10px;
+    }
+
+    .od-print-btn i { font-size: 17px; }
+
+    .od-print-btn:hover {
+        transform: translateY(-1px);
+        border-color: #6366f1;
+        color: #6366f1;
+        box-shadow: 0 4px 12px rgba(99,102,241,0.15);
+    }
+
+    /* ===== POS Receipt (80mm thermal printer) ===== */
+    .receipt {
+        display: none;
+    }
+
+    @media print {
+        /* Hide everything except the receipt */
+        body * { visibility: hidden !important; }
+        .receipt, .receipt * { visibility: visible !important; }
+
+        .receipt {
+            display: block !important;
+            position: fixed;
+            top: 0; left: 0;
+            width: 80mm;
+            padding: 4mm 3mm;
+            margin: 0;
+            background: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
+        }
+
+        .receipt-center { text-align: center; }
+        .receipt-bold { font-weight: bold; }
+        .receipt-lg { font-size: 16px; font-weight: bold; }
+        .receipt-sm { font-size: 10px; }
+
+        .receipt-divider {
+            border: none;
+            border-top: 1px dashed #000;
+            margin: 6px 0;
+        }
+
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .receipt-item {
+            margin-bottom: 2px;
+        }
+
+        .receipt-item-name {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .receipt-item-detail {
+            font-size: 10px;
+            color: #555;
+            padding-left: 2mm;
+        }
+
+        .receipt-total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+            font-weight: bold;
+            padding: 4px 0;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            font-size: 10px;
+            margin-top: 6px;
+        }
+    }
+
+    /* Payment section */
+    .od-payment-section { margin-bottom: 16px; }
+    .od-payment-label { font-size: 14px; font-weight: 700; color: var(--pos-text); margin-bottom: 12px; }
+
+    .od-pay-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+
+    .od-pay-tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 14px 10px;
+        border: 2px solid var(--pos-border);
+        border-radius: 12px;
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+    }
+
+    .od-pay-tab i { font-size: 22px; }
+    .od-pay-tab span { font-size: 12px; font-weight: 600; }
+
+    .od-pay-tab:hover { border-color: #a5b4fc; background: #eef2ff; }
+
+    .od-pay-tab.selected { border-color: #6366f1; background: #eef2ff; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+    .od-pay-tab.selected i { color: #6366f1; }
+
+    .od-mpesa-input {
+        display: none;
+        margin-bottom: 14px;
+    }
+
+    .od-mpesa-input.show { display: block; }
+
+    .od-mpesa-input input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid var(--pos-border);
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+
+    .od-mpesa-input input:focus { border-color: #6366f1; }
+    .od-mpesa-input input::placeholder { text-transform: none; letter-spacing: 0; font-weight: 400; color: #aaa; }
+
+    .od-pay-confirm {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 16px 20px;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 14px rgba(22,163,74,0.35);
+        margin-top: 4px;
+    }
+
+    .od-pay-confirm i { font-size: 18px; }
+
+    .od-pay-confirm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(22,163,74,0.45);
+        background: linear-gradient(135deg, #16a34a, #15803d);
+    }
+
+    .od-pay-confirm:disabled {
+        background: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .od-paid-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        background: #ecfdf5;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #065f46;
+        margin-bottom: 16px;
+    }
+
+    .od-paid-info i { font-size: 18px; color: var(--pos-success); }
+
+    .od-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--pos-muted);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 16px;
+    }
+
+    .od-back:hover { color: var(--pos-text); }
+</style>
+
+<div class="od-page">
+    <a href="{% url 'order-list' %}" class="od-back"><i class="fa fa-arrow-left"></i> All Orders</a>
+
+    <div class="od-card">
+        <div class="od-header">
+            <h2>Order #{{ order.id }}</h2>
+            <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+        </div>
+
+        <div class="od-meta">
+            <div><i class="fa fa-th-large"></i> &nbsp; <strong>{{ order.table }}</strong></div>
+            <div><i class="fa fa-user"></i> &nbsp; <strong>{{ order.waiter.username|capfirst }}</strong></div>
+            <div><i class="fa fa-clock-o"></i> &nbsp; {{ order.created_at|date:"H:i" }}</div>
+            <div><i class="fa fa-shopping-basket"></i> &nbsp; {{ order.get_item_count }} items</div>
+        </div>
+
+        {% for item in order.items.all %}
+        <div class="od-item">
+            <div class="od-item-qty">{{ item.quantity }}</div>
+            <div style="flex:1;">
+                <div class="od-item-name">{{ item.menu_item.title|capfirst }}</div>
+                {% if item.notes %}<div class="od-item-notes">{{ item.notes }}</div>{% endif %}
+            </div>
+            <div class="od-item-price">Ksh {{ item.get_subtotal|intcomma }}</div>
+        </div>
+        {% endfor %}
+
+        {% if order.notes %}
+        <div style="padding:12px 24px; font-size:13px; color:var(--pos-muted); background:#fffbeb; border-top:1px solid var(--pos-border);">
+            <strong>Note:</strong> {{ order.notes }}
+        </div>
+        {% endif %}
+
+        <div class="od-footer">
+            <div class="od-total">
+                <span class="od-total-label">Total</span>
+                <span class="od-total-amount">Ksh {{ order.get_total|intcomma }}</span>
+            </div>
+
+            {% if order.status == 'paid' %}
+            <div class="od-paid-info">
+                <i class="fa fa-check-circle"></i>
+                Paid via <strong>{{ order.get_payment_method_display }}</strong>
+                {% if order.mpesa_code %} &mdash; Code: <strong>{{ order.mpesa_code }}</strong>{% endif %}
+            </div>
+            {% endif %}
+
+            {% if order.status == 'active' %}
+            <div class="od-payment-section">
+                <div class="od-payment-label">Select Payment Method</div>
+                <form method="POST" action="{% url 'order-update-status' order.id %}" id="payForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="status" value="paid">
+                    <input type="hidden" name="payment_method" id="paymentMethod" value="">
+
+                    <div class="od-pay-tabs">
+                        <div class="od-pay-tab" data-method="cash" onclick="selectPayment('cash')">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                            <span>Cash</span>
+                        </div>
+                        <div class="od-pay-tab" data-method="mpesa" onclick="selectPayment('mpesa')">
+                            <i class="fa-solid fa-mobile-screen-button"></i>
+                            <span>M-Pesa</span>
+                        </div>
+                        <div class="od-pay-tab" data-method="card" onclick="selectPayment('card')">
+                            <i class="fa-solid fa-credit-card"></i>
+                            <span>Card</span>
+                        </div>
+                    </div>
+
+                    <div class="od-mpesa-input" id="mpesaInput">
+                        <input type="text" name="mpesa_code" id="mpesaCode" placeholder="Enter M-Pesa transaction code" maxlength="20">
+                    </div>
+
+                    <button type="submit" class="od-pay-confirm" id="payBtn" disabled>
+                        <i class="fa fa-check-circle"></i> Confirm Payment
+                    </button>
+                </form>
+            </div>
+
+            <script>
+                function selectPayment(method) {
+                    document.getElementById('paymentMethod').value = method;
+                    document.querySelectorAll('.od-pay-tab').forEach(t => t.classList.remove('selected'));
+                    document.querySelector('[data-method="'+method+'"]').classList.add('selected');
+
+                    const mpesaInput = document.getElementById('mpesaInput');
+                    const mpesaCode = document.getElementById('mpesaCode');
+                    const payBtn = document.getElementById('payBtn');
+
+                    if (method === 'mpesa') {
+                        mpesaInput.classList.add('show');
+                        mpesaCode.required = true;
+                        payBtn.disabled = !mpesaCode.value.trim();
+                    } else {
+                        mpesaInput.classList.remove('show');
+                        mpesaCode.required = false;
+                        mpesaCode.value = '';
+                        payBtn.disabled = false;
+                    }
+                }
+
+                document.getElementById('mpesaCode').addEventListener('input', function() {
+                    document.getElementById('payBtn').disabled = !this.value.trim();
+                });
+            </script>
+            {% endif %}
+
+            <button class="od-print-btn" onclick="window.print()">
+                <i class="fa-solid fa-print"></i> Print Receipt
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- POS Thermal Receipt (visible only when printing) -->
+<div class="receipt">
+    <div class="receipt-center receipt-lg">RestoPOS</div>
+    <div class="receipt-center receipt-sm">Your Favourite Restaurant</div>
+    <div class="receipt-center receipt-sm">Tel: +254 700 000 000</div>
+    <hr class="receipt-divider">
+
+    <div class="receipt-row">
+        <span>Order #{{ order.id }}</span>
+        <span>{{ order.created_at|date:"d/m/Y" }}</span>
+    </div>
+    <div class="receipt-row">
+        <span>{{ order.table }}</span>
+        <span>{{ order.created_at|date:"H:i" }}</span>
+    </div>
+    <div class="receipt-row receipt-sm">
+        <span>Waiter: {{ order.waiter.username|capfirst }}</span>
+    </div>
+    <hr class="receipt-divider">
+
+    <div class="receipt-bold receipt-row" style="margin-bottom:4px;">
+        <span>Item</span>
+        <span>Amount</span>
+    </div>
+
+    {% for item in order.items.all %}
+    <div class="receipt-item">
+        <div class="receipt-item-name">
+            <span>{{ item.quantity }}x {{ item.menu_item.title|capfirst }}</span>
+            <span>{{ item.get_subtotal|intcomma }}</span>
+        </div>
+        {% if item.notes %}
+        <div class="receipt-item-detail">{{ item.notes }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <hr class="receipt-divider">
+
+    <div class="receipt-total-row">
+        <span>TOTAL</span>
+        <span>Ksh {{ order.get_total|intcomma }}</span>
+    </div>
+
+    <hr class="receipt-divider">
+
+    {% if order.payment_method %}
+    <div class="receipt-row">
+        <span>Payment:</span>
+        <span>{{ order.get_payment_method_display }}</span>
+    </div>
+    {% if order.mpesa_code %}
+    <div class="receipt-row receipt-sm">
+        <span>M-Pesa Code:</span>
+        <span>{{ order.mpesa_code }}</span>
+    </div>
+    {% endif %}
+    <hr class="receipt-divider">
+    {% endif %}
+
+    <div class="receipt-footer">
+        <p style="margin:4px 0;">Thank you for dining with us!</p>
+        <p style="margin:2px 0;">www.restopos.co.ke</p>
+    </div>
+</div>
+
+{% endblock %}

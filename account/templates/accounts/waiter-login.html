@@ -1,0 +1,244 @@
+{% extends "menu/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    .waiter-wrapper {
+        min-height: calc(100vh - 60px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        padding: 20px;
+    }
+
+    .waiter-card {
+        max-width: 440px;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 50px 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .logo-wrapper {
+        width: 90px;
+        height: 90px;
+        margin: 0 auto 25px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 3px solid #e9ecef;
+    }
+
+    .logo-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .waiter-card h4 {
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 6px;
+    }
+
+    .waiter-card .subtitle {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 30px;
+    }
+
+    .digit-inputs {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 30px;
+    }
+
+    .digit-input {
+        width: 50px;
+        height: 58px;
+        text-align: center;
+        font-size: 24px;
+        font-weight: 700;
+        color: #1a1a2e;
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .digit-input:focus {
+        border-color: #0f3460;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(15, 52, 96, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .digit-input.filled {
+        border-color: #0f3460;
+        background: #fff;
+    }
+
+    .btn-waiter-login {
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 14px;
+        border-radius: 12px;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .btn-waiter-login:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(15, 52, 96, 0.4);
+        color: #fff;
+    }
+
+    .waiter-card .alt-link {
+        color: #6c757d;
+        font-size: 13px;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .waiter-card .alt-link:hover {
+        color: #0f3460;
+    }
+
+    .divider {
+        display: flex;
+        align-items: center;
+        margin: 25px 0 20px;
+        color: #adb5bd;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #dee2e6;
+    }
+
+    .divider::before { margin-right: 12px; }
+    .divider::after { margin-left: 12px; }
+
+    .alert-danger {
+        border: none;
+        border-radius: 10px;
+        background: #fff5f5;
+        color: #c0392b;
+        font-size: 14px;
+        padding: 12px 16px;
+    }
+</style>
+
+<div class="waiter-wrapper">
+<div class="waiter-card">
+    <div class="text-center">
+        <div class="logo-wrapper">
+            <img src="https://placehold.co/120x120?text=Logo" alt="Logo">
+        </div>
+        <h4>Waiter Login</h4>
+        <p class="subtitle">Enter your 6-digit access code</p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger text-center" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" autocomplete="off" id="waiter-form">
+        {% csrf_token %}
+        <input type="hidden" name="code" id="code-hidden">
+
+        <div class="digit-inputs">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autofocus>
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+        </div>
+
+        <button type="submit" class="btn btn-waiter-login">
+            Login
+        </button>
+    </form>
+
+    <div class="divider">or</div>
+
+    <div class="text-center">
+        <a href="{% url 'my-login' %}" class="alt-link">Login with username & password</a>
+    </div>
+</div>
+</div>
+
+<script>
+    const inputs = document.querySelectorAll('.digit-input');
+    const hidden = document.getElementById('code-hidden');
+
+    inputs.forEach((input, index) => {
+        input.addEventListener('input', function () {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value) {
+                this.classList.add('filled');
+            } else {
+                this.classList.remove('filled');
+            }
+            if (this.value && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            } else if (this.value && index === inputs.length - 1) {
+                submitIfComplete();
+            }
+        });
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Backspace' && !this.value && index > 0) {
+                inputs[index - 1].focus();
+                inputs[index - 1].classList.remove('filled');
+            }
+        });
+
+        input.addEventListener('paste', function (e) {
+            e.preventDefault();
+            const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+            for (let i = 0; i < pasted.length && i < inputs.length; i++) {
+                inputs[i].value = pasted[i];
+                inputs[i].classList.add('filled');
+            }
+            const nextIndex = Math.min(pasted.length, inputs.length - 1);
+            inputs[nextIndex].focus();
+            if (pasted.length === 6) {
+                submitIfComplete();
+            }
+        });
+    });
+
+    function submitIfComplete() {
+        let code = '';
+        inputs.forEach(input => { code += input.value; });
+        if (code.length === 6) {
+            hidden.value = code;
+            document.getElementById('waiter-form').submit();
+        }
+    }
+
+    document.getElementById('waiter-form').addEventListener('submit', function () {
+        let code = '';
+        inputs.forEach(input => { code += input.value; });
+        hidden.value = code;
+    });
+</script>
+
+{% endblock content %}

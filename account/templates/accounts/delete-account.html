@@ -1,36 +1,104 @@
-<h1>Delete account</h1>{% include 'store/base.html' %}
+{% extends "menu/base.html" %}
 {% load static %}
-{% load crispy_forms_tags %}
 
 {% block content %}
 
-<body>
+<style>
+    .delete-container {
+        max-width: 460px;
+        margin: 60px auto;
+        padding: 0 20px;
+    }
 
-    <style>
-        body{
-            background-color: gray;
-        }
-    </style>
-    <br>
-    <div class="container bg-white shadow-md p-5 form-layout">
-        <h3>Account Deletion</h3>
-        <h5>Accounts deleted cannot be restored</h5>
+    .delete-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        padding: 40px 32px;
+        text-align: center;
+    }
 
-        <br>
-        <br>
-        <form method="POST" autocomplete="off" >
+    .delete-icon {
+        width: 64px;
+        height: 64px;
+        background: #fff5f5;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 28px;
+        color: var(--pos-accent);
+    }
+
+    .delete-card h3 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 8px;
+    }
+
+    .delete-card p {
+        font-size: 14px;
+        color: var(--pos-muted);
+        margin-bottom: 24px;
+    }
+
+    .delete-confirm-btn {
+        width: 100%;
+        padding: 12px;
+        background: var(--pos-accent);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .delete-confirm-btn:hover {
+        background: #d63851;
+    }
+
+    .delete-cancel-btn {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        background: var(--pos-light);
+        color: var(--pos-text);
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        margin-top: 10px;
+        transition: all 0.2s;
+    }
+
+    .delete-cancel-btn:hover {
+        background: #e2e6ea;
+        color: var(--pos-text);
+    }
+</style>
+
+<div class="delete-container">
+    <div class="delete-card">
+        <div class="delete-icon">
+            <i class="fa fa-exclamation-triangle"></i>
+        </div>
+        <h3>Delete Account</h3>
+        <p><strong>{{ user|capfirst }}</strong>, this action is permanent and cannot be undone. All your data will be lost.</p>
+        <form method="POST">
             {% csrf_token %}
-            
-            <h2> <strong>{{user | capfirst}} </strong>, are you Sure you want delete your account?</h2>
-            
-
-            <br>
-            <br>
-            <button type="submit" class="btn btn-danger btn-lg w-100 btn-block p-2">Delete Account</button> <br><br>
-            <a type="submit" class="btn btn-primary btn-lg w-100 btn-block p-2" href="{% url 'profile-management'%}" > <i class="fa fa-arrow-left" aria-hidden="true"></i> &nbsp; Go Back</a>
+            <button type="submit" class="delete-confirm-btn">Yes, Delete My Account</button>
         </form>
+        <a href="{% url 'profile-management' %}" class="delete-cancel-btn">
+            <i class="fa fa-arrow-left"></i> &nbsp; Go Back
+        </a>
     </div>
-</body>
-<br>
-    
-{% endblock content %}
+</div>
+
+{% endblock %}

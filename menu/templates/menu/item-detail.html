@@ -1,0 +1,153 @@
+{% extends "./base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .product-detail {
+        max-width: 800px;
+        margin: 40px auto;
+        background: #fff;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        display: flex;
+    }
+
+    .product-detail-img {
+        width: 350px;
+        height: 350px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .product-detail-body {
+        padding: 32px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-detail-name {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 4px;
+    }
+
+    .product-detail-brand {
+        font-size: 14px;
+        color: var(--pos-muted);
+        font-weight: 500;
+        margin-bottom: 16px;
+    }
+
+    .product-detail-desc {
+        font-size: 14px;
+        color: var(--pos-muted);
+        line-height: 1.6;
+        flex: 1;
+    }
+
+    .product-detail-price {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--pos-blue);
+        margin: 20px 0;
+    }
+
+    .product-detail-actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .qty-select {
+        padding: 10px 14px;
+        border: 2px solid var(--pos-border);
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        background: #fff;
+    }
+
+    .add-to-order-btn {
+        flex: 1;
+        padding: 12px;
+        background: var(--pos-dark);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .add-to-order-btn:hover {
+        background: var(--pos-blue);
+        box-shadow: 0 4px 15px rgba(15,52,96,0.3);
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--pos-muted);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 20px 24px;
+    }
+
+    .back-link:hover { color: var(--pos-text); }
+</style>
+
+<a href="{% url 'pos' %}" class="back-link">
+    <i class="fa fa-arrow-left"></i> Back to menu
+</a>
+
+<div class="product-detail">
+    <img class="product-detail-img" src="{{ product.image.url }}" alt="{{ product.title }}">
+    <div class="product-detail-body">
+        <div class="product-detail-name">{{ product.title|capfirst }}</div>
+        <p class="product-detail-desc">{{ product.description|capfirst }}</p>
+        <div class="product-detail-price">Ksh {{ product.price|intcomma }}</div>
+        <div class="product-detail-actions">
+            <select id="select" class="qty-select">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+            </select>
+            <button type="button" id="add-button" value="{{ product.id }}" class="add-to-order-btn">
+                <i class="fa fa-plus"></i> &nbsp; Add to Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).on('click', '#add-button', function(e) {
+        e.preventDefault();
+
+        $.ajax({
+            type: 'POST',
+            url: '{% url "cart-add" %}',
+            data: {
+                product_id: $('#add-button').val(),
+                product_quantity: $('#select option:selected').val(),
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+                action: 'post'
+            },
+            success: function(json) {
+                document.getElementById('cart-qty').textContent = json.qty;
+                window.location.href = '{% url "pos" %}';
+            }
+        });
+    });
+</script>
+
+{% endblock %}
