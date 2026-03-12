@@ -350,22 +350,22 @@
     }
 
     .pos-order-item-remove {
-        width: 24px;
-        height: 24px;
-        border: none;
-        background: none;
-        color: #4a4f6e;
+        width: 28px;
+        height: 28px;
+        border: 1.5px solid rgba(255,107,122,0.4);
+        background: rgba(255,107,122,0.1);
+        color: #ff6b7a;
         cursor: pointer;
-        border-radius: 6px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 13px;
         flex-shrink: 0;
         transition: all 0.15s;
     }
 
-    .pos-order-item-remove:hover { color: #ff6b7a; background: rgba(255,107,122,0.1); }
+    .pos-order-item-remove:hover { color: #fff; background: #ff6b7a; border-color: #ff6b7a; }
 
     .pos-order-empty {
         flex: 1;
@@ -711,19 +711,19 @@
         <div class="pos-order-items" id="order-items">
             {% for item in cart %}
             {% with product=item.product %}
-            <div class="pos-order-item" data-id="{{ product.id }}">
+            <div class="pos-order-item" data-key="{{ item.key }}">
                 <div class="pos-qty-controls">
-                    <button class="pos-qty-btn qty-minus" data-id="{{ product.id }}">−</button>
+                    <button class="pos-qty-btn qty-minus" data-key="{{ item.key }}">−</button>
                     <span class="pos-qty-value">{{ item.qty }}</span>
-                    <button class="pos-qty-btn qty-plus" data-id="{{ product.id }}">+</button>
+                    <button class="pos-qty-btn qty-plus" data-key="{{ item.key }}">+</button>
                 </div>
                 <div class="pos-order-item-details">
                     <div class="pos-order-item-name">{{ product.title|capfirst }}</div>
-                    <div class="pos-order-item-unit">Ksh {{ product.price|intcomma }} each</div>
+                    <div class="pos-order-item-unit">Ksh {{ item.price|intcomma }} each</div>
                 </div>
                 <div class="pos-order-item-price">Ksh {{ item.total|intcomma }}</div>
-                <button class="pos-order-item-remove" data-id="{{ product.id }}" title="Remove item">
-                    <i class="fa fa-trash-o"></i>
+                <button class="pos-order-item-remove" data-key="{{ item.key }}" title="Remove item">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             {% endwith %}
@@ -771,7 +771,7 @@
                         <i class="fa fa-check-circle"></i> Place Order
                     </button>
                     <button type="button" class="pos-clear-btn" id="clear-order-btn" title="Clear all items">
-                        <i class="fa fa-trash-o"></i>
+                        <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
             </form>
@@ -898,13 +898,13 @@
     // ---- Quantity controls ----
     $(document).on('click', '.qty-plus', function(e) {
         e.stopPropagation();
-        const id = $(this).data('id');
+        const key = $(this).data('key');
         const currentQty = parseInt($(this).siblings('.pos-qty-value').text());
         $.ajax({
             type: 'POST',
             url: '{% url "cart-update" %}',
             data: {
-                product_id: id,
+                cart_key: key,
                 product_quantity: currentQty + 1,
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 action: 'post'
@@ -915,14 +915,14 @@
 
     $(document).on('click', '.qty-minus', function(e) {
         e.stopPropagation();
-        const id = $(this).data('id');
+        const key = $(this).data('key');
         const currentQty = parseInt($(this).siblings('.pos-qty-value').text());
         if (currentQty <= 1) {
             $.ajax({
                 type: 'POST',
                 url: '{% url "cart-delete" %}',
                 data: {
-                    product_id: id,
+                    cart_key: key,
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     action: 'post'
                 },
@@ -933,7 +933,7 @@
                 type: 'POST',
                 url: '{% url "cart-update" %}',
                 data: {
-                    product_id: id,
+                    cart_key: key,
                     product_quantity: currentQty - 1,
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     action: 'post'
@@ -950,7 +950,7 @@
             type: 'POST',
             url: '{% url "cart-delete" %}',
             data: {
-                product_id: $(this).data('id'),
+                cart_key: $(this).data('key'),
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 action: 'post'
             },
@@ -969,7 +969,7 @@
                 type: 'POST',
                 url: '{% url "cart-delete" %}',
                 data: {
-                    product_id: $(btn).data('id'),
+                    cart_key: $(btn).data('key'),
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     action: 'post'
                 },

@@ -1,11 +1,15 @@
+import logging
 from functools import wraps
 
+from django.db import transaction
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
 
-from .models import Category, MenuItem, Table, Order, OrderItem, Shift
+logger = logging.getLogger(__name__)
+
+from .models import Category, MenuItem, Table, Order, OrderItem, Shift, RestaurantSettings
 from cart.cart import Cart
 
 
@@ -24,6 +28,10 @@ def shift_required(view_func):
 def categories(request):
     all_categories = Category.objects.all()
     return {'all_categories': all_categories}
+
+
+def restaurant_settings(request):
+    return {'restaurant': RestaurantSettings.load()}
 
 
 @login_required(login_url='waiter-login')
@@ -69,23 +77,31 @@ def place_order(request):
 
         active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
 
-        order = Order.objects.create(
-            table=table,
-            waiter=request.user,
-            shift=active_shift,
-            notes=order_notes,
-            status='active',
-        )
-
-        for item in cart:
-            OrderItem.objects.create(
-                order=order,
-                menu_item=item['product'],
-                quantity=item['qty'],
+        with transaction.atomic():
+            order = Order.objects.create(
+                table=table,
+                waiter=request.user,
+                shift=active_shift,
+                notes=order_notes,
+                status='active',
             )
 
-        table.status = 'occupied'
-        table.save()
+            for item in cart:
+                product = item['product']
+                qty = item['qty']
+                OrderItem.objects.create(
+                    order=order,
+                    menu_item=product,
+                    quantity=qty,
+                    unit_price=item['price'],
+                )
+                try:
+                    product.deduct_stock(qty)
+                except Exception:
+                    logger.warning("Stock deduction failed for %s", product.title)
+
+            table.status = 'occupied'
+            table.save()
 
         cart.clear()
 
@@ -97,22 +113,40 @@ def place_order(request):
 @login_required(login_url='waiter-login')
 @shift_required
 def order_detail(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
+    if request.user.is_superuser:
+        order = get_object_or_404(Order, id=order_id)
+    else:
+        order = get_object_or_404(Order, id=order_id, waiter=request.user)
     return render(request, 'menu/order-detail.html', {'order': order})
 
 
 @login_required(login_url='waiter-login')
 @shift_required
 def order_list(request):
-    orders = Order.objects.exclude(status__in=['paid', 'cancelled'])
-    return render(request, 'menu/order-list.html', {'orders': orders})
+    base_qs = Order.objects.exclude(status='cancelled')
+    if not request.user.is_superuser:
+        base_qs = base_qs.filter(waiter=request.user)
+    unpaid_orders = base_qs.filter(status='active')
+    paid_orders = base_qs.filter(status='paid')
+    total_unpaid = sum(o.get_total() for o in unpaid_orders)
+    total_paid = sum(o.get_total() for o in paid_orders)
+    context = {
+        'unpaid_orders': unpaid_orders,
+        'paid_orders': paid_orders,
+        'total_unpaid': total_unpaid,
+        'total_paid': total_paid,
+    }
+    return render(request, 'menu/order-list.html', context)
 
 
 @login_required(login_url='waiter-login')
 @shift_required
 def order_update_status(request, order_id):
     if request.method == 'POST':
-        order = get_object_or_404(Order, id=order_id)
+        if request.user.is_superuser:
+            order = get_object_or_404(Order, id=order_id)
+        else:
+            order = get_object_or_404(Order, id=order_id, waiter=request.user)
         new_status = request.POST.get('status')
 
         if new_status in dict(Order.STATUS_CHOICES):
@@ -123,10 +157,18 @@ def order_update_status(request, order_id):
                     return redirect('order-detail', order_id=order.id)
                 order.payment_method = payment_method
                 if payment_method == 'mpesa':
-                    mpesa_code = request.POST.get('mpesa_code', '').strip()
-                    if not mpesa_code:
+                    mpesa_code = request.POST.get('mpesa_code', '').strip().upper()
+                    if len(mpesa_code) != 4 or not mpesa_code.isalnum():
                         return redirect('order-detail', order_id=order.id)
                     order.mpesa_code = mpesa_code
+
+            # Restore stock when cancelling an active order
+            if new_status == 'cancelled' and order.status == 'active':
+                for oi in order.items.select_related('menu_item').all():
+                    try:
+                        oi.menu_item.restore_stock(oi.quantity)
+                    except Exception:
+                        logger.warning("Stock restore failed for %s", oi.menu_item.title)
 
             order.status = new_status
             order.save()
@@ -145,7 +187,26 @@ def order_update_status(request, order_id):
 @shift_required
 def tables_view(request):
     tables = Table.objects.all()
-    return render(request, 'menu/tables.html', {'tables': tables})
+    context = {
+        'tables': tables,
+        'available_count': tables.filter(status='available').count(),
+        'occupied_count': tables.filter(status='occupied').count(),
+        'reserved_count': tables.filter(status='reserved').count(),
+    }
+    return render(request, 'menu/tables.html', context)
+
+
+@login_required(login_url='waiter-login')
+@shift_required
+def table_toggle_reserve(request, table_id):
+    if request.method == 'POST':
+        table = get_object_or_404(Table, id=table_id)
+        if table.status == 'available':
+            table.status = 'reserved'
+        elif table.status == 'reserved':
+            table.status = 'available'
+        table.save()
+    return redirect('tables')
 
 
 # ---- Shift views (no shift_required — this IS the shift page) ----
@@ -155,9 +216,14 @@ def shift_view(request):
     active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
     past_shifts = Shift.objects.filter(waiter=request.user, is_active=False)[:10]
 
+    unpaid_orders = []
+    if active_shift:
+        unpaid_orders = active_shift.orders.filter(status='active')
+
     context = {
         'active_shift': active_shift,
         'past_shifts': past_shifts,
+        'unpaid_orders': unpaid_orders,
     }
     return render(request, 'menu/shift.html', context)
 
@@ -181,10 +247,15 @@ def shift_clock_out(request):
     if request.method == 'POST':
         shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
         if shift:
+            unpaid = shift.orders.filter(status='active').count()
+            if unpaid:
+                return redirect('shift')
             shift.ended_at = timezone.now()
             shift.is_active = False
             shift.save()
-    return redirect('shift')
+        from django.contrib.auth import logout
+        logout(request)
+    return redirect('waiter-login')
 
 
 @login_required(login_url='waiter-login')

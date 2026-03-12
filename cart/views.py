@@ -34,10 +34,14 @@ def cart_update(request):
     cart = Cart(request)
 
     if request.POST.get('action') == 'post':
-        product_id = int(request.POST.get('product_id'))
+        cart_key = request.POST.get('cart_key', '')
         product_quantity = int(request.POST.get('product_quantity'))
 
-        cart.update(product=product_id, qty=product_quantity)
+        # Support legacy product_id param
+        if not cart_key:
+            cart_key = request.POST.get('product_id', '')
+
+        cart.update(key=cart_key, qty=product_quantity)
 
         cart_quantity = cart.__len__()
         cart_total = cart.get_total()
@@ -51,9 +55,13 @@ def cart_delete(request):
     cart = Cart(request)
 
     if request.POST.get('action') == 'post':
-        product_id = int(request.POST.get('product_id'))
+        cart_key = request.POST.get('cart_key', '')
 
-        cart.delete(product=product_id)
+        # Support legacy product_id param
+        if not cart_key:
+            cart_key = request.POST.get('product_id', '')
+
+        cart.delete(key=cart_key)
 
         cart_quantity = cart.__len__()
         cart_total = cart.get_total()

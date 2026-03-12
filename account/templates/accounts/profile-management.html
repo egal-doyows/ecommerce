@@ -1,98 +1,277 @@
 {% extends "menu/base.html" %}
 {% load static %}
-{% load crispy_forms_tags %}
 
 {% block content %}
 
 <style>
-    .profile-container {
-        max-width: 500px;
-        margin: 40px auto;
-        padding: 0 20px;
+    .ep-page { max-width: 480px; margin: 30px auto; padding: 0 20px; }
+
+    .ep-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--pos-muted);
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 16px;
     }
 
-    .profile-card {
+    .ep-back:hover { color: var(--pos-text); }
+
+    .ep-card {
         background: #fff;
         border-radius: 16px;
-        box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 20px rgba(0,0,0,0.06);
         overflow: hidden;
     }
 
-    .profile-card-header {
+    .ep-card-header {
         padding: 20px 24px;
         border-bottom: 1px solid var(--pos-border);
     }
 
-    .profile-card-header h3 {
+    .ep-card-header h3 {
         font-size: 16px;
         font-weight: 700;
         color: var(--pos-text);
         margin: 0;
     }
 
-    .profile-card-body {
-        padding: 24px;
+    .ep-card-body { padding: 24px; }
+
+    /* Photo Section */
+    .ep-photo-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--pos-border);
     }
 
-    .profile-update-btn {
+    .ep-photo-preview {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin-bottom: 14px;
+        border: 4px solid var(--pos-light);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+
+    .ep-photo-preview img {
         width: 100%;
-        padding: 12px;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .ep-photo-placeholder {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--pos-accent), #6366f1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .ep-photo-label {
+        font-size: 12px;
+        color: var(--pos-muted);
+        margin-bottom: 10px;
+    }
+
+    .ep-photo-input {
+        position: relative;
+    }
+
+    .ep-photo-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 18px;
+        border: 2px solid var(--pos-border);
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-text);
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .ep-photo-btn:hover {
+        border-color: var(--pos-accent);
+        color: var(--pos-accent);
+    }
+
+    .ep-photo-input input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .ep-photo-name {
+        font-size: 11px;
+        color: var(--pos-muted);
+        margin-top: 6px;
+        text-align: center;
+    }
+
+    /* Code Section */
+    .ep-code-section { margin-bottom: 24px; }
+
+    .ep-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+
+    .ep-code-input {
+        width: 100%;
+        padding: 14px;
+        border: 2px solid var(--pos-border);
+        border-radius: 12px;
+        font-size: 24px;
+        font-weight: 700;
+        text-align: center;
+        letter-spacing: 8px;
+        color: var(--pos-text);
+        transition: border-color 0.15s;
+    }
+
+    .ep-code-input:focus {
+        border-color: var(--pos-accent);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(124,131,255,0.15);
+    }
+
+    .ep-code-hint {
+        font-size: 11px;
+        color: var(--pos-muted);
+        text-align: center;
+        margin-top: 6px;
+    }
+
+    .ep-error {
+        font-size: 12px;
+        color: #dc2626;
+        margin-top: 6px;
+        text-align: center;
+    }
+
+    /* Save Button - sticky */
+    .ep-save-wrap {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding: 16px 0 0;
+        margin-top: 8px;
+        border-top: 1px solid var(--pos-border);
+    }
+
+    .ep-save-btn {
+        width: 100%;
+        padding: 14px;
         background: var(--pos-dark);
         color: #fff;
         border: none;
-        border-radius: 10px;
+        border-radius: 12px;
         font-size: 15px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
         transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
     }
 
-    .profile-update-btn:hover {
+    .ep-save-btn:hover {
         background: var(--pos-blue);
-    }
-
-    .profile-danger-btn {
-        display: block;
-        width: 100%;
-        padding: 12px;
-        background: none;
-        color: var(--pos-accent);
-        border: 1px solid var(--pos-accent);
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        text-align: center;
-        text-decoration: none;
-        margin-top: 12px;
-        transition: all 0.2s;
-    }
-
-    .profile-danger-btn:hover {
-        background: var(--pos-accent);
-        color: #fff;
+        box-shadow: 0 4px 14px rgba(15,52,96,0.25);
+        transform: translateY(-1px);
     }
 </style>
 
-<div class="profile-container">
-    <div class="profile-card">
-        <div class="profile-card-header">
-            <h3><i class="fa fa-user-circle"></i> &nbsp; Account Settings</h3>
+<div class="ep-page">
+    <a href="{% url 'dashboard' %}" class="ep-back"><i class="fa fa-arrow-left"></i> Back to Profile</a>
+
+    <div class="ep-card">
+        <div class="ep-card-header">
+            <h3><i class="fa-solid fa-user-pen"></i> &nbsp; Edit Profile</h3>
         </div>
-        <div class="profile-card-body">
-            <form method="POST" autocomplete="off">
+        <div class="ep-card-body">
+            <form method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
-                {{ user_form.username|as_crispy_field }}
-                <br>
-                {{ user_form.email|as_crispy_field }}
-                <br>
-                <button type="submit" class="profile-update-btn">Save Changes</button>
+
+                <!-- Photo -->
+                <div class="ep-photo-section">
+                    <div class="ep-photo-preview">
+                        {% if waiter_code and waiter_code.photo %}
+                        <img src="{{ waiter_code.photo.url }}" alt="Profile photo" id="photoPreview">
+                        {% else %}
+                        <div class="ep-photo-placeholder" id="photoPlaceholder">{{ user.username|first|upper }}</div>
+                        <img src="" alt="" id="photoPreview" style="display:none; width:100%; height:100%; object-fit:cover;">
+                        {% endif %}
+                    </div>
+                    <div class="ep-photo-label">Profile Photo</div>
+                    <div class="ep-photo-input">
+                        <div class="ep-photo-btn">
+                            <i class="fa-solid fa-camera"></i> Choose Photo
+                        </div>
+                        <input type="file" name="photo" accept="image/*" onchange="previewPhoto(this)">
+                    </div>
+                    <div class="ep-photo-name" id="photoName"></div>
+                </div>
+
+                <!-- Login Code -->
+                <div class="ep-code-section">
+                    <div class="ep-label">Login Code</div>
+                    <input type="text" name="code" class="ep-code-input"
+                           value="{{ form.code.value|default:'' }}"
+                           maxlength="6" minlength="6"
+                           inputmode="numeric" pattern="[0-9]{6}"
+                           placeholder="000000"
+                           oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                    <div class="ep-code-hint">6-digit code used to log in</div>
+                    {% if form.code.errors %}
+                    <div class="ep-error">{{ form.code.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="ep-save-wrap">
+                    <button type="submit" class="ep-save-btn">
+                        <i class="fa-solid fa-check"></i> Save Changes
+                    </button>
+                </div>
             </form>
-            <a class="profile-danger-btn" href="{% url 'delete-account' %}">
-                <i class="fa fa-trash"></i> &nbsp; Delete Account
-            </a>
         </div>
     </div>
 </div>
+
+<script>
+    function previewPhoto(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var preview = document.getElementById('photoPreview');
+                var placeholder = document.getElementById('photoPlaceholder');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+            };
+            reader.readAsDataURL(input.files[0]);
+            document.getElementById('photoName').textContent = input.files[0].name;
+        }
+    }
+</script>
 
 {% endblock %}

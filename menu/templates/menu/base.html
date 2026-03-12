@@ -5,8 +5,25 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Restaurant POS</title>
+    <title>{{ restaurant.name }}</title>
 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            prefix: 'tw-',
+            theme: {
+                extend: {
+                    colors: {
+                        'pos-dark': '#1b1f3b',
+                        'pos-navy': '#161938',
+                        'pos-blue': '#0f3460',
+                        'pos-accent': '#7c83ff',
+                        'pos-light': '#f0f2f5',
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://bootswatch.com/5/flatly/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
@@ -17,53 +34,101 @@
 </head>
 <body>
 
-    <header class="topbar">
-        <div class="topbar-left">
-            <a class="topbar-brand" href="{% url 'pos' %}">
-                <span class="topbar-logo"><i class="fa-solid fa-utensils"></i></span>
-                RestoPOS
-            </a>
-        </div>
+    <header class="tw-fixed tw-top-0 tw-left-0 tw-right-0 tw-z-50 tw-bg-pos-dark tw-border-b tw-border-white/10 tw-shadow-lg tw-shadow-black/20">
+        <div class="tw-max-w-[1400px] tw-mx-auto tw-px-4 tw-h-16 tw-flex tw-items-center tw-justify-between">
 
-        {% if user.is_authenticated %}
-        <nav class="topbar-nav">
-            <a href="{% url 'pos' %}" class="topbar-link {% if request.resolver_match.url_name == 'pos' %}is-active{% endif %}">
-                <i class="fa-solid fa-grid-2"></i> Menu
+            <!-- Brand -->
+            <a href="{% url 'pos' %}" class="tw-flex tw-items-center tw-gap-3 tw-no-underline tw-group">
+                {% if restaurant.logo %}
+                <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" class="tw-w-9 tw-h-9 tw-rounded-lg tw-object-cover tw-shadow-md">
+                {% else %}
+                <div class="tw-w-9 tw-h-9 tw-rounded-lg tw-bg-pos-accent tw-flex tw-items-center tw-justify-center tw-shadow-md tw-shadow-pos-accent/30 group-hover:tw-shadow-pos-accent/50 tw-transition-all tw-duration-200">
+                    <i class="fa-solid fa-utensils tw-text-white tw-text-sm"></i>
+                </div>
+                {% endif %}
+                <span class="tw-text-white tw-font-bold tw-text-lg tw-tracking-tight">{{ restaurant.name }}</span>
             </a>
-            <a href="{% url 'order-list' %}" class="topbar-link {% if request.resolver_match.url_name == 'order-list' %}is-active{% endif %}">
-                <i class="fa-solid fa-receipt"></i> Orders
-            </a>
-            <a href="{% url 'tables' %}" class="topbar-link {% if request.resolver_match.url_name == 'tables' %}is-active{% endif %}">
-                <i class="fa-solid fa-table-cells-large"></i> Tables
-            </a>
-            <a href="{% url 'shift' %}" class="topbar-link {% if request.resolver_match.url_name == 'shift' or request.resolver_match.url_name == 'shift-detail' %}is-active{% endif %}">
-                <i class="fa-solid fa-clock-rotate-left"></i> Shift
-            </a>
-            <a href="{% url 'cart-summary' %}" class="topbar-link {% if request.resolver_match.url_name == 'cart-summary' %}is-active{% endif %}">
-                <i class="fa-solid fa-bag-shopping"></i> Cart
-                <span class="topbar-badge" id="cart-qty">{% with qty=cart|length %}{{ qty }}{% endwith %}</span>
-            </a>
-        </nav>
-        {% endif %}
 
-        <div class="topbar-right">
             {% if user.is_authenticated %}
-            <a href="{% url 'dashboard' %}" class="topbar-icon-btn" title="Settings">
-                <i class="fa-solid fa-gear"></i>
-            </a>
-            <div class="topbar-user-menu">
-                <span class="topbar-avatar">{{ user.username|first|upper }}</span>
-                <span class="topbar-uname">{{ user.username|capfirst }}</span>
-                <a href="{% url 'user-logout' %}" class="topbar-logout-btn" title="Sign out">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <!-- Navigation -->
+            <nav class="tw-hidden md:tw-flex tw-items-center tw-gap-1">
+                <a href="{% url 'pos' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'pos' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                    <i class="fa-solid fa-grid-2 tw-text-xs"></i> Menu
                 </a>
-            </div>
-            {% else %}
-            <a href="{% url 'waiter-login' %}" class="topbar-link"><i class="fa-solid fa-grid-2"></i> Waiter Login</a>
-            <a href="{% url 'my-login' %}" class="topbar-link"><i class="fa-solid fa-user"></i> Admin Login</a>
+                <a href="{% url 'order-list' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'order-list' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                    <i class="fa-solid fa-receipt tw-text-xs"></i> Orders
+                </a>
+                <a href="{% url 'tables' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'tables' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                    <i class="fa-solid fa-table-cells-large tw-text-xs"></i> Tables
+                </a>
+                <a href="{% url 'shift' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'shift' or request.resolver_match.url_name == 'shift-detail' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                    <i class="fa-solid fa-clock-rotate-left tw-text-xs"></i> Shift
+                </a>
+                <a href="{% url 'cart-summary' %}" class="tw-relative tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'cart-summary' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                    <i class="fa-solid fa-plate-wheat tw-text-xs"></i> Tray
+                    <span id="cart-qty" class="tw-inline-flex tw-items-center tw-justify-center tw-min-w-[20px] tw-h-5 tw-px-1.5 tw-rounded-full tw-bg-rose-500 tw-text-white tw-text-[11px] tw-font-bold tw-leading-none">{% with qty=cart|length %}{{ qty }}{% endwith %}</span>
+                </a>
+            </nav>
             {% endif %}
+
+            <!-- Right Section -->
+            <div class="tw-flex tw-items-center tw-gap-2">
+                {% if user.is_authenticated %}
+                <div class="tw-relative" id="userDropdown">
+                    <button onclick="document.getElementById('dropdownMenu').classList.toggle('tw-hidden')" class="tw-flex tw-items-center tw-gap-2.5 tw-px-2 tw-py-1.5 tw-rounded-xl hover:tw-bg-white/10 tw-transition-all tw-duration-200 tw-border-0 tw-bg-transparent tw-cursor-pointer">
+                        {% if user.waiter_code.photo %}
+                        <img src="{{ user.waiter_code.photo.url }}" alt="" class="tw-w-8 tw-h-8 tw-rounded-full tw-object-cover tw-shadow-sm">
+                        {% else %}
+                        <div class="tw-w-8 tw-h-8 tw-rounded-full tw-bg-gradient-to-br tw-from-pos-accent tw-to-indigo-500 tw-flex tw-items-center tw-justify-center tw-text-white tw-text-xs tw-font-bold tw-shadow-sm">
+                            {{ user.username|first|upper }}
+                        </div>
+                        {% endif %}
+                        <span class="tw-text-gray-300 tw-text-sm tw-font-medium tw-hidden lg:tw-inline">{{ user.username|capfirst }}</span>
+                        <i class="fa-solid fa-chevron-down tw-text-gray-500 tw-text-[10px] tw-hidden lg:tw-inline"></i>
+                    </button>
+
+                    <div id="dropdownMenu" class="tw-hidden tw-absolute tw-right-0 tw-top-full tw-mt-2 tw-w-56 tw-bg-white tw-rounded-xl tw-shadow-xl tw-shadow-black/15 tw-border tw-border-gray-100 tw-overflow-hidden tw-z-50">
+                        <div class="tw-px-4 tw-py-3 tw-border-b tw-border-gray-100">
+                            <p class="tw-text-sm tw-font-bold tw-text-gray-800 tw-m-0">{{ user.username|capfirst }}</p>
+                            <p class="tw-text-xs tw-text-gray-400 tw-m-0">{% if user.is_superuser %}Admin{% else %}Waiter{% endif %}</p>
+                        </div>
+                        <div class="tw-py-1.5">
+                            <a href="{% url 'dashboard' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-2.5 tw-text-sm tw-text-gray-600 hover:tw-bg-gray-50 tw-no-underline tw-transition-colors tw-duration-150">
+                                <i class="fa-solid fa-user tw-text-gray-400 tw-text-xs tw-w-4 tw-text-center"></i> My Profile
+                            </a>
+                        </div>
+                        <div class="tw-border-t tw-border-gray-100 tw-py-1.5">
+                            <a href="{% url 'user-logout' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-2.5 tw-text-sm tw-text-red-500 hover:tw-bg-red-50 tw-no-underline tw-transition-colors tw-duration-150">
+                                <i class="fa-solid fa-arrow-right-from-bracket tw-text-red-400 tw-text-xs tw-w-4 tw-text-center"></i> Sign Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    document.addEventListener('click', function(e) {
+                        var dropdown = document.getElementById('userDropdown');
+                        var menu = document.getElementById('dropdownMenu');
+                        if (!dropdown.contains(e.target)) {
+                            menu.classList.add('tw-hidden');
+                        }
+                    });
+                </script>
+                {% else %}
+                <a href="{% url 'waiter-login' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white tw-transition-all tw-duration-200 tw-no-underline">
+                    <i class="fa-solid fa-grid-2 tw-text-xs"></i> Waiter Login
+                </a>
+                <a href="{% url 'my-login' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-bg-pos-accent tw-text-white tw-text-sm tw-font-medium hover:tw-bg-pos-accent/80 tw-shadow-md tw-shadow-pos-accent/25 tw-transition-all tw-duration-200 tw-no-underline">
+                    <i class="fa-solid fa-user tw-text-xs"></i> Admin Login
+                </a>
+                {% endif %}
+            </div>
+
         </div>
     </header>
+
+    <!-- Spacer for fixed topbar -->
+    <div class="tw-h-16"></div>
 
     {% block content %}
     {% endblock %}

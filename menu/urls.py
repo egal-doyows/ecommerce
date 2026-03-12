@@ -11,6 +11,7 @@ urlpatterns = [
     path('orders/<int:order_id>/', views.order_detail, name='order-detail'),
     path('orders/<int:order_id>/status/', views.order_update_status, name='order-update-status'),
     path('tables/', views.tables_view, name='tables'),
+    path('tables/<int:table_id>/toggle-reserve/', views.table_toggle_reserve, name='table-toggle-reserve'),
     path('shift/', views.shift_view, name='shift'),
     path('shift/clock-in/', views.shift_clock_in, name='shift-clock-in'),
     path('shift/clock-out/', views.shift_clock_out, name='shift-clock-out'),

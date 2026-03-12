@@ -9,6 +9,7 @@ class WaiterCode(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='waiter_code')
     code = models.CharField(max_length=6, unique=True)
     is_active = models.BooleanField(default=True)
+    photo = models.ImageField(upload_to='waiters/', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -1,4 +1,6 @@
-from django.db import models
+from decimal import Decimal
+
+from django.db import models, transaction
 from django.urls import reverse
 from django.contrib.auth.models import User
 
@@ -44,7 +46,78 @@ class Category(models.Model):
         return reverse('category-filter', args=[self.slug])
 
 
+class InventoryItem(models.Model):
+    """
+    Physical stock item. Two use cases:
+      1. Direct sale  — sold as-is on the menu (soda, water, beer).
+      2. Ingredient   — consumed when a prepared menu item is made (mango, flour, oil).
+    An item can be both (e.g. milk sold by the glass AND used in coffee).
+    """
+
+    UNIT_CHOICES = [
+        ('kg', 'Kilograms'),
+        ('g', 'Grams'),
+        ('l', 'Litres'),
+        ('ml', 'Millilitres'),
+        ('bottle', 'Bottles'),
+        ('piece', 'Pieces'),
+        ('packet', 'Packets'),
+        ('box', 'Boxes'),
+        ('bunch', 'Bunches'),
+    ]
+
+    name = models.CharField(max_length=250)
+    unit = models.CharField(max_length=10, choices=UNIT_CHOICES, default='piece')
+    stock_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    buying_price = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Cost per unit for profit tracking",
+    )
+    low_stock_threshold = models.DecimalField(
+        max_digits=10, decimal_places=2, default=5,
+        help_text="Alert when stock falls to this level",
+    )
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.stock_quantity} {self.get_unit_display()})"
+
+    @property
+    def is_low_stock(self):
+        return self.stock_quantity <= self.low_stock_threshold
+
+    def deduct(self, quantity):
+        """Deduct stock using F() to avoid race conditions. Returns True on success."""
+        quantity = Decimal(str(quantity))
+        updated = InventoryItem.objects.filter(
+            pk=self.pk, stock_quantity__gte=quantity,
+        ).update(stock_quantity=models.F('stock_quantity') - quantity)
+        if updated:
+            self.refresh_from_db(fields=['stock_quantity'])
+            return True
+        return False
+
+    def restore(self, quantity):
+        """Add stock back (e.g. cancelled order)."""
+        quantity = Decimal(str(quantity))
+        InventoryItem.objects.filter(pk=self.pk).update(
+            stock_quantity=models.F('stock_quantity') + quantity,
+        )
+        self.refresh_from_db(fields=['stock_quantity'])
+
+
 class MenuItem(models.Model):
+    """
+    Everything the customer can order.
+
+    Stock behaviour is determined by how you configure it:
+      - Set `inventory_item` → direct sale (1 sold = 1 deducted from inventory).
+      - Add Recipe rows   → prepared item (ingredients deducted per recipe).
+      - Neither           → untracked item (no stock impact).
+    """
+
     category = models.ForeignKey(Category, related_name='items', on_delete=models.CASCADE)
     title = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250)
@@ -53,6 +126,11 @@ class MenuItem(models.Model):
     image = models.ImageField(upload_to='images/', blank=True)
     is_available = models.BooleanField(default=True)
     preparation_time = models.PositiveIntegerField(default=10, help_text="Estimated prep time in minutes")
+    inventory_item = models.ForeignKey(
+        InventoryItem, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='menu_items',
+        help_text="For direct-sale items (soda, water). Leave blank for prepared food.",
+    )
 
     class Meta:
         verbose_name_plural = 'menu items'
@@ -63,6 +141,80 @@ class MenuItem(models.Model):
 
     def get_absolute_url(self):
         return reverse('item-detail', args=[self.slug])
+
+    @property
+    def is_direct_sale(self):
+        return self.inventory_item_id is not None
+
+    @property
+    def tracks_stock(self):
+        return self.is_direct_sale or self.recipe_items.exists()
+
+    @transaction.atomic
+    def deduct_stock(self, quantity=1):
+        """
+        Deduct inventory when this item is ordered.
+        Atomic — either everything deducts or nothing does.
+        Returns True on success, False if any ingredient is insufficient.
+        """
+        if self.is_direct_sale:
+            return self.inventory_item.deduct(quantity)
+
+        ingredients = self.recipe_items.select_related('inventory_item').all()
+        if not ingredients:
+            return True  # untracked item
+
+        # Check all ingredients first, then deduct
+        for ingredient in ingredients:
+            needed = ingredient.quantity_required * Decimal(str(quantity))
+            if not ingredient.inventory_item.deduct(needed):
+                raise _InsufficientStock(ingredient.inventory_item.name)
+        return True
+
+    @transaction.atomic
+    def restore_stock(self, quantity=1):
+        """Restore inventory when an order is cancelled."""
+        if self.is_direct_sale:
+            self.inventory_item.restore(quantity)
+            return
+
+        for ingredient in self.recipe_items.select_related('inventory_item').all():
+            needed = ingredient.quantity_required * Decimal(str(quantity))
+            ingredient.inventory_item.restore(needed)
+
+
+class _InsufficientStock(Exception):
+    """Raised inside atomic block to trigger rollback."""
+    pass
+
+
+class Recipe(models.Model):
+    """
+    Links a prepared MenuItem to the InventoryItems it consumes.
+
+    Example: Mango Juice recipe
+      - 1 piece  Mango
+      - 0.05 kg  Sugar
+      - 0.2 l    Water
+    """
+
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='recipe_items')
+    inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='used_in_recipes')
+    quantity_required = models.DecimalField(
+        max_digits=8, decimal_places=3,
+        help_text="Amount of this ingredient consumed per 1 menu item sold",
+    )
+
+    class Meta:
+        unique_together = ('menu_item', 'inventory_item')
+        verbose_name_plural = 'recipes'
+
+    def __str__(self):
+        return (
+            f"{self.menu_item.title} — "
+            f"{self.quantity_required} {self.inventory_item.get_unit_display()} "
+            f"{self.inventory_item.name}"
+        )
 
 
 class Table(models.Model):
@@ -136,7 +288,7 @@ class Order(models.Model):
     shift = models.ForeignKey(Shift, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     payment_method = models.CharField(max_length=10, choices=PAYMENT_CHOICES, blank=True)
-    mpesa_code = models.CharField(max_length=20, blank=True)
+    mpesa_code = models.CharField(max_length=4, blank=True, help_text="Last 4 characters of M-Pesa transaction code")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
@@ -146,6 +298,13 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order #{self.id} - Table {self.table.number if self.table else 'N/A'}"
+
+    def delete(self, *args, **kwargs):
+        table = self.table
+        super().delete(*args, **kwargs)
+        if table and not table.orders.filter(status='active').exists():
+            table.status = 'available'
+            table.save()
 
     def get_total(self):
         return sum(item.get_subtotal() for item in self.items.all())
@@ -158,10 +317,11 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=7, decimal_places=2, default=0)
     notes = models.CharField(max_length=250, blank=True, help_text="Special requests")
 
     def __str__(self):
         return f"{self.quantity}x {self.menu_item.title}"
 
     def get_subtotal(self):
-        return self.menu_item.price * self.quantity
+        return self.unit_price * self.quantity

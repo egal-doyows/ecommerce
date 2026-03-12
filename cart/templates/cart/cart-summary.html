@@ -446,7 +446,7 @@
 
             {% for item in cart %}
             {% with product=item.product %}
-            <div class="rp-item" data-id="{{ product.id }}">
+            <div class="rp-item" data-key="{{ item.key }}">
                 <div class="rp-item-info">
                     <div class="rp-item-icon">
                         {% if product.image %}
@@ -457,20 +457,20 @@
                     </div>
                     <div>
                         <div class="rp-item-name">{{ product.title|capfirst }}</div>
-                        <div class="rp-item-unit">Ksh {{ product.price|intcomma }}</div>
+                        <div class="rp-item-unit">Ksh {{ item.price|intcomma }}</div>
                     </div>
                 </div>
 
                 <div class="rp-qty-wrap">
-                    <button type="button" class="rp-qty-btn remove qty-decrease" data-id="{{ product.id }}">-</button>
-                    <span class="rp-qty-num" id="qty-{{ product.id }}">{{ item.qty }}</span>
-                    <button type="button" class="rp-qty-btn qty-increase" data-id="{{ product.id }}">+</button>
+                    <button type="button" class="rp-qty-btn remove qty-decrease" data-key="{{ item.key }}">-</button>
+                    <span class="rp-qty-num">{{ item.qty }}</span>
+                    <button type="button" class="rp-qty-btn qty-increase" data-key="{{ item.key }}">+</button>
                 </div>
 
-                <div class="rp-item-subtotal" id="sub-{{ product.id }}">Ksh {{ product.price|mul:item.qty|intcomma }}</div>
+                <div class="rp-item-subtotal">Ksh {{ item.total|intcomma }}</div>
 
                 <div class="rp-item-remove">
-                    <button type="button" class="delete-button" data-id="{{ product.id }}" title="Remove item">
+                    <button type="button" class="delete-button" data-key="{{ item.key }}" title="Remove item">
                         <i class="fa fa-trash-o"></i>
                     </button>
                 </div>
@@ -532,8 +532,8 @@
 
     <div class="rp-items-card">
         <div class="rp-empty">
-            <div class="rp-empty-icon"><i class="fa fa-shopping-basket"></i></div>
-            <h3>Your order is empty</h3>
+            <div class="rp-empty-icon"><i class="fa-solid fa-plate-wheat"></i></div>
+            <h3>Your tray is empty</h3>
             <p>Head back to the menu and tap items to build your order</p>
             <a href="{% url 'pos' %}" class="rp-empty-btn">
                 <i class="fa fa-cutlery"></i> Browse Menu
@@ -547,33 +547,33 @@
 <script>
     // Increase quantity
     $(document).on('click', '.qty-increase', function() {
-        var id = $(this).data('id');
-        var current = parseInt($('#qty-' + id).text());
-        updateQty(id, current + 1);
+        var key = $(this).data('key');
+        var current = parseInt($(this).siblings('.rp-qty-num').text());
+        updateQty(key, current + 1);
     });
 
     // Decrease quantity
     $(document).on('click', '.qty-decrease', function() {
-        var id = $(this).data('id');
-        var current = parseInt($('#qty-' + id).text());
+        var key = $(this).data('key');
+        var current = parseInt($(this).siblings('.rp-qty-num').text());
         if (current <= 1) {
-            deleteItem(id);
+            deleteItem(key);
         } else {
-            updateQty(id, current - 1);
+            updateQty(key, current - 1);
         }
     });
 
     // Remove item
     $(document).on('click', '.delete-button', function() {
-        deleteItem($(this).data('id'));
+        deleteItem($(this).data('key'));
     });
 
-    function updateQty(productId, qty) {
+    function updateQty(cartKey, qty) {
         $.ajax({
             type: 'POST',
             url: '{% url "cart-update" %}',
             data: {
-                product_id: productId,
+                cart_key: cartKey,
                 product_quantity: qty,
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 action: 'post'
@@ -582,12 +582,12 @@
         });
     }
 
-    function deleteItem(productId) {
+    function deleteItem(cartKey) {
         $.ajax({
             type: 'POST',
             url: '{% url "cart-delete" %}',
             data: {
-                product_id: productId,
+                cart_key: cartKey,
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 action: 'post'
             },

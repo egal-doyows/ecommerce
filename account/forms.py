@@ -48,6 +48,30 @@ class WaiterLoginForm(forms.Form):
         return code
 
 
+class WaiterProfileForm(forms.Form):
+    photo = forms.ImageField(required=False, widget=forms.FileInput(attrs={
+        'class': 'form-control',
+        'accept': 'image/*',
+    }))
+    code = forms.CharField(
+        max_length=6,
+        min_length=6,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control form-control-lg text-center',
+            'inputmode': 'numeric',
+            'pattern': '[0-9]{6}',
+            'style': 'letter-spacing:8px; font-size:24px; font-weight:700;',
+        }),
+        label='Login Code',
+    )
+
+    def clean_code(self):
+        code = self.cleaned_data.get('code')
+        if not code.isdigit():
+            raise forms.ValidationError('Code must contain only digits.')
+        return code
+
+
 class UserUpdateForm(forms.ModelForm):
     password = None
 

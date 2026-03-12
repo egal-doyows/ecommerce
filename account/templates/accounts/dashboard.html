@@ -1,100 +1,434 @@
 {% extends "menu/base.html" %}
 {% load static %}
+{% load humanize %}
 
 {% block content %}
 
 <style>
-    .dash-page { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+    .wp-page { max-width: 800px; margin: 30px auto; padding: 0 20px; }
 
-    .dash-welcome {
-        background: linear-gradient(135deg, var(--pos-dark), var(--pos-blue));
-        border-radius: 14px;
-        padding: 28px 32px;
-        color: #fff;
-        margin-bottom: 20px;
+    /* Profile Card */
+    .wp-profile {
+        background: #fff;
+        border: 2px solid var(--pos-border);
+        border-radius: 16px;
+        padding: 32px;
+        color: #000;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        position: relative;
+        overflow: hidden;
     }
 
-    .dash-welcome h2 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
-    .dash-welcome p { font-size: 13px; opacity: 0.7; margin: 0; }
+    .wp-profile::before {
+        content: '';
+        position: absolute;
+        top: -40px;
+        right: -40px;
+        width: 160px;
+        height: 160px;
+        background: rgba(124,131,255,0.08);
+        border-radius: 50%;
+    }
 
-    .dash-grid {
+    .wp-profile::after {
+        content: '';
+        position: absolute;
+        bottom: -30px;
+        right: 60px;
+        width: 100px;
+        height: 100px;
+        background: rgba(124,131,255,0.05);
+        border-radius: 50%;
+    }
+
+    .wp-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--pos-accent), #6366f1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 800;
+        color: #fff;
+        flex-shrink: 0;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+    }
+
+    .wp-info { flex: 1; z-index: 1; }
+    .wp-name { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: #000 !important; }
+    .wp-role { font-size: 13px; margin: 0 0 12px; color: var(--pos-muted) !important; }
+
+    .wp-stats {
+        display: flex;
+        gap: 24px;
+    }
+
+    .wp-stat { text-align: left; }
+
+    .wp-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        display: block;
+        line-height: 1.2;
+        color: #000 !important;
+    }
+
+    .wp-stat-label {
+        font-size: 11px;
+        color: var(--pos-muted) !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .wp-edit-btn {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        z-index: 2;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        text-decoration: none;
+        transition: all 0.15s;
+    }
+
+    .wp-edit-btn:hover {
+        background: rgba(255,255,255,0.25);
+        color: #fff;
+    }
+
+    /* Shift Banner */
+    .wp-shift {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 20px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .wp-shift-active {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1.5px solid #a7f3d0;
+    }
+
+    .wp-shift-active i { color: var(--pos-success); }
+
+    .wp-shift-inactive {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1.5px solid #fde68a;
+    }
+
+    .wp-shift-inactive i { color: #f59e0b; }
+
+    .wp-shift span { flex: 1; }
+
+    .wp-shift-link {
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        color: inherit;
+        opacity: 0.8;
+        transition: opacity 0.15s;
+    }
+
+    .wp-shift-link:hover { opacity: 1; color: inherit; }
+
+    /* Section Title */
+    .wp-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0 0 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .wp-section-title i {
+        color: var(--pos-accent);
+        font-size: 14px;
+    }
+
+    /* Services Grid */
+    .wp-services {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
         gap: 14px;
+        margin-bottom: 24px;
     }
 
-    .dash-card {
+    .wp-service {
         background: #fff;
-        border-radius: 12px;
-        padding: 22px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        border-radius: 14px;
+        padding: 24px 22px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         transition: all 0.2s;
         text-decoration: none;
         color: var(--pos-text);
         border: 2px solid transparent;
+        display: block;
     }
 
-    .dash-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        border-color: var(--pos-blue);
+    .wp-service:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        border-color: var(--pos-accent);
         color: var(--pos-text);
     }
 
-    .dash-card-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+    .wp-service-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
-        margin-bottom: 12px;
+        font-size: 18px;
+        margin-bottom: 14px;
     }
 
-    .dash-card h4 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
-    .dash-card p { font-size: 12px; color: var(--pos-muted); margin: 0; }
+    .wp-service h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 4px;
+    }
+
+    .wp-service p {
+        font-size: 12px;
+        color: var(--pos-muted);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .wp-service-arrow {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--pos-accent);
+        margin-top: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Quick Actions */
+    .wp-actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
+    .wp-action-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .wp-action-primary {
+        background: var(--pos-success);
+        color: #fff;
+    }
+
+    .wp-action-primary:hover {
+        background: #00a884;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(0,184,148,0.35);
+        transform: translateY(-1px);
+    }
+
+    .wp-action-secondary {
+        background: #fff;
+        color: var(--pos-text);
+        border: 2px solid var(--pos-border);
+    }
+
+    .wp-action-secondary:hover {
+        border-color: var(--pos-blue);
+        color: var(--pos-blue);
+        transform: translateY(-1px);
+    }
+
+    .wp-action-danger {
+        background: #fff;
+        color: #dc2626;
+        border: 2px solid #fecaca;
+    }
+
+    .wp-action-danger:hover {
+        background: #fef2f2;
+        border-color: #dc2626;
+        transform: translateY(-1px);
+    }
+
+    /* Coming Soon Badge */
+    .wp-coming-soon {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: var(--pos-light);
+        color: var(--pos-muted);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-left: 6px;
+    }
 </style>
 
-<div class="dash-page">
-    <div class="dash-welcome">
-        <h2>Welcome, {{ user.username|capfirst }}</h2>
-        <p>Restaurant POS Dashboard</p>
+<div class="wp-page">
+
+    <!-- Profile Card -->
+    <div class="wp-profile">
+        <a href="{% url 'profile-management' %}" class="wp-edit-btn" title="Edit Profile">
+            <i class="fa-solid fa-pen"></i>
+        </a>
+        {% if user.waiter_code.photo %}
+        <img src="{{ user.waiter_code.photo.url }}" alt="" class="wp-avatar" style="object-fit:cover;">
+        {% else %}
+        <div class="wp-avatar">{{ user.username|first|upper }}</div>
+        {% endif %}
+        <div class="wp-info">
+            <h2 class="wp-name">{{ user.username|capfirst }}</h2>
+            <p class="wp-role">{% if user.is_superuser %}Admin{% else %}Waiter{% endif %} &middot; {{ user.email|default:"No email set" }}</p>
+            <div class="wp-stats">
+                <div class="wp-stat">
+                    <span class="wp-stat-value">{{ today_order_count }}</span>
+                    <span class="wp-stat-label">Orders Today</span>
+                </div>
+                <div class="wp-stat">
+                    <span class="wp-stat-value">Ksh {{ today_sales|intcomma }}</span>
+                    <span class="wp-stat-label">Sales Today</span>
+                </div>
+                <div class="wp-stat">
+                    <span class="wp-stat-value">{% if active_shift %}{{ active_shift.get_duration }}{% else %}&mdash;{% endif %}</span>
+                    <span class="wp-stat-label">Shift Duration</span>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="dash-grid">
-        <a href="{% url 'pos' %}" class="dash-card">
-            <div class="dash-card-icon" style="background:#e8f5e9; color:#2e7d32;">
-                <i class="fa fa-plus"></i>
+    <!-- Shift Status -->
+    {% if active_shift %}
+    <div class="wp-shift wp-shift-active">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>On shift since {{ active_shift.started_at|date:"H:i" }}</span>
+        <a href="{% url 'shift' %}" class="wp-shift-link">View Shift <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    {% else %}
+    <div class="wp-shift wp-shift-inactive">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>You are not clocked in</span>
+        <a href="{% url 'shift' %}" class="wp-shift-link">Clock In <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="wp-actions">
+        <a href="{% url 'pos' %}" class="wp-action-btn wp-action-primary">
+            <i class="fa-solid fa-plus"></i> New Order
+        </a>
+        <a href="{% url 'order-list' %}" class="wp-action-btn wp-action-secondary">
+            <i class="fa-solid fa-receipt"></i> Active Orders
+        </a>
+        <a href="{% url 'tables' %}" class="wp-action-btn wp-action-secondary">
+            <i class="fa-solid fa-table-cells-large"></i> Tables
+        </a>
+    </div>
+
+    <!-- Services -->
+    <h3 class="wp-section-title"><i class="fa-solid fa-grid-2"></i> Services</h3>
+    <div class="wp-services">
+        <a href="{% url 'pos' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#e8f5e9; color:#2e7d32;">
+                <i class="fa-solid fa-utensils"></i>
             </div>
-            <h4>New Order</h4>
-            <p>Take a new order from the menu</p>
+            <h4>POS Menu</h4>
+            <p>Browse menu and add items to tray</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
-        <a href="{% url 'order-list' %}" class="dash-card">
-            <div class="dash-card-icon" style="background:#e3f2fd; color:#1565c0;">
-                <i class="fa fa-list-alt"></i>
+        <a href="{% url 'order-list' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#e3f2fd; color:#1565c0;">
+                <i class="fa-solid fa-receipt"></i>
             </div>
-            <h4>Active Orders</h4>
-            <p>View and manage current orders</p>
+            <h4>Orders</h4>
+            <p>View, manage, and process payments</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
-        <a href="{% url 'tables' %}" class="dash-card">
-            <div class="dash-card-icon" style="background:#fff3e0; color:#e65100;">
-                <i class="fa fa-th-large"></i>
+        <a href="{% url 'tables' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#fff3e0; color:#e65100;">
+                <i class="fa-solid fa-table-cells-large"></i>
             </div>
             <h4>Tables</h4>
-            <p>View table availability</p>
+            <p>Check availability and reserve tables</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
-        <a href="{% url 'profile-management' %}" class="dash-card">
-            <div class="dash-card-icon" style="background:#f3e5f5; color:#7b1fa2;">
-                <i class="fa fa-user-circle"></i>
+        <a href="{% url 'shift' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#fce4ec; color:#c62828;">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <h4>My Shifts</h4>
+            <p>Clock in/out and view shift history</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+
+        <a href="{% url 'profile-management' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#f3e5f5; color:#7b1fa2;">
+                <i class="fa-solid fa-user-pen"></i>
             </div>
             <h4>My Account</h4>
             <p>Update profile and settings</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+
+        <div class="wp-service" style="cursor:default; opacity:0.6;">
+            <div class="wp-service-icon" style="background:var(--pos-light); color:var(--pos-muted);">
+                <i class="fa-solid fa-ellipsis"></i>
+            </div>
+            <h4>More Services <span class="wp-coming-soon">Coming Soon</span></h4>
+            <p>Additional features will appear here</p>
+        </div>
+    </div>
+
+    <!-- Account Actions -->
+    <h3 class="wp-section-title"><i class="fa-solid fa-gear"></i> Account</h3>
+    <div class="wp-actions">
+        <a href="{% url 'profile-management' %}" class="wp-action-btn wp-action-secondary">
+            <i class="fa-solid fa-user-pen"></i> Edit Profile
+        </a>
+        <a href="{% url 'user-logout' %}" class="wp-action-btn wp-action-danger">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
         </a>
     </div>
+
 </div>
 
 {% endblock %}

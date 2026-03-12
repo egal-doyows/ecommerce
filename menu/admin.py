@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import RestaurantSettings, Category, MenuItem, Table, Order, OrderItem, Shift
+from .models import RestaurantSettings, Category, InventoryItem, MenuItem, Recipe, Table, Order, OrderItem, Shift
 
 
 @admin.register(RestaurantSettings)
@@ -20,13 +20,67 @@ class CategoryAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('name',)}
 
 
+@admin.register(InventoryItem)
+class InventoryItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'unit', 'stock_quantity', 'buying_price', 'low_stock_threshold', 'stock_status')
+    list_filter = ('unit',)
+    search_fields = ('name',)
+    list_editable = ('stock_quantity', 'buying_price')
+
+    def stock_status(self, obj):
+        if obj.stock_quantity <= 0:
+            return 'OUT OF STOCK'
+        if obj.is_low_stock:
+            return 'LOW'
+        return 'OK'
+    stock_status.short_description = 'Status'
+
+
+class RecipeInline(admin.TabularInline):
+    model = Recipe
+    extra = 1
+    autocomplete_fields = ('inventory_item',)
+
+
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'price', 'is_available', 'preparation_time')
+    list_display = ('title', 'category', 'price', 'is_available', 'preparation_time', 'stock_type', 'stock_info')
     list_filter = ('category', 'is_available')
     search_fields = ('title',)
     prepopulated_fields = {'slug': ('title',)}
     list_editable = ('price', 'is_available')
+    autocomplete_fields = ('inventory_item',)
+    inlines = [RecipeInline]
+    fieldsets = (
+        (None, {
+            'fields': ('category', 'title', 'slug', 'description', 'price', 'image', 'is_available', 'preparation_time'),
+        }),
+        ('Inventory', {
+            'description': (
+                'For <strong>direct-sale items</strong> (soda, water): link an inventory item below. '
+                'For <strong>prepared items</strong> (juice, burger): leave this blank and add ingredients in the Recipe section.'
+            ),
+            'fields': ('inventory_item',),
+        }),
+    )
+
+    def stock_type(self, obj):
+        if obj.is_direct_sale:
+            return 'Direct sale'
+        if obj.recipe_items.exists():
+            return 'Prepared'
+        return 'No stock tracking'
+    stock_type.short_description = 'Type'
+
+    def stock_info(self, obj):
+        if obj.is_direct_sale:
+            inv = obj.inventory_item
+            return f"{inv.stock_quantity} {inv.get_unit_display()}"
+        count = obj.recipe_items.count()
+        if count:
+            return f"{count} ingredient{'s' if count != 1 else ''}"
+        return '—'
+    stock_info.short_description = 'Stock'
 
 
 @admin.register(Table)
@@ -56,6 +110,17 @@ class OrderAdmin(admin.ModelAdmin):
     def get_total(self, obj):
         return f"Ksh {obj.get_total():,.2f}"
     get_total.short_description = 'Total'
+
+    def delete_queryset(self, request, queryset):
+        tables = set(order.table for order in queryset if order.table)
+        queryset.delete()
+        for table in tables:
+            if not table.orders.filter(status='active').exists():
+                table.status = 'available'
+                table.save()
+
+    def delete_model(self, request, obj):
+        obj.delete()
 
 
 @admin.register(Shift)

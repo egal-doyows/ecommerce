@@ -1,15 +1,10 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 
 urlpatterns = [
-    path('', views.register, name='register'),
-
-    # Email verification
-    path('email-verification/<str:uidb64>/<str:token>/', views.email_verification, name='email-verification'),
-    path('email-verification-sent', views.email_verification_sent, name='email-verification-sent'),
-    path('email-verification-success', views.email_verification_success, name='email-verification-success'),
-    path('email-verification-failed', views.email_verification_failed, name='email-verification-failed'),
+    path('', RedirectView.as_view(pattern_name='waiter-login'), name='account-root'),
 
     # Login / Logout
     path('my-login', views.my_login, name='my-login'),

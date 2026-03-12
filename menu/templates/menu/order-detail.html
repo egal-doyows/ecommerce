@@ -117,58 +117,108 @@
             position: fixed;
             top: 0; left: 0;
             width: 80mm;
-            padding: 4mm 3mm;
+            padding: 5mm 4mm;
             margin: 0;
             background: #fff;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #000;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         .receipt-center { text-align: center; }
-        .receipt-bold { font-weight: bold; }
-        .receipt-lg { font-size: 16px; font-weight: bold; }
-        .receipt-sm { font-size: 10px; }
+        .receipt-bold { font-weight: 900; color: #000 !important; }
+        .receipt-lg { font-size: 18px; font-weight: 900; color: #000 !important; }
+        .receipt-sm { font-size: 11px; color: #000 !important; }
+
+        .receipt-logo {
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .receipt-logo i {
+            font-size: 32px;
+            color: #000 !important;
+        }
+
+        .receipt-brand {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #000 !important;
+            margin: 2px 0;
+        }
+
+        .receipt-tagline {
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #000 !important;
+            margin-bottom: 2px;
+        }
 
         .receipt-divider {
             border: none;
-            border-top: 1px dashed #000;
+            border-top: 2px dashed #000;
+            margin: 8px 0;
+        }
+
+        .receipt-divider-thin {
+            border: none;
+            border-top: 1px solid #000;
             margin: 6px 0;
         }
 
         .receipt-row {
             display: flex;
             justify-content: space-between;
+            font-weight: 700;
+            color: #000 !important;
         }
 
         .receipt-item {
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         .receipt-item-name {
             display: flex;
             justify-content: space-between;
+            font-weight: 700;
+            color: #000 !important;
         }
 
         .receipt-item-detail {
-            font-size: 10px;
-            color: #555;
+            font-size: 11px;
+            color: #000 !important;
+            font-weight: 600;
             padding-left: 2mm;
+            font-style: italic;
         }
 
         .receipt-total-row {
             display: flex;
             justify-content: space-between;
-            font-size: 15px;
-            font-weight: bold;
-            padding: 4px 0;
+            font-size: 16px;
+            font-weight: 900;
+            padding: 6px 0;
+            color: #000 !important;
+            border-top: 2px solid #000;
+            border-bottom: 2px solid #000;
         }
 
         .receipt-footer {
             text-align: center;
-            font-size: 10px;
-            margin-top: 6px;
+            font-size: 11px;
+            margin-top: 8px;
+            color: #000 !important;
+            font-weight: 600;
+        }
+
+        .receipt-footer p {
+            color: #000 !important;
         }
     }
 
@@ -359,7 +409,7 @@
                     </div>
 
                     <div class="od-mpesa-input" id="mpesaInput">
-                        <input type="text" name="mpesa_code" id="mpesaCode" placeholder="Enter M-Pesa transaction code" maxlength="20">
+                        <input type="text" name="mpesa_code" id="mpesaCode" placeholder="Last 4 characters e.g. AB12" maxlength="4" minlength="4" style="text-transform:uppercase; letter-spacing:4px; text-align:center; font-size:18px;">
                     </div>
 
                     <button type="submit" class="od-pay-confirm" id="payBtn" disabled>
@@ -391,7 +441,8 @@
                 }
 
                 document.getElementById('mpesaCode').addEventListener('input', function() {
-                    document.getElementById('payBtn').disabled = !this.value.trim();
+                    this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    document.getElementById('payBtn').disabled = this.value.trim().length !== 4;
                 });
             </script>
             {% endif %}
@@ -405,9 +456,16 @@
 
 <!-- POS Thermal Receipt (visible only when printing) -->
 <div class="receipt">
-    <div class="receipt-center receipt-lg">RestoPOS</div>
-    <div class="receipt-center receipt-sm">Your Favourite Restaurant</div>
-    <div class="receipt-center receipt-sm">Tel: +254 700 000 000</div>
+    <div class="receipt-logo">
+        {% if restaurant.logo %}
+        <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:50px;height:50px;object-fit:contain;margin:0 auto;display:block;">
+        {% else %}
+        <i class="fa-solid fa-utensils"></i>
+        {% endif %}
+    </div>
+    <div class="receipt-center receipt-brand">{{ restaurant.name }}</div>
+    {% if restaurant.tagline %}<div class="receipt-center receipt-tagline">{{ restaurant.tagline }}</div>{% endif %}
+    {% if restaurant.phone %}<div class="receipt-center receipt-sm">Tel: {{ restaurant.phone }}</div>{% endif %}
     <hr class="receipt-divider">
 
     <div class="receipt-row">
@@ -423,10 +481,11 @@
     </div>
     <hr class="receipt-divider">
 
-    <div class="receipt-bold receipt-row" style="margin-bottom:4px;">
+    <div class="receipt-bold receipt-row" style="margin-bottom:6px;">
         <span>Item</span>
         <span>Amount</span>
     </div>
+    <hr class="receipt-divider-thin">
 
     {% for item in order.items.all %}
     <div class="receipt-item">
@@ -447,10 +506,8 @@
         <span>Ksh {{ order.get_total|intcomma }}</span>
     </div>
 
-    <hr class="receipt-divider">
-
     {% if order.payment_method %}
-    <div class="receipt-row">
+    <div class="receipt-row" style="margin-top:6px;">
         <span>Payment:</span>
         <span>{{ order.get_payment_method_display }}</span>
     </div>
@@ -464,8 +521,8 @@
     {% endif %}
 
     <div class="receipt-footer">
-        <p style="margin:4px 0;">Thank you for dining with us!</p>
-        <p style="margin:2px 0;">www.restopos.co.ke</p>
+        <p style="margin:6px 0 2px;">Thank you for dining with us!</p>
+        {% if restaurant.website %}<p style="margin:2px 0;">{{ restaurant.website }}</p>{% endif %}
     </div>
 </div>
 

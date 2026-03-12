@@ -62,15 +62,61 @@
         color: var(--pos-muted);
         margin-bottom: 10px;
     }
+
+    .tb-legend-count {
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-left: 2px;
+    }
+
+    .tb-reserve-btn {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 6px 14px;
+        border: 2px solid var(--pos-border);
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .tb-reserve-btn:hover {
+        border-color: var(--pos-warning);
+        color: #e67700;
+        background: #fff8e1;
+    }
+
+    .tb-unreserve-btn {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 6px 14px;
+        border: 2px solid var(--pos-warning);
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #e67700;
+        background: #fff8e1;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .tb-unreserve-btn:hover {
+        border-color: var(--pos-success);
+        color: #2b8a3e;
+        background: #d3f9d8;
+    }
 </style>
 
 <div class="tb-page">
     <div class="tb-header">
         <h2><i class="fa fa-th-large"></i> &nbsp; Tables</h2>
         <div class="tb-legend">
-            <span><span class="tb-legend-dot" style="background:var(--pos-success);"></span> Available</span>
-            <span><span class="tb-legend-dot" style="background:var(--pos-accent);"></span> Occupied</span>
-            <span><span class="tb-legend-dot" style="background:var(--pos-warning);"></span> Reserved</span>
+            <span><span class="tb-legend-dot" style="background:var(--pos-success);"></span> Available <span class="tb-legend-count">{{ available_count }}</span></span>
+            <span><span class="tb-legend-dot" style="background:var(--pos-accent);"></span> Occupied <span class="tb-legend-count">{{ occupied_count }}</span></span>
+            <span><span class="tb-legend-dot" style="background:var(--pos-warning);"></span> Reserved <span class="tb-legend-count">{{ reserved_count }}</span></span>
         </div>
     </div>
 
@@ -82,6 +128,17 @@
             <span class="status-badge status-{% if table.status == 'available' %}paid{% elif table.status == 'occupied' %}cancelled{% else %}preparing{% endif %}">
                 {{ table.get_status_display }}
             </span>
+            {% if table.status == 'available' %}
+            <form method="POST" action="{% url 'table-toggle-reserve' table.id %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="tb-reserve-btn"><i class="fa fa-bookmark"></i> Reserve</button>
+            </form>
+            {% elif table.status == 'reserved' %}
+            <form method="POST" action="{% url 'table-toggle-reserve' table.id %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="tb-unreserve-btn"><i class="fa fa-unlock"></i> Unreserve</button>
+            </form>
+            {% endif %}
         </div>
         {% empty %}
         <div style="grid-column:1/-1; text-align:center; padding:60px; color:var(--pos-muted);">
