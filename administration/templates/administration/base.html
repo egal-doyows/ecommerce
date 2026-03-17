@@ -1,0 +1,602 @@
+{% load static %}
+{% load admin_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1b1f3b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <title>{% block title %}Admin{% endblock %} | {{ restaurant.name }}</title>
+    <script src="/static/vendor/js/tailwind.js"></script>
+    <script>
+        tailwind.config = {
+            prefix: 'tw-',
+            theme: { extend: { colors: {
+                'pos-dark': '#1b1f3b',
+                'pos-navy': '#161938',
+                'pos-blue': '#0f3460',
+                'pos-accent': '#7c83ff',
+                'pos-light': '#f0f2f5',
+            }}}
+        }
+    </script>
+    <link rel="stylesheet" href="/static/vendor/css/bootstrap-flatly.min.css">
+    <link rel="stylesheet" href="/static/vendor/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/static/vendor/css/inter-font.css">
+    <style>
+        :root {
+            --adm-sidebar: 260px;
+            --adm-bg: #f0f2f5;
+            --adm-dark: #1b1f3b;
+            --adm-navy: #161938;
+            --adm-accent: #7c83ff;
+            --adm-accent-hover: #6b72ee;
+            --adm-border: #e2e5ea;
+            --adm-text: #2d3748;
+            --adm-muted: #8896a7;
+            --adm-success: #28a745;
+            --adm-warning: #f59e0b;
+            --adm-danger: #e74c3c;
+            --adm-card: #ffffff;
+        }
+
+        * { font-family: 'Inter', sans-serif; }
+
+        body {
+            margin: 0;
+            background: var(--adm-bg);
+            color: var(--adm-text);
+        }
+
+        /* ── Top bar ─────────────────────────────────────────── */
+        .adm-topbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 56px;
+            background: var(--adm-dark);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+        }
+        .adm-topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+        .adm-topbar-brand .logo-icon {
+            width: 34px; height: 34px;
+            border-radius: 10px;
+            background: var(--adm-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(124,131,255,.35);
+        }
+        .adm-topbar-brand span { color: #fff; font-weight: 700; font-size: 16px; }
+        .adm-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .adm-topbar-right a {
+            color: rgba(255,255,255,.6);
+            font-size: 13px;
+            text-decoration: none;
+            transition: color .2s;
+        }
+        .adm-topbar-right a:hover { color: #fff; }
+        .adm-topbar-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .adm-topbar-user .avatar {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--adm-accent), #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .adm-topbar-user span { color: rgba(255,255,255,.8); font-size: 13px; font-weight: 500; }
+
+        /* ── Sidebar ─────────────────────────────────────────── */
+        .adm-sidebar {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            bottom: 0;
+            width: var(--adm-sidebar);
+            background: #fff;
+            border-right: 1px solid var(--adm-border);
+            overflow-y: auto;
+            z-index: 90;
+            padding: 20px 0;
+        }
+        .adm-nav-group { margin-bottom: 24px; }
+        .adm-nav-label {
+            padding: 0 20px;
+            margin-bottom: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--adm-muted);
+        }
+        .adm-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 20px;
+            color: var(--adm-text);
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all .15s;
+            border-left: 3px solid transparent;
+        }
+        .adm-nav-link:hover {
+            background: rgba(124,131,255,.06);
+            color: var(--adm-accent);
+        }
+        .adm-nav-link.active {
+            background: rgba(124,131,255,.08);
+            color: var(--adm-accent);
+            border-left-color: var(--adm-accent);
+            font-weight: 600;
+        }
+        .adm-nav-link i {
+            width: 18px;
+            text-align: center;
+            font-size: 14px;
+            opacity: .7;
+        }
+        .adm-nav-link.active i { opacity: 1; }
+        .adm-nav-badge {
+            margin-left: auto;
+            background: var(--adm-danger);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+        }
+
+        /* ── Main content ────────────────────────────────────── */
+        .adm-main {
+            margin-left: var(--adm-sidebar);
+            margin-top: 56px;
+            padding: 28px 32px;
+            min-height: calc(100vh - 56px);
+        }
+
+        /* ── Page header ─────────────────────────────────────── */
+        .adm-page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .adm-page-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--adm-text);
+        }
+        .adm-page-header .breadcrumb-text {
+            font-size: 12px;
+            color: var(--adm-muted);
+            margin-top: 2px;
+        }
+
+        /* ── Cards ───────────────────────────────────────────── */
+        .adm-card {
+            background: var(--adm-card);
+            border-radius: 12px;
+            border: 1px solid var(--adm-border);
+            padding: 20px;
+        }
+
+        /* ── Stat card ───────────────────────────────────────── */
+        .adm-stat {
+            background: var(--adm-card);
+            border-radius: 12px;
+            border: 1px solid var(--adm-border);
+            padding: 20px 22px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        .adm-stat-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .adm-stat-value {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--adm-text);
+        }
+        .adm-stat-label {
+            font-size: 12px;
+            color: var(--adm-muted);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        /* ── Table ───────────────────────────────────────────── */
+        .adm-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .adm-table th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--adm-muted);
+            border-bottom: 2px solid var(--adm-border);
+            white-space: nowrap;
+        }
+        .adm-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--adm-border);
+            vertical-align: middle;
+        }
+        .adm-table tr:last-child td { border-bottom: none; }
+        .adm-table tr:hover { background: rgba(124,131,255,.02); }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .adm-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all .2s;
+        }
+        .adm-btn-primary {
+            background: var(--adm-accent);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(124,131,255,.3);
+        }
+        .adm-btn-primary:hover {
+            background: var(--adm-accent-hover);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124,131,255,.35);
+        }
+        .adm-btn-outline {
+            background: transparent;
+            color: var(--adm-text);
+            border: 1px solid var(--adm-border);
+        }
+        .adm-btn-outline:hover { background: var(--adm-bg); color: var(--adm-text); }
+        .adm-btn-danger {
+            background: var(--adm-danger);
+            color: #fff;
+        }
+        .adm-btn-danger:hover {
+            background: #c0392b;
+            color: #fff;
+        }
+        .adm-btn-sm { padding: 5px 10px; font-size: 12px; }
+        .adm-btn-icon {
+            width: 32px; height: 32px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 13px;
+            border: 1px solid var(--adm-border);
+            background: #fff;
+            color: var(--adm-muted);
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .adm-btn-icon:hover { color: var(--adm-accent); border-color: var(--adm-accent); }
+
+        /* ── Badge ───────────────────────────────────────────── */
+        .adm-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .3px;
+        }
+        .adm-badge-success { background: rgba(40,167,69,.1); color: var(--adm-success); }
+        .adm-badge-warning { background: rgba(245,158,11,.1); color: var(--adm-warning); }
+        .adm-badge-danger  { background: rgba(231,76,60,.1);  color: var(--adm-danger); }
+        .adm-badge-info    { background: rgba(124,131,255,.1); color: var(--adm-accent); }
+        .adm-badge-muted   { background: rgba(136,150,167,.1); color: var(--adm-muted); }
+        .adm-badge-premium { background: linear-gradient(135deg,rgba(245,158,11,.12),rgba(234,88,12,.12)); color: #d97706; }
+        .adm-badge-regular { background: rgba(124,131,255,.1); color: var(--adm-accent); }
+
+        /* ── Forms ───────────────────────────────────────────── */
+        .adm-input {
+            width: 100%;
+            padding: 9px 14px;
+            border: 1px solid var(--adm-border);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--adm-text);
+            background: #fff;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .adm-input:focus {
+            border-color: var(--adm-accent);
+            box-shadow: 0 0 0 3px rgba(124,131,255,.12);
+            outline: none;
+        }
+        .adm-form-group { margin-bottom: 18px; }
+        .adm-form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--adm-text);
+            letter-spacing: .3px;
+        }
+        .adm-help-text {
+            font-size: 11px;
+            color: var(--adm-muted);
+            margin-top: 4px;
+        }
+        .errorlist {
+            list-style: none;
+            padding: 0;
+            margin: 4px 0 0 0;
+        }
+        .errorlist li {
+            font-size: 12px;
+            color: var(--adm-danger);
+        }
+
+        /* ── Filter bar ──────────────────────────────────────── */
+        .adm-filters {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .adm-filter-btn {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            color: var(--adm-muted);
+            background: var(--adm-card);
+            border: 1px solid var(--adm-border);
+            transition: all .15s;
+        }
+        .adm-filter-btn:hover { color: var(--adm-accent); border-color: var(--adm-accent); }
+        .adm-filter-btn.active {
+            background: var(--adm-accent);
+            color: #fff;
+            border-color: var(--adm-accent);
+        }
+
+        /* ── Alert ───────────────────────────────────────────── */
+        .adm-alert {
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .adm-alert-success { background: rgba(40,167,69,.08); color: var(--adm-success); border: 1px solid rgba(40,167,69,.15); }
+        .adm-alert-error   { background: rgba(231,76,60,.08);  color: var(--adm-danger);  border: 1px solid rgba(231,76,60,.15); }
+        .adm-alert-warning { background: rgba(245,158,11,.08); color: var(--adm-warning); border: 1px solid rgba(245,158,11,.15); }
+
+        /* ── Empty state ─────────────────────────────────────── */
+        .adm-empty {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--adm-muted);
+        }
+        .adm-empty i { font-size: 40px; opacity: .3; margin-bottom: 12px; }
+        .adm-empty p { font-size: 14px; margin: 0; }
+
+        /* ── Mobile sidebar toggle ───────────────────────────── */
+        .adm-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .adm-sidebar { display: none; }
+            .adm-sidebar.open { display: block; width: 100%; z-index: 95; }
+            .adm-main { margin-left: 0; padding: 20px 16px; }
+            .adm-menu-toggle { display: block; }
+        }
+
+        select.adm-input { appearance: auto; }
+        @keyframes bellShake {
+            0%, 80%, 100% { transform: rotate(0); }
+            85% { transform: rotate(12deg); }
+            90% { transform: rotate(-12deg); }
+            95% { transform: rotate(6deg); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="adm-topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+        <button class="adm-menu-toggle" onclick="document.getElementById('admSidebar').classList.toggle('open')">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <a href="{% url 'admin-dashboard' %}" class="adm-topbar-brand">
+            <div class="logo-icon"><i class="fa-solid fa-utensils"></i></div>
+            <span>{{ restaurant.name|default:"Admin" }}</span>
+        </a>
+    </div>
+    <div class="adm-topbar-right">
+        {% if pending_po_count %}
+        <a href="{% url 'po-list' %}?status=pending" style="position:relative;text-decoration:none;font-size:20px;margin-right:10px;color:#fff;display:flex;align-items:center;" title="{{ pending_po_count }} PO{{ pending_po_count|pluralize }} awaiting approval">
+            <i class="fa-solid fa-bell" style="animation:bellShake 2s ease-in-out infinite;"></i>
+            <span style="position:absolute;top:-5px;right:-10px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:50%;padding:0 4px;box-shadow:0 0 0 2px var(--adm-dark);">{{ pending_po_count }}</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'pos' %}"><i class="fa-solid fa-arrow-left"></i> Back to POS</a>
+        <div class="adm-topbar-user">
+            <div class="avatar">{{ user.username|first|upper }}</div>
+            <span>{{ user.username|capfirst }}</span>
+        </div>
+        <a href="{% url 'user-logout' %}"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
+    </div>
+</div>
+
+<!-- Sidebar -->
+<nav class="adm-sidebar" id="admSidebar">
+    <div class="adm-nav-group">
+        <div class="adm-nav-label">Main</div>
+        <a href="{% url 'admin-dashboard' %}" class="adm-nav-link {% active_nav 'admin-dashboard' %}">
+            <i class="fa-solid fa-chart-pie"></i> Dashboard
+        </a>
+        {% if is_manager %}
+        <a href="{% url 'admin-reports' %}" class="adm-nav-link {% active_nav 'admin-reports' %}">
+            <i class="fa-solid fa-chart-bar"></i> Reports
+        </a>
+        <a href="{% url 'admin-accounts' %}" class="adm-nav-link {% active_nav 'admin-accounts' 'admin-account-detail' %}">
+            <i class="fa-solid fa-landmark"></i> Accounts
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="adm-nav-group">
+        <div class="adm-nav-label">Restaurant</div>
+        <a href="{% url 'admin-menu-list' %}" class="adm-nav-link {% active_nav 'admin-menu-list' %}">
+            <i class="fa-solid fa-utensils"></i> Menu Items
+        </a>
+        <a href="{% url 'admin-category-list' %}" class="adm-nav-link {% active_nav 'admin-category-list' %}">
+            <i class="fa-solid fa-tags"></i> Categories
+        </a>
+        <a href="{% url 'admin-inventory-list' %}" class="adm-nav-link {% active_nav 'admin-inventory-list' %}">
+            <i class="fa-solid fa-boxes-stacked"></i> Inventory
+        </a>
+        {% if is_manager %}
+        <a href="{% url 'supplier-list' %}" class="adm-nav-link {% active_nav 'supplier-list' 'supplier-detail' 'supplier-create' 'supplier-edit' 'supplier-transaction-create' %}">
+            <i class="fa-solid fa-truck-field"></i> Suppliers
+        </a>
+        {% endif %}
+        {% if is_manager or is_supervisor %}
+        <a href="{% url 'po-list' %}" class="adm-nav-link {% active_nav 'po-list' 'po-detail' 'po-create' %}">
+            <i class="fa-solid fa-clipboard-list"></i> Purchasing
+        </a>
+        {% endif %}
+        {% if is_manager %}
+        <a href="{% url 'receipt-list' %}" class="adm-nav-link {% active_nav 'receipt-list' 'receipt-detail' 'receipt-create' 'po-receiving-summary' %}">
+            <i class="fa-solid fa-truck-ramp-box"></i> Receiving
+        </a>
+        {% endif %}
+        <a href="{% url 'waste-list' %}" class="adm-nav-link {% active_nav 'waste-list' 'waste-detail' 'waste-create' 'waste-summary' %}">
+            <i class="fa-solid fa-trash-can"></i> Waste
+        </a>
+        <a href="{% url 'expense-list' %}" class="adm-nav-link {% active_nav 'expense-list' 'expense-detail' 'expense-create' 'expense-edit' 'expense-summary' 'expense-category-list' 'expense-category-create' 'expense-category-edit' %}">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Expenses
+        </a>
+        <a href="{% url 'debtor-list' %}" class="adm-nav-link {% active_nav 'debtor-list' 'debtor-detail' 'debtor-create' 'debtor-edit' 'debtor-transaction-create' 'debtor-receive-payment' %}">
+            <i class="fa-solid fa-hand-holding-dollar"></i> Debtors
+        </a>
+        <a href="{% url 'admin-table-list' %}" class="adm-nav-link {% active_nav 'admin-table-list' %}">
+            <i class="fa-solid fa-chair"></i> Spaces
+        </a>
+    </div>
+
+    <div class="adm-nav-group">
+        <div class="adm-nav-label">Operations</div>
+        {% if is_manager %}
+        <a href="{% url 'pos' %}" class="adm-nav-link">
+            <i class="fa-solid fa-cash-register"></i> POS / New Order
+        </a>
+        {% endif %}
+        <a href="{% url 'admin-order-list' %}" class="adm-nav-link {% active_nav 'admin-order-list' %}">
+            <i class="fa-solid fa-receipt"></i> Orders
+        </a>
+        <a href="{% url 'admin-shift-list' %}" class="adm-nav-link {% active_nav 'admin-shift-list' %}">
+            <i class="fa-solid fa-clock"></i> Shifts
+        </a>
+    </div>
+
+    <div class="adm-nav-group">
+        <div class="adm-nav-label">People</div>
+        <a href="{% url 'admin-staff-list' %}" class="adm-nav-link {% active_nav 'admin-staff-list' %}">
+            <i class="fa-solid fa-users"></i> Staff
+        </a>
+        {% if is_manager %}
+        <a href="{% url 'compensation-overview' %}" class="adm-nav-link">
+            <i class="fa-solid fa-coins"></i> Compensation
+        </a>
+        {% endif %}
+        <a href="{% url 'hr-dashboard' %}" class="adm-nav-link {% active_nav 'hr-dashboard' 'hr-employee-list' 'hr-employee-detail' 'hr-employee-create' 'hr-employee-edit' 'hr-department-list' 'hr-position-list' 'hr-leave-list' 'hr-leave-detail' 'hr-leave-request' 'hr-leave-type-list' %}">
+            <i class="fa-solid fa-id-card-clip"></i> HR
+        </a>
+    </div>
+
+    {% if is_manager %}
+    <div class="adm-nav-group">
+        <div class="adm-nav-label">System</div>
+        <a href="{% url 'admin-settings' %}" class="adm-nav-link {% active_nav 'admin-settings' %}">
+            <i class="fa-solid fa-gear"></i> Settings
+        </a>
+    </div>
+    {% endif %}
+</nav>
+
+<!-- Main content -->
+<main class="adm-main">
+    {% if messages %}
+        {% for msg in messages %}
+        <div class="adm-alert adm-alert-{{ msg.tags }}">
+            <i class="fa-solid {% if msg.tags == 'success' %}fa-circle-check{% elif msg.tags == 'error' %}fa-circle-xmark{% else %}fa-circle-info{% endif %}"></i>
+            {{ msg }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<script src="/static/js/pwa.js"></script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+{% extends "menu/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+<style>
+    .sc-page { max-width: 560px; margin: 30px auto; padding: 0 20px; }
+
+    .sc-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-decoration: none;
+        margin-bottom: 20px;
+        transition: color 0.15s;
+    }
+
+    .sc-back:hover { color: var(--pos-accent); }
+
+    .sc-form-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 32px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .sc-form-title {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--pos-text);
+        margin: 0 0 4px;
+    }
+
+    .sc-form-sub {
+        font-size: 13px;
+        color: var(--pos-muted);
+        margin: 0 0 28px;
+    }
+
+    /* Compensation Type Toggle */
+    .sc-type-toggle {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .sc-type-option {
+        flex: 1;
+        position: relative;
+    }
+
+    .sc-type-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .sc-type-label {
+        display: block;
+        padding: 20px 18px;
+        border-radius: 12px;
+        border: 2px solid var(--pos-border, #e5e7eb);
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .sc-type-option input:checked + .sc-type-label {
+        border-color: var(--pos-accent);
+        background: #f0f0ff;
+        box-shadow: 0 0 0 3px rgba(124,131,255,0.15);
+    }
+
+    .sc-type-label:hover { border-color: #c7c9ff; }
+
+    .sc-type-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin: 0 auto 10px;
+    }
+
+    .sc-type-label h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 4px;
+        color: var(--pos-text);
+    }
+
+    .sc-type-label p {
+        font-size: 12px;
+        color: var(--pos-muted);
+        margin: 0;
+    }
+
+    /* Scope Toggle */
+    .sc-scope-toggle {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 18px;
+    }
+
+    .sc-scope-option {
+        flex: 1;
+        position: relative;
+    }
+
+    .sc-scope-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .sc-scope-label {
+        display: block;
+        padding: 10px 8px;
+        border-radius: 8px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--pos-text);
+    }
+
+    .sc-scope-option input:checked + .sc-scope-label {
+        border-color: var(--pos-accent);
+        background: #f0f0ff;
+        color: var(--pos-accent);
+    }
+
+    .sc-scope-label:hover { border-color: #c7c9ff; }
+
+    /* Conditional Sections */
+    .sc-field-group {
+        display: none;
+        animation: fadeIn 0.2s ease;
+    }
+
+    .sc-field-group.visible { display: block; }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .sc-field-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .sc-field-help {
+        font-size: 12px;
+        color: var(--pos-muted);
+        margin-top: 4px;
+    }
+
+    .sc-field-group .form-control {
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 15px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+    }
+
+    .sc-field-group .form-control:focus {
+        border-color: var(--pos-accent);
+        box-shadow: 0 0 0 3px rgba(124,131,255,0.15);
+    }
+
+    .sc-rate-row {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 12px;
+    }
+
+    .sc-rate-col { flex: 1; }
+
+    .sc-rate-tier-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-left: 6px;
+    }
+
+    .sc-tier-regular { background: #f0f2f5; color: #6b7280; }
+    .sc-tier-premium { background: #fef3c7; color: #92400e; }
+
+    .sc-submit-btn {
+        width: 100%;
+        padding: 14px;
+        background: var(--pos-accent);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 24px;
+    }
+
+    .sc-submit-btn:hover {
+        box-shadow: 0 6px 20px rgba(124,131,255,0.35);
+        transform: translateY(-1px);
+    }
+
+    .sc-error {
+        color: #dc2626;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    .sc-divider {
+        border: none;
+        border-top: 1px solid #f3f4f6;
+        margin: 20px 0;
+    }
+</style>
+
+<div class="sc-page">
+
+    <a href="{% url 'compensation-detail' staff_user.pk %}" class="sc-back">
+        <i class="fa-solid fa-arrow-left"></i> Back to {{ staff_user.username|capfirst }}
+    </a>
+
+    <div class="sc-form-card">
+        <h2 class="sc-form-title">Compensation Plan</h2>
+        <p class="sc-form-sub">Configure how <strong>{{ staff_user.username|capfirst }}</strong> is compensated</p>
+
+        <form method="POST" id="compForm">
+            {% csrf_token %}
+
+            <!-- Compensation Type Toggle -->
+            <div class="sc-type-toggle">
+                <div class="sc-type-option">
+                    <input type="radio" name="compensation_type" value="commission" id="type_commission"
+                           {% if form.initial.compensation_type == 'commission' or form.data.compensation_type == 'commission' %}checked{% endif %}>
+                    <label for="type_commission" class="sc-type-label">
+                        <div class="sc-type-icon" style="background:#e0f2fe; color:#0369a1;">
+                            <i class="fa-solid fa-percent"></i>
+                        </div>
+                        <h4>Commission</h4>
+                        <p>Earns % per sale</p>
+                    </label>
+                </div>
+                <div class="sc-type-option">
+                    <input type="radio" name="compensation_type" value="salary" id="type_salary"
+                           {% if form.initial.compensation_type == 'salary' or form.data.compensation_type == 'salary' %}checked{% endif %}>
+                    <label for="type_salary" class="sc-type-label">
+                        <div class="sc-type-icon" style="background:#f0fdf4; color:#15803d;">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                        <h4>Salary</h4>
+                        <p>Fixed pay per period</p>
+                    </label>
+                </div>
+            </div>
+
+            {% if form.errors.compensation_type %}
+            <div class="sc-error" style="margin-top:-16px; margin-bottom:16px;">{{ form.errors.compensation_type.0 }}</div>
+            {% endif %}
+
+            <hr class="sc-divider">
+
+            <!-- Commission Fields -->
+            <div class="sc-field-group" id="commissionFields">
+                <label class="sc-field-label">Commission Scope</label>
+                <p class="sc-field-help" style="margin-top:0; margin-bottom:10px;">Which items does this staff earn on?</p>
+                <div class="sc-scope-toggle">
+                    <div class="sc-scope-option">
+                        <input type="radio" name="commission_scope" value="regular" id="scope_regular"
+                               {% if form.commission_scope.value == 'regular' %}checked{% endif %}>
+                        <label for="scope_regular" class="sc-scope-label">Regular Only</label>
+                    </div>
+                    <div class="sc-scope-option">
+                        <input type="radio" name="commission_scope" value="premium" id="scope_premium"
+                               {% if form.commission_scope.value == 'premium' %}checked{% endif %}>
+                        <label for="scope_premium" class="sc-scope-label">Premium Only</label>
+                    </div>
+                    <div class="sc-scope-option">
+                        <input type="radio" name="commission_scope" value="both" id="scope_both"
+                               {% if form.commission_scope.value == 'both' or not form.commission_scope.value %}checked{% endif %}>
+                        <label for="scope_both" class="sc-scope-label">Both</label>
+                    </div>
+                </div>
+
+                <div class="sc-rate-row">
+                    <div class="sc-rate-col" id="rateRegularCol">
+                        <label class="sc-field-label">
+                            Regular Rate (%) <span class="sc-rate-tier-badge sc-tier-regular">Regular</span>
+                        </label>
+                        <input type="number" name="commission_rate_regular" class="form-control"
+                               value="{{ form.commission_rate_regular.value|default_if_none:'0' }}"
+                               placeholder="e.g. 10" min="0" max="100" step="0.01">
+                        {% if form.errors.commission_rate_regular %}
+                        <div class="sc-error">{{ form.errors.commission_rate_regular.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="sc-rate-col" id="ratePremiumCol">
+                        <label class="sc-field-label">
+                            Premium Rate (%) <span class="sc-rate-tier-badge sc-tier-premium">Premium</span>
+                        </label>
+                        <input type="number" name="commission_rate_premium" class="form-control"
+                               value="{{ form.commission_rate_premium.value|default_if_none:'0' }}"
+                               placeholder="e.g. 15" min="0" max="100" step="0.01">
+                        {% if form.errors.commission_rate_premium %}
+                        <div class="sc-error">{{ form.errors.commission_rate_premium.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <p class="sc-field-help">Set different commission rates for regular and premium menu items</p>
+            </div>
+
+            <!-- Salary Fields -->
+            <div class="sc-field-group" id="salaryFields">
+                <label class="sc-field-label">Salary Amount ({{ restaurant.currency_symbol }})</label>
+                <input type="number" name="salary_amount" class="form-control"
+                       value="{{ form.salary_amount.value|default_if_none:'0' }}"
+                       placeholder="e.g. 30000" min="0" step="0.01" style="margin-bottom:16px;">
+                <p class="sc-field-help" style="margin-top:-12px;">Fixed amount paid per period</p>
+                {% if form.errors.salary_amount %}
+                <div class="sc-error">{{ form.errors.salary_amount.0 }}</div>
+                {% endif %}
+
+                <label class="sc-field-label" style="margin-top:18px;">Payment Frequency</label>
+                <select name="payment_frequency" class="form-control">
+                    <option value="weekly" {% if form.payment_frequency.value == 'weekly' %}selected{% endif %}>Weekly</option>
+                    <option value="biweekly" {% if form.payment_frequency.value == 'biweekly' %}selected{% endif %}>Bi-Weekly</option>
+                    <option value="monthly" {% if form.payment_frequency.value == 'monthly' or not form.payment_frequency.value %}selected{% endif %}>Monthly</option>
+                </select>
+            </div>
+
+            <button type="submit" class="sc-submit-btn">
+                <i class="fa-solid fa-check" style="margin-right:6px;"></i> Save Compensation Plan
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const commRadio = document.getElementById('type_commission');
+        const salRadio = document.getElementById('type_salary');
+        const commFields = document.getElementById('commissionFields');
+        const salFields = document.getElementById('salaryFields');
+
+        const scopeRegular = document.getElementById('scope_regular');
+        const scopePremium = document.getElementById('scope_premium');
+        const scopeBoth = document.getElementById('scope_both');
+        const rateRegCol = document.getElementById('rateRegularCol');
+        const ratePremCol = document.getElementById('ratePremiumCol');
+
+        function toggleType() {
+            commFields.classList.toggle('visible', commRadio.checked);
+            salFields.classList.toggle('visible', salRadio.checked);
+            if (commRadio.checked) toggleScope();
+        }
+
+        function toggleScope() {
+            const scope = document.querySelector('input[name="commission_scope"]:checked');
+            if (!scope) return;
+            rateRegCol.style.display = (scope.value === 'premium') ? 'none' : '';
+            ratePremCol.style.display = (scope.value === 'regular') ? 'none' : '';
+        }
+
+        commRadio.addEventListener('change', toggleType);
+        salRadio.addEventListener('change', toggleType);
+        scopeRegular.addEventListener('change', toggleScope);
+        scopePremium.addEventListener('change', toggleScope);
+        scopeBoth.addEventListener('change', toggleScope);
+
+        toggleType();
+    })();
+</script>
+
+{% endblock %}

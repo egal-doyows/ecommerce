@@ -1,0 +1,126 @@
+{% extends "menu/base.html" %}
+
+{% block content %}
+
+<style>
+    .bd-page { max-width: 520px; margin: 30px auto; padding: 0 20px; }
+
+    .bd-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-decoration: none;
+        margin-bottom: 20px;
+        transition: color 0.15s;
+    }
+
+    .bd-back:hover { color: var(--pos-accent); }
+
+    .bd-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+        padding: 28px;
+    }
+
+    .bd-card h2 {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--pos-text);
+        margin: 0 0 20px;
+    }
+
+    .bd-field { margin-bottom: 16px; }
+
+    .bd-field label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 6px;
+    }
+
+    .bd-field input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid var(--pos-border, #e5e7eb);
+        border-radius: 10px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+
+    .bd-field input:focus { border-color: #6366f1; }
+
+    .bd-field .error { color: #dc2626; font-size: 12px; margin-top: 4px; }
+
+    .bd-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 24px;
+    }
+
+    .bd-save-btn {
+        padding: 12px 28px;
+        border: none;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .bd-save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+
+    .bd-cancel-btn {
+        padding: 12px 28px;
+        border: 2px solid var(--pos-border, #e5e7eb);
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--pos-text);
+        background: #fff;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.15s;
+    }
+
+    .bd-cancel-btn:hover { border-color: var(--pos-text); color: var(--pos-text); }
+</style>
+
+<div class="bd-page">
+
+    <a href="{% url 'compensation-detail' staff_user.pk %}" class="bd-back">
+        <i class="fa-solid fa-arrow-left"></i> Back to {{ staff_user.username|capfirst }}
+    </a>
+
+    <div class="bd-card">
+        <h2><i class="fa-solid fa-building-columns" style="color:var(--pos-accent);margin-right:8px;"></i> Bank Details &mdash; {{ staff_user.username|capfirst }}</h2>
+
+        <form method="POST">
+            {% csrf_token %}
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+            {% for field in form %}
+            <div class="bd-field">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}<div class="error">{{ error }}</div>{% endfor %}
+            </div>
+            {% endfor %}
+
+            <div class="bd-actions">
+                <button type="submit" class="bd-save-btn"><i class="fa-solid fa-check"></i> Save</button>
+                <a href="{% url 'compensation-detail' staff_user.pk %}" class="bd-cancel-btn">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}

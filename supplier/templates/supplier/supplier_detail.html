@@ -1,0 +1,168 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ supplier.name }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ supplier.name }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'supplier-list' %}" style="color:var(--adm-accent);text-decoration:none;">Suppliers</a> / {{ supplier.name }}
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'supplier-transaction-create' supplier.pk %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-file-invoice"></i> Record Invoice</a>
+        <a href="{% url 'supplier-make-payment' supplier.pk %}" class="adm-btn adm-btn-primary" style="background:var(--adm-success);"><i class="fa-solid fa-money-bill-wave"></i> Make Payment</a>
+        <a href="{% url 'supplier-edit' supplier.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-pen"></i> Edit</a>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-file-invoice"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ supplier.total_invoiced|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Invoiced</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);">
+            <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ supplier.total_paid|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Paid</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:{% if supplier.balance > 0 %}rgba(231,76,60,.1){% else %}rgba(40,167,69,.1){% endif %};color:{% if supplier.balance > 0 %}var(--adm-danger){% else %}var(--adm-success){% endif %};">
+            <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ supplier.balance|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Outstanding Balance</div>
+        </div>
+    </div>
+</div>
+
+<!-- Supplier info -->
+{% if supplier.contact_person or supplier.phone or supplier.email or supplier.address %}
+<div class="adm-card" style="margin-bottom:24px;">
+    <div style="display:flex;flex-wrap:wrap;gap:24px;font-size:13px;">
+        {% if supplier.contact_person %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Contact:</span> {{ supplier.contact_person }}</div>
+        {% endif %}
+        {% if supplier.phone %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Phone:</span> {{ supplier.phone }}</div>
+        {% endif %}
+        {% if supplier.email %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Email:</span> {{ supplier.email }}</div>
+        {% endif %}
+        {% if supplier.address %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Address:</span> {{ supplier.address }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Unpaid invoices section -->
+{% if unpaid_invoices %}
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-file-invoice" style="color:var(--adm-warning);"></i>
+    Unpaid Invoices ({{ unpaid_invoices|length }})
+</h3>
+<div class="adm-card" style="padding:0;margin-bottom:24px;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Reference</th>
+                <th style="text-align:right;">Invoice</th>
+                <th style="text-align:right;">Paid</th>
+                <th style="text-align:right;">Remaining</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in unpaid_invoices %}
+            <tr>
+                <td style="white-space:nowrap;color:var(--adm-muted);font-size:12px;">{{ inv.date|date:"d M Y" }}</td>
+                <td style="font-weight:600;">{{ inv.description }}</td>
+                <td style="color:var(--adm-muted);">{{ inv.reference|default:"—" }}</td>
+                <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ inv.amount|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-success);">
+                    {% if inv.amount_paid > 0 %}{{ restaurant.currency_symbol }} {{ inv.amount_paid|floatformat:2|intcomma }}{% else %}—{% endif %}
+                </td>
+                <td style="text-align:right;font-weight:700;color:var(--adm-warning);">{{ restaurant.currency_symbol }} {{ inv.remaining|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Transaction filters -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <div class="adm-filters">
+        <a href="{% url 'supplier-detail' supplier.pk %}" class="adm-filter-btn {% if not txn_type %}active{% endif %}">All</a>
+        <a href="{% url 'supplier-detail' supplier.pk %}?type=debit" class="adm-filter-btn {% if txn_type == 'debit' %}active{% endif %}">Invoices</a>
+        <a href="{% url 'supplier-detail' supplier.pk %}?type=credit" class="adm-filter-btn {% if txn_type == 'credit' %}active{% endif %}">Payments</a>
+    </div>
+</div>
+
+<!-- Transactions ledger -->
+{% if transactions %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Reference</th>
+                <th style="text-align:right;">Invoice</th>
+                <th style="text-align:right;">Paid</th>
+                <th style="text-align:right;">Remaining</th>
+                <th style="text-align:right;">Payment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for txn in transactions %}
+            <tr>
+                <td style="white-space:nowrap;color:var(--adm-muted);">{{ txn.date|date:"d M Y" }}</td>
+                <td style="font-weight:600;">{{ txn.description }}</td>
+                <td style="color:var(--adm-muted);">{{ txn.reference|default:"—" }}</td>
+                {% if txn.transaction_type == 'debit' %}
+                    <td style="text-align:right;font-weight:700;color:var(--adm-danger);">{{ restaurant.currency_symbol }} {{ txn.amount|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;color:var(--adm-success);">
+                        {% if txn.amount_paid > 0 %}{{ restaurant.currency_symbol }} {{ txn.amount_paid|floatformat:2|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    <td style="text-align:right;font-weight:600;color:{% if txn.is_fully_paid %}var(--adm-success){% else %}var(--adm-warning){% endif %};">
+                        {% if txn.is_fully_paid %}
+                            Paid
+                        {% else %}
+                            {{ restaurant.currency_symbol }} {{ txn.remaining|floatformat:2|intcomma }}
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right;color:var(--adm-muted);">—</td>
+                {% else %}
+                    <td style="text-align:right;color:var(--adm-muted);">—</td>
+                    <td style="text-align:right;color:var(--adm-muted);">—</td>
+                    <td style="text-align:right;color:var(--adm-muted);">—</td>
+                    <td style="text-align:right;font-weight:700;color:var(--adm-success);">{{ restaurant.currency_symbol }} {{ txn.amount|floatformat:2|intcomma }}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-receipt"></i>
+    <p>No transactions yet. Record an invoice or payment to get started.</p>
+</div>
+{% endif %}
+{% endblock %}

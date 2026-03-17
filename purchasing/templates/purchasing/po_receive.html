@@ -1,0 +1,116 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Receive Goods — {{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Receive Goods</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'po-list' %}" style="color:var(--adm-accent);text-decoration:none;">Purchase Orders</a> /
+            <a href="{% url 'po-detail' po.pk %}" style="color:var(--adm-accent);text-decoration:none;">{{ po.po_number }}</a> /
+            Receive
+        </div>
+    </div>
+</div>
+
+<!-- PO summary -->
+<div class="adm-card" style="margin-bottom:24px;display:flex;align-items:center;gap:20px;">
+    <div>
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;">Supplier</div>
+        <div style="font-size:18px;font-weight:700;">{{ po.supplier.name }}</div>
+    </div>
+    <div style="border-left:1px solid var(--adm-border);height:36px;"></div>
+    <div>
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;">Order Total</div>
+        <div style="font-size:18px;font-weight:700;">{{ currency_symbol }} {{ po.total|floatformat:2|intcomma }}</div>
+    </div>
+    <div style="border-left:1px solid var(--adm-border);height:36px;"></div>
+    <div>
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;">Items</div>
+        <div style="font-size:18px;font-weight:700;">{{ items|length }}</div>
+    </div>
+</div>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="adm-card" style="padding:0;margin-bottom:24px;">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Unit</th>
+                    <th style="text-align:right;">Ordered</th>
+                    <th style="text-align:right;">Unit Price</th>
+                    <th style="text-align:center;">Received Qty</th>
+                    <th style="text-align:right;">Received Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td style="font-weight:600;">{{ item.inventory_item.name }}</td>
+                    <td style="color:var(--adm-muted);">{{ item.inventory_item.get_unit_display }}</td>
+                    <td style="text-align:right;">{{ item.quantity|floatformat:2 }}</td>
+                    <td style="text-align:right;">{{ currency_symbol }} {{ item.unit_price|floatformat:2|intcomma }}</td>
+                    <td style="text-align:center;">
+                        <input type="number" name="received_{{ item.pk }}" class="adm-input received-input"
+                               style="width:100px;text-align:center;" step="0.01" min="0"
+                               max="{{ item.quantity }}" value="{{ item.quantity }}"
+                               data-price="{{ item.unit_price }}">
+                    </td>
+                    <td style="text-align:right;font-weight:600;" class="line-value" id="value_{{ item.pk }}">
+                        {{ currency_symbol }} {{ item.line_total|floatformat:2|intcomma }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="border-top:2px solid var(--adm-border);">
+                    <td colspan="5" style="text-align:right;font-weight:700;">Total Received Value</td>
+                    <td style="text-align:right;font-weight:800;font-size:15px;" id="totalValue">{{ currency_symbol }} {{ po.total|floatformat:2|intcomma }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div style="padding:12px 16px;background:rgba(40,167,69,.05);border:1px solid rgba(40,167,69,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);max-width:700px;">
+        <i class="fa-solid fa-info-circle" style="color:var(--adm-success);margin-right:6px;"></i>
+        Enter the quantity actually received for each item. Stock will be updated and a supplier invoice will be created for the received value.
+    </div>
+
+    <div style="display:flex;gap:10px;">
+        <button type="submit" class="adm-btn adm-btn-primary" style="background:var(--adm-success);">
+            <i class="fa-solid fa-truck-ramp-box"></i> Confirm Receipt
+        </button>
+        <a href="{% url 'po-detail' po.pk %}" class="adm-btn adm-btn-outline">Cancel</a>
+    </div>
+</form>
+
+<script>
+    const currencySymbol = '{{ currency_symbol }}';
+    const inputs = document.querySelectorAll('.received-input');
+
+    function updateTotals() {
+        let grandTotal = 0;
+        inputs.forEach(function(input) {
+            const qty = parseFloat(input.value) || 0;
+            const price = parseFloat(input.dataset.price) || 0;
+            const lineVal = qty * price;
+            grandTotal += lineVal;
+            const id = input.name.replace('received_', 'value_');
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = currencySymbol + ' ' + lineVal.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+        });
+        document.getElementById('totalValue').textContent = currencySymbol + ' ' + grandTotal.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    inputs.forEach(function(input) {
+        input.addEventListener('input', updateTotals);
+    });
+</script>
+{% endblock %}

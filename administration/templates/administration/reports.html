@@ -1,0 +1,107 @@
+{% extends 'administration/base.html' %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Reports</h1>
+        <div class="breadcrumb-text">Sales analytics and performance</div>
+    </div>
+</div>
+
+<!-- Sales overview -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+        <div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ today.total|floatformat:2 }}</div>
+            <div class="adm-stat-label">Today ({{ today.count }} orders)</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);"><i class="fa-solid fa-calendar-week"></i></div>
+        <div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ this_week.total|floatformat:2 }}</div>
+            <div class="adm-stat-label">This Week ({{ this_week.count }} orders)</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(245,158,11,.1);color:var(--adm-warning);"><i class="fa-solid fa-calendar"></i></div>
+        <div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ this_month.total|floatformat:2 }}</div>
+            <div class="adm-stat-label">This Month ({{ this_month.count }} orders)</div>
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+    <!-- Staff performance -->
+    <div class="adm-card">
+        <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;">Staff Performance (This Month)</h3>
+        {% if staff_performance %}
+        <table class="adm-table">
+            <thead><tr><th>#</th><th>Staff</th><th>Orders</th><th>Sales</th></tr></thead>
+            <tbody>
+            {% for s in staff_performance %}
+            <tr>
+                <td style="color:var(--adm-muted);font-weight:700;">{{ forloop.counter }}</td>
+                <td style="font-weight:600;">{{ s.user.username }}</td>
+                <td>{{ s.order_count }}</td>
+                <td style="font-weight:600;color:var(--adm-success);">{{ restaurant.currency_symbol }} {{ s.total_sales|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:24px;"><p>No data yet</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Payment methods -->
+    <div class="adm-card">
+        <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;">Payment Methods (This Month)</h3>
+        {% if payment_methods %}
+        <table class="adm-table">
+            <thead><tr><th>Method</th><th>Count</th><th>Total</th></tr></thead>
+            <tbody>
+            {% for method, data in payment_methods.items %}
+            <tr>
+                <td style="font-weight:600;">{{ method }}</td>
+                <td>{{ data.count }}</td>
+                <td style="font-weight:600;">{{ restaurant.currency_symbol }} {{ data.total|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:24px;"><p>No data yet</p></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Top selling items -->
+<div class="adm-card">
+    <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;">Top Selling Items (This Month)</h3>
+    {% if top_items %}
+    <table class="adm-table">
+        <thead><tr><th>#</th><th>Item</th><th>Tier</th><th>Quantity Sold</th></tr></thead>
+        <tbody>
+        {% for item in top_items %}
+        <tr>
+            <td style="color:var(--adm-muted);font-weight:700;">{{ forloop.counter }}</td>
+            <td style="font-weight:600;">{{ item.menu_item__title }}</td>
+            <td>
+                <span class="adm-badge {% if item.menu_item__item_tier == 'premium' %}adm-badge-premium{% else %}adm-badge-regular{% endif %}">
+                    {{ item.menu_item__item_tier|capfirst }}
+                </span>
+            </td>
+            <td style="font-weight:600;">{{ item.qty }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty" style="padding:24px;"><p>No sales data yet</p></div>
+    {% endif %}
+</div>
+{% endblock %}

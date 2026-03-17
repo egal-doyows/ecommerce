@@ -1,0 +1,64 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Expense Categories{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Expense Categories</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'expense-list' %}" style="color:var(--adm-accent);text-decoration:none;">Expenses</a> / Categories
+        </div>
+    </div>
+    <div>
+        <a href="{% url 'expense-category-create' %}" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-plus"></i> Add Category
+        </a>
+    </div>
+</div>
+
+{% if categories %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th style="text-align:right;">Expenses</th>
+                <th style="text-align:right;">Total Spent</th>
+                <th>Status</th>
+                <th style="width:80px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr{% if not cat.is_active %} style="opacity:0.5;"{% endif %}>
+                <td style="font-weight:700;">{{ cat.name }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ cat.description|default:"—"|truncatechars:50 }}</td>
+                <td style="text-align:right;">{{ cat.expense_count|default:"0" }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ cat.total|default:"0"|floatformat:2|intcomma }}</td>
+                <td>
+                    {% if cat.is_active %}
+                    <span class="adm-badge adm-badge-success">Active</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:center;">
+                    <a href="{% url 'expense-category-edit' cat.pk %}" class="adm-btn adm-btn-sm adm-btn-outline" style="padding:3px 10px;font-size:11px;">
+                        <i class="fa-solid fa-pen" style="font-size:10px;"></i> Edit
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-tags"></i>
+    <p>No expense categories yet. Create one to get started.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -322,7 +322,7 @@
                     <span class="wp-stat-label">Orders Today</span>
                 </div>
                 <div class="wp-stat">
-                    <span class="wp-stat-value">Ksh {{ today_sales|intcomma }}</span>
+                    <span class="wp-stat-value">{{ restaurant.currency_symbol }} {{ today_sales|floatformat:2|intcomma }}</span>
                     <span class="wp-stat-label">Sales Today</span>
                 </div>
                 <div class="wp-stat">
@@ -357,7 +357,7 @@
             <i class="fa-solid fa-receipt"></i> Active Orders
         </a>
         <a href="{% url 'tables' %}" class="wp-action-btn wp-action-secondary">
-            <i class="fa-solid fa-table-cells-large"></i> Tables
+            <i class="fa-solid fa-table-cells-large"></i> Spaces
         </a>
     </div>
 
@@ -386,8 +386,8 @@
             <div class="wp-service-icon" style="background:#fff3e0; color:#e65100;">
                 <i class="fa-solid fa-table-cells-large"></i>
             </div>
-            <h4>Tables</h4>
-            <p>Check availability and reserve tables</p>
+            <h4>Spaces</h4>
+            <p>Check availability and reserve spaces</p>
             <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
@@ -409,13 +409,35 @@
             <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
-        <div class="wp-service" style="cursor:default; opacity:0.6;">
-            <div class="wp-service-icon" style="background:var(--pos-light); color:var(--pos-muted);">
-                <i class="fa-solid fa-ellipsis"></i>
+        {% if user.is_superuser or is_manager or is_supervisor %}
+        <a href="{% url 'admin-dashboard' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#eef2ff; color:#4f46e5;">
+                <i class="fa-solid fa-shield-halved"></i>
             </div>
-            <h4>More Services <span class="wp-coming-soon">Coming Soon</span></h4>
-            <p>Additional features will appear here</p>
-        </div>
+            <h4>Admin Panel</h4>
+            <p>{% if is_supervisor %}Operations dashboard{% else %}Full management dashboard for your restaurant{% endif %}</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        {% endif %}
+        {% if user.is_superuser or is_manager %}
+        <a href="{% url 'compensation-overview' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#fdf4ff; color:#a21caf;">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <h4>Staff Compensation</h4>
+            <p>Manage salaries, commissions, and payments</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        {% elif not user.is_superuser and not is_manager and not is_supervisor %}
+        <a href="{% url 'my-earnings' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#fdf4ff; color:#a21caf;">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <h4>My Earnings</h4>
+            <p>View your compensation and payment history</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        {% endif %}
     </div>
 
     <!-- Account Actions -->

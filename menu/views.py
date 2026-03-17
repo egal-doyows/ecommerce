@@ -4,22 +4,74 @@ from functools import wraps
 from django.db import transaction
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
+from django.conf import settings as django_settings
 
 logger = logging.getLogger(__name__)
+
+from django.contrib.auth.models import User
 
 from .models import Category, MenuItem, Table, Order, OrderItem, Shift, RestaurantSettings
 from cart.cart import Cart
 
 
+def _get_attendants():
+    """Return active users in the Attendant group."""
+    return User.objects.filter(
+        groups__name='Attendant', is_active=True,
+    ).order_by('username')
+
+
+def _is_supervisor(user):
+    """Return True if user is in the Supervisor group."""
+    return user.groups.filter(name='Supervisor').exists()
+
+
+def _is_marketing(user):
+    """Return True if user is in the Marketing group."""
+    return user.groups.filter(name='Marketing').exists()
+
+
+def _is_manager_or_above(user):
+    """Return True if user is superuser, Manager, or Supervisor."""
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
+
+
+def _must_select_attendant(user):
+    """Return True if user must select an attendant when creating orders."""
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=['Manager', 'Supervisor', 'Marketing']).exists()
+
+
+def _is_auto_shift_user(user):
+    """Superusers, Managers, Supervisors, and Marketing get auto-created shifts (no starting cash)."""
+    if _is_manager_or_above(user):
+        return True
+    return _is_marketing(user)
+
+
+def _ensure_shift(user):
+    """Auto-create a shift if the user doesn't have one."""
+    if not Shift.objects.filter(waiter=user, is_active=True).exists():
+        Shift.objects.create(waiter=user, starting_cash=0)
+
+
 def shift_required(view_func):
-    """Redirect to shift page if waiter has no active shift."""
+    """Redirect to shift page if user has no active shift.
+    Superusers and Managers get an auto-created shift (no starting cash).
+    Front Service and Cashiers must clock in manually.
+    """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if request.user.is_authenticated:
-            has_shift = Shift.objects.filter(waiter=request.user, is_active=True).exists()
-            if not has_shift:
+            if _is_auto_shift_user(request.user):
+                _ensure_shift(request.user)
+            elif not Shift.objects.filter(waiter=request.user, is_active=True).exists():
                 return redirect('shift')
         return view_func(request, *args, **kwargs)
     return wrapper
@@ -34,14 +86,30 @@ def restaurant_settings(request):
     return {'restaurant': RestaurantSettings.load()}
 
 
+@never_cache
+def service_worker_view(request):
+    """Serve sw.js from root scope with correct content type."""
+    sw_path = django_settings.BASE_DIR / 'static' / 'js' / 'sw.js'
+    with open(sw_path, 'r') as f:
+        return HttpResponse(f.read(), content_type='application/javascript')
+
+
+def offline_view(request):
+    """Offline fallback page."""
+    return render(request, 'menu/offline.html')
+
+
 @login_required(login_url='waiter-login')
 @shift_required
 def pos_home(request):
     all_products = MenuItem.objects.filter(is_available=True)
     tables = Table.objects.all()
+    show_attendant_select = _must_select_attendant(request.user)
     context = {
         'all_products': all_products,
         'tables': tables,
+        'show_attendant_select': show_attendant_select,
+        'attendants': _get_attendants() if show_attendant_select else [],
     }
     return render(request, 'menu/pos.html', context)
 
@@ -75,12 +143,29 @@ def place_order(request):
 
         table = get_object_or_404(Table, id=table_id)
 
+        # Determine who gets credit for the order (commission).
+        # Managers, Supervisors, Superusers, and Marketing must select an attendant.
+        # Marketing users are tracked as created_by and also earn commission.
+        order_waiter = request.user
+        order_created_by = None
+        if _must_select_attendant(request.user):
+            attendant_id = request.POST.get('attendant_id')
+            if not attendant_id:
+                return JsonResponse({'error': 'Select an attendant'}, status=400)
+            order_waiter = get_object_or_404(
+                User, id=attendant_id, groups__name='Attendant', is_active=True,
+            )
+            # Marketing staff earn commission on orders they create
+            if _is_marketing(request.user):
+                order_created_by = request.user
+
         active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
 
         with transaction.atomic():
             order = Order.objects.create(
                 table=table,
-                waiter=request.user,
+                waiter=order_waiter,
+                created_by=order_created_by,
                 shift=active_shift,
                 notes=order_notes,
                 status='active',
@@ -113,19 +198,79 @@ def place_order(request):
 @login_required(login_url='waiter-login')
 @shift_required
 def order_detail(request, order_id):
-    if request.user.is_superuser:
+    if request.user.is_superuser or _is_supervisor(request.user):
         order = get_object_or_404(Order, id=order_id)
     else:
-        order = get_object_or_404(Order, id=order_id, waiter=request.user)
-    return render(request, 'menu/order-detail.html', {'order': order})
+        # Allow access if user is the waiter OR the creator (marketing)
+        from django.db.models import Q
+        order = get_object_or_404(
+            Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+        )
+    menu_items = MenuItem.objects.filter(is_available=True) if order.status == 'active' else []
+    debtors = []
+    if order.status == 'active':
+        from debtor.models import Debtor
+        debtors = Debtor.objects.filter(is_active=True)
+    return render(request, 'menu/order-detail.html', {
+        'order': order, 'menu_items': menu_items, 'debtors': debtors,
+    })
+
+
+@login_required(login_url='waiter-login')
+@shift_required
+def order_edit_item(request, order_id):
+    """Add items to an active (unpaid) order."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    if request.user.is_superuser or _is_supervisor(request.user):
+        order = get_object_or_404(Order, id=order_id)
+    else:
+        from django.db.models import Q
+        order = get_object_or_404(
+            Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+        )
+
+    if order.status != 'active':
+        return JsonResponse({'error': 'Can only edit unpaid orders'}, status=400)
+
+    menu_item_id = request.POST.get('menu_item_id')
+    if not menu_item_id:
+        return redirect('order-detail', order_id=order.id)
+
+    menu_item = get_object_or_404(MenuItem, id=menu_item_id, is_available=True)
+
+    # Check if item already in order — increase quantity
+    existing = order.items.filter(menu_item=menu_item).first()
+    if existing:
+        try:
+            menu_item.deduct_stock(1)
+        except Exception:
+            logger.warning("Stock deduction failed for %s", menu_item.title)
+        existing.quantity += 1
+        existing.save()
+    else:
+        try:
+            menu_item.deduct_stock(1)
+        except Exception:
+            logger.warning("Stock deduction failed for %s", menu_item.title)
+        OrderItem.objects.create(
+            order=order,
+            menu_item=menu_item,
+            quantity=1,
+            unit_price=menu_item.price,
+        )
+
+    return redirect('order-detail', order_id=order.id)
 
 
 @login_required(login_url='waiter-login')
 @shift_required
 def order_list(request):
     base_qs = Order.objects.exclude(status='cancelled')
-    if not request.user.is_superuser:
-        base_qs = base_qs.filter(waiter=request.user)
+    if not (request.user.is_superuser or _is_supervisor(request.user)):
+        from django.db.models import Q
+        base_qs = base_qs.filter(Q(waiter=request.user) | Q(created_by=request.user))
     unpaid_orders = base_qs.filter(status='active')
     paid_orders = base_qs.filter(status='paid')
     total_unpaid = sum(o.get_total() for o in unpaid_orders)
@@ -143,10 +288,13 @@ def order_list(request):
 @shift_required
 def order_update_status(request, order_id):
     if request.method == 'POST':
-        if request.user.is_superuser:
+        if request.user.is_superuser or _is_supervisor(request.user):
             order = get_object_or_404(Order, id=order_id)
         else:
-            order = get_object_or_404(Order, id=order_id, waiter=request.user)
+            from django.db.models import Q
+            order = get_object_or_404(
+                Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+            )
         new_status = request.POST.get('status')
 
         if new_status in dict(Order.STATUS_CHOICES):
@@ -161,6 +309,15 @@ def order_update_status(request, order_id):
                     if len(mpesa_code) != 4 or not mpesa_code.isalnum():
                         return redirect('order-detail', order_id=order.id)
                     order.mpesa_code = mpesa_code
+                if payment_method == 'credit':
+                    debtor_id = request.POST.get('debtor_id')
+                    if not debtor_id:
+                        return redirect('order-detail', order_id=order.id)
+                    from debtor.models import Debtor
+                    try:
+                        order.debtor = Debtor.objects.get(pk=debtor_id, is_active=True)
+                    except Debtor.DoesNotExist:
+                        return redirect('order-detail', order_id=order.id)
 
             # Restore stock when cancelling an active order
             if new_status == 'cancelled' and order.status == 'active':
@@ -172,6 +329,22 @@ def order_update_status(request, order_id):
 
             order.status = new_status
             order.save()
+
+            # Record payment in accounts
+            if new_status == 'paid':
+                if order.payment_method == 'credit':
+                    from debtor.models import DebtorTransaction
+                    DebtorTransaction.objects.create(
+                        debtor=order.debtor,
+                        transaction_type='debit',
+                        amount=order.get_total(),
+                        description=f'Order #{order.id} — Space {order.table.number if order.table else "N/A"}',
+                        reference=str(order.id),
+                        created_by=request.user,
+                    )
+                else:
+                    from administration.models import record_order_payment
+                    record_order_payment(order, created_by=request.user)
 
             if new_status in ['paid', 'cancelled']:
                 if order.table:
@@ -253,6 +426,9 @@ def shift_clock_out(request):
             shift.ended_at = timezone.now()
             shift.is_active = False
             shift.save()
+        # Managers/Supervisors stay logged in → admin dashboard
+        if _is_auto_shift_user(request.user):
+            return redirect('admin-dashboard')
         from django.contrib.auth import logout
         logout(request)
     return redirect('waiter-login')

@@ -1,0 +1,199 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ expense.expense_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ expense.expense_number }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'expense-list' %}" style="color:var(--adm-accent);text-decoration:none;">Expenses</a> / {{ expense.expense_number }}
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        {% if expense.status == 'approved' %}
+        <a href="{% url 'expense-pdf' expense.pk %}" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-file-pdf"></i> Download PDF
+        </a>
+        {% endif %}
+        {% if expense.status == 'pending' %}
+            {% if is_manager %}
+            <a href="{% url 'expense-edit' expense.pk %}" class="adm-btn adm-btn-outline">
+                <i class="fa-solid fa-pen"></i> Edit
+            </a>
+            {% elif expense.recorded_by == request.user %}
+            <a href="{% url 'expense-edit' expense.pk %}" class="adm-btn adm-btn-outline">
+                <i class="fa-solid fa-pen"></i> Edit
+            </a>
+            {% endif %}
+        {% elif is_manager %}
+        <a href="{% url 'expense-edit' expense.pk %}" class="adm-btn adm-btn-outline">
+            <i class="fa-solid fa-pen"></i> Edit
+        </a>
+        {% endif %}
+        {% if is_manager %}
+        <form method="POST" action="{% url 'expense-delete' expense.pk %}" style="display:inline;" onsubmit="return confirm('Delete this expense?{% if expense.status == 'approved' %} The financial transaction will also be reversed.{% endif %}');">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);">
+                <i class="fa-solid fa-trash"></i> Delete
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Status banner -->
+{% if expense.status == 'pending' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-clock" style="color:#d97706;font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:14px;color:#d97706;">Pending Approval</div>
+            <div style="font-size:11px;color:var(--adm-muted);">This expense request is awaiting manager approval</div>
+        </div>
+    </div>
+    {% if is_manager and expense.recorded_by != request.user %}
+    <div style="display:flex;gap:8px;">
+        <form method="POST" action="{% url 'expense-approve' expense.pk %}" style="display:inline;" onsubmit="return checkApproveBalance();">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn adm-btn-sm" style="background:var(--adm-success);color:#fff;padding:6px 16px;">
+                <i class="fa-solid fa-check" style="font-size:10px;"></i> Approve
+            </button>
+        </form>
+        <button type="button" onclick="document.getElementById('rejectModal').style.display='flex'" class="adm-btn adm-btn-sm" style="background:var(--adm-danger);color:#fff;padding:6px 16px;">
+            <i class="fa-solid fa-xmark" style="font-size:10px;"></i> Reject
+        </button>
+    </div>
+    {% elif is_manager and expense.recorded_by == request.user %}
+    <div style="font-size:12px;color:var(--adm-muted);font-style:italic;">
+        <i class="fa-solid fa-info-circle" style="margin-right:4px;"></i> Awaiting approval from another manager
+    </div>
+    {% endif %}
+</div>
+{% elif expense.status == 'rejected' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-danger);">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(220,53,69,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-ban" style="color:var(--adm-danger);font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:14px;color:var(--adm-danger);">Rejected</div>
+            <div style="font-size:12px;color:var(--adm-muted);">
+                Rejected by {{ expense.approved_by.username|default:"—" }}{% if expense.rejection_reason %} — {{ expense.rejection_reason }}{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Summary cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ expense.expense_number }}</div>
+            <div class="adm-stat-label">Reference</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:20px;">{{ currency_symbol }} {{ expense.amount|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Amount</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-tag"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ expense.category.name|default:"—" }}</div>
+            <div class="adm-stat-label">Category</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:{% if expense.status == 'approved' %}rgba(40,167,69,.1){% elif expense.status == 'pending' %}rgba(245,158,11,.1){% else %}rgba(220,53,69,.1){% endif %};color:{% if expense.status == 'approved' %}var(--adm-success){% elif expense.status == 'pending' %}#d97706{% else %}var(--adm-danger){% endif %};">
+            <i class="fa-solid {% if expense.status == 'approved' %}fa-check-circle{% elif expense.status == 'pending' %}fa-clock{% else %}fa-ban{% endif %}"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ expense.get_status_display }}</div>
+            <div class="adm-stat-label">Status</div>
+        </div>
+    </div>
+</div>
+
+<!-- Details -->
+<div class="adm-card" style="margin-bottom:24px;">
+    <div style="display:flex;flex-wrap:wrap;gap:24px;font-size:13px;">
+        <div><span style="color:var(--adm-muted);font-weight:600;">Description:</span> {{ expense.description }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Date:</span> {{ expense.date|date:"d M Y" }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Payment Method:</span>
+            <span class="adm-badge {% if expense.payment_method == 'cash' %}adm-badge-success{% elif expense.payment_method == 'mpesa' %}adm-badge-warning{% else %}adm-badge-muted{% endif %}"
+                  style="{% if expense.payment_method == 'mpesa' %}background:rgba(245,158,11,.1);color:#d97706;{% endif %}">
+                {{ expense.get_payment_method_display }}
+            </span>
+        </div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Vendor:</span> {{ expense.vendor|default:"—" }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Receipt #:</span> {{ expense.receipt_number|default:"—" }}</div>
+        {% if expense.recurring != 'none' %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Recurring:</span>
+            <span class="adm-badge" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">{{ expense.get_recurring_display }}</span>
+        </div>
+        {% endif %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Requested by:</span> {{ expense.recorded_by.username|default:"—" }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Recorded at:</span> {{ expense.created_at|date:"d M Y, H:i:s" }}</div>
+        {% if expense.approved_by %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">{% if expense.status == 'approved' %}Approved{% else %}Rejected{% endif %} by:</span> {{ expense.approved_by.username }}</div>
+        {% endif %}
+        {% if expense.notes %}
+        <div style="width:100%;"><span style="color:var(--adm-muted);font-weight:600;">Notes:</span> {{ expense.notes }}</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Reject modal -->
+{% if is_manager and expense.status == 'pending' and expense.recorded_by != request.user %}
+<div id="rejectModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div class="adm-card" style="max-width:450px;width:90%;margin:0;animation:fadeIn .15s;">
+        <h3 style="font-size:16px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-ban" style="color:var(--adm-danger);"></i> Reject Expense
+        </h3>
+        <form method="POST" action="{% url 'expense-reject' expense.pk %}">
+            {% csrf_token %}
+            <div class="adm-form-group" style="margin-bottom:16px;">
+                <label class="adm-form-label">Reason for rejection</label>
+                <textarea name="rejection_reason" class="adm-input" rows="3" placeholder="Explain why this expense is being rejected..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" onclick="document.getElementById('rejectModal').style.display='none'" class="adm-btn adm-btn-outline adm-btn-sm">Cancel</button>
+                <button type="submit" class="adm-btn adm-btn-sm" style="background:var(--adm-danger);color:#fff;">
+                    <i class="fa-solid fa-ban"></i> Reject
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if account_balance is not None %}
+<script>
+function checkApproveBalance() {
+    const amount = {{ expense.amount }};
+    const balance = {{ account_balance }};
+    if (amount > balance) {
+        const fmtBal = balance.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+        const fmtAmt = amount.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+        return confirm('Warning: The {{ expense.get_payment_method_display }} account balance ({{ currency_symbol }} ' + fmtBal + ') is less than this expense ({{ currency_symbol }} ' + fmtAmt + '). Approve anyway?');
+    }
+    return true;
+}
+</script>
+{% endif %}
+{% endblock %}

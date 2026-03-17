@@ -44,16 +44,16 @@ class RecipeInline(admin.TabularInline):
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'price', 'is_available', 'preparation_time', 'stock_type', 'stock_info')
-    list_filter = ('category', 'is_available')
+    list_display = ('title', 'category', 'price', 'item_tier', 'is_available', 'preparation_time', 'stock_type', 'stock_info')
+    list_filter = ('category', 'is_available', 'item_tier')
     search_fields = ('title',)
     prepopulated_fields = {'slug': ('title',)}
-    list_editable = ('price', 'is_available')
+    list_editable = ('price', 'is_available', 'item_tier')
     autocomplete_fields = ('inventory_item',)
     inlines = [RecipeInline]
     fieldsets = (
         (None, {
-            'fields': ('category', 'title', 'slug', 'description', 'price', 'image', 'is_available', 'preparation_time'),
+            'fields': ('category', 'title', 'slug', 'description', 'price', 'image', 'item_tier', 'is_available', 'preparation_time'),
         }),
         ('Inventory', {
             'description': (
@@ -108,7 +108,8 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
     def get_total(self, obj):
-        return f"Ksh {obj.get_total():,.2f}"
+        symbol = RestaurantSettings.load().currency_symbol
+        return f"{symbol} {obj.get_total():,.2f}"
     get_total.short_description = 'Total'
 
     def delete_queryset(self, request, queryset):

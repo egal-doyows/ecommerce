@@ -1,0 +1,176 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Expense Summary{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Expense Summary</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'expense-list' %}" style="color:var(--adm-accent);text-decoration:none;">Expenses</a> / Summary
+        </div>
+    </div>
+    <div>
+        <a href="{% url 'expense-create' %}" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-plus"></i> Add Expense
+        </a>
+    </div>
+</div>
+
+<!-- Date range -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="get" action="{% url 'expense-summary' %}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+        <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+        <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Update</button>
+    </form>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:22px;">{{ currency_symbol }} {{ total_amount|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Expenses</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:22px;">{{ total_count }}</div>
+            <div class="adm-stat-label">Approved Records</div>
+        </div>
+    </div>
+    {% if pending_count > 0 %}
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(245,158,11,.1);color:#d97706;">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:22px;color:#d97706;">{{ pending_count }}</div>
+            <div class="adm-stat-label">Pending ({{ currency_symbol }} {{ pending_amount|floatformat:2|intcomma }})</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- By category -->
+{% if by_category %}
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-chart-pie" style="color:var(--adm-accent);"></i>
+    By Category
+</h3>
+
+<div class="adm-card" style="padding:0;margin-bottom:24px;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th style="text-align:right;">Count</th>
+                <th style="text-align:right;">Total</th>
+                <th style="width:30%;">Proportion</th>
+                <th style="text-align:right;">%</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in by_category %}
+            <tr>
+                <td style="font-weight:600;">{{ c.name }}</td>
+                <td style="text-align:right;">{{ c.count }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ c.total|floatformat:2|intcomma }}</td>
+                <td>
+                    <div style="background:var(--adm-border);border-radius:4px;height:18px;overflow:hidden;">
+                        <div style="background:var(--adm-accent);height:100%;width:{{ c.pct }}%;border-radius:4px;transition:width .3s;"></div>
+                    </div>
+                </td>
+                <td style="text-align:right;font-weight:600;font-size:12px;">{{ c.pct }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- By payment method -->
+{% if by_payment %}
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-credit-card" style="color:var(--adm-accent);"></i>
+    By Payment Method
+</h3>
+
+<div class="adm-card" style="padding:0;margin-bottom:24px;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th style="text-align:right;">Count</th>
+                <th style="text-align:right;">Total</th>
+                <th style="width:30%;">Proportion</th>
+                <th style="text-align:right;">%</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in by_payment %}
+            <tr>
+                <td style="font-weight:600;">{{ p.method }}</td>
+                <td style="text-align:right;">{{ p.count }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ p.total|floatformat:2|intcomma }}</td>
+                <td>
+                    <div style="background:var(--adm-border);border-radius:4px;height:18px;overflow:hidden;">
+                        <div style="background:var(--adm-accent);height:100%;width:{{ p.pct }}%;border-radius:4px;transition:width .3s;"></div>
+                    </div>
+                </td>
+                <td style="text-align:right;font-weight:600;font-size:12px;">{{ p.pct }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Top vendors -->
+{% if top_vendors %}
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-store" style="color:var(--adm-accent);"></i>
+    Top Vendors
+</h3>
+
+<div class="adm-card" style="padding:0;margin-bottom:24px;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Vendor</th>
+                <th style="text-align:right;">Payments</th>
+                <th style="text-align:right;">Total Paid</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in top_vendors %}
+            <tr>
+                <td style="font-weight:700;color:var(--adm-muted);">{{ forloop.counter }}</td>
+                <td style="font-weight:600;">{{ v.vendor }}</td>
+                <td style="text-align:right;">{{ v.count }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ v.total|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if not by_category and not by_payment %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-chart-pie"></i>
+    <p>No expense data for the selected period.</p>
+</div>
+{% endif %}
+{% endblock %}

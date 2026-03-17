@@ -1,0 +1,241 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Human Resources{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Human Resources</h1>
+        <div class="breadcrumb-text">Overview of your workforce</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        {% if is_manager %}
+        <a href="{% url 'hr-employee-create' %}" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-user-plus"></i> Add Employee
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ total_employees }}</div>
+            <div class="adm-stat-label">Active Employees</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(245,158,11,.1);color:#d97706;">
+            <i class="fa-solid fa-umbrella-beach"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="color:#d97706;">{{ on_leave }}</div>
+            <div class="adm-stat-label">On Leave</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);">
+            <i class="fa-solid fa-building"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ departments }}</div>
+            <div class="adm-stat-label">Departments</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:{% if pending_leaves > 0 %}rgba(231,76,60,.1){% else %}rgba(136,150,167,.1){% endif %};color:{% if pending_leaves > 0 %}var(--adm-danger){% else %}var(--adm-muted){% endif %};">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="{% if pending_leaves > 0 %}color:var(--adm-danger);{% endif %}">{{ pending_leaves }}</div>
+            <div class="adm-stat-label">Pending Leave Requests</div>
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+    <!-- Department Breakdown -->
+    <div class="adm-card" style="padding:0;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--adm-border);display:flex;align-items:center;justify-content:space-between;">
+            <h3 style="font-size:15px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-building" style="color:var(--adm-accent);font-size:13px;"></i> Departments
+            </h3>
+            {% if is_manager %}
+            <a href="{% url 'hr-department-list' %}" class="adm-btn adm-btn-sm adm-btn-outline" style="font-size:11px;">View All</a>
+            {% endif %}
+        </div>
+        {% if dept_stats %}
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Department</th>
+                    <th style="text-align:right;">Employees</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in dept_stats %}
+                <tr>
+                    <td style="font-weight:600;">{{ d.name }}</td>
+                    <td style="text-align:right;">
+                        <span class="adm-badge adm-badge-info">{{ d.emp_count }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:32px;">
+            <p>No departments set up yet.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pending Leave Requests -->
+    <div class="adm-card" style="padding:0;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--adm-border);display:flex;align-items:center;justify-content:space-between;">
+            <h3 style="font-size:15px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-clock" style="color:#d97706;font-size:13px;"></i> Pending Leave Requests
+            </h3>
+            <a href="{% url 'hr-leave-list' %}?status=pending" class="adm-btn adm-btn-sm adm-btn-outline" style="font-size:11px;">View All</a>
+        </div>
+        {% if pending_leave_list %}
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Type</th>
+                    <th>Dates</th>
+                    <th style="text-align:right;">Days</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lr in pending_leave_list %}
+                <tr>
+                    <td>
+                        <a href="{% url 'hr-leave-detail' lr.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:600;">
+                            {{ lr.employee.full_name }}
+                        </a>
+                    </td>
+                    <td><span class="adm-badge adm-badge-muted">{{ lr.leave_type.name }}</span></td>
+                    <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ lr.start_date|date:"d M" }} — {{ lr.end_date|date:"d M" }}</td>
+                    <td style="text-align:right;font-weight:700;">{{ lr.days }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:32px;">
+            <p>No pending leave requests.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <!-- Recent Hires -->
+    <div class="adm-card" style="padding:0;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--adm-border);">
+            <h3 style="font-size:15px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-user-plus" style="color:var(--adm-success);font-size:13px;"></i> Recent Hires (30 Days)
+            </h3>
+        </div>
+        {% if recent_hires %}
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Joined</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in recent_hires %}
+                <tr>
+                    <td>
+                        <a href="{% url 'hr-employee-detail' emp.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:600;">
+                            {{ emp.full_name }}
+                        </a>
+                    </td>
+                    <td style="font-size:12px;color:var(--adm-muted);">{{ emp.position.title|default:"—" }}</td>
+                    <td style="font-size:12px;color:var(--adm-muted);">{{ emp.date_joined|date:"d M Y" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:32px;">
+            <p>No recent hires.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Upcoming Birthdays -->
+    <div class="adm-card" style="padding:0;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--adm-border);">
+            <h3 style="font-size:15px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-cake-candles" style="color:var(--adm-danger);font-size:13px;"></i> Upcoming Birthdays
+            </h3>
+        </div>
+        {% if upcoming_birthdays %}
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Date</th>
+                    <th style="text-align:right;">In</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in upcoming_birthdays %}
+                <tr>
+                    <td>
+                        <a href="{% url 'hr-employee-detail' b.employee.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:600;">
+                            {{ b.employee.full_name }}
+                        </a>
+                    </td>
+                    <td style="font-size:12px;color:var(--adm-muted);">{{ b.date|date:"d M" }}</td>
+                    <td style="text-align:right;">
+                        {% if b.days == 0 %}
+                        <span class="adm-badge adm-badge-success">Today!</span>
+                        {% else %}
+                        <span class="adm-badge adm-badge-muted">{{ b.days }} day{{ b.days|pluralize }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:32px;">
+            <p>No upcoming birthdays.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Quick Navigation -->
+<div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+    <a href="{% url 'hr-employee-list' %}" class="adm-btn adm-btn-outline">
+        <i class="fa-solid fa-users"></i> Employee Directory
+    </a>
+    <a href="{% url 'hr-leave-list' %}" class="adm-btn adm-btn-outline">
+        <i class="fa-solid fa-calendar-days"></i> Leave Management
+    </a>
+    {% if is_manager %}
+    <a href="{% url 'hr-department-list' %}" class="adm-btn adm-btn-outline">
+        <i class="fa-solid fa-building"></i> Departments
+    </a>
+    <a href="{% url 'hr-position-list' %}" class="adm-btn adm-btn-outline">
+        <i class="fa-solid fa-briefcase"></i> Positions
+    </a>
+    <a href="{% url 'hr-leave-type-list' %}" class="adm-btn adm-btn-outline">
+        <i class="fa-solid fa-tags"></i> Leave Types
+    </a>
+    {% endif %}
+</div>
+{% endblock %}

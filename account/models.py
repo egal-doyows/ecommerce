@@ -13,8 +13,8 @@ class WaiterCode(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'Waiter Code'
-        verbose_name_plural = 'Waiter Codes'
+        verbose_name = 'Login Code'
+        verbose_name_plural = 'Login Codes'
 
     def __str__(self):
         return f"{self.user.username} - {self.code}"

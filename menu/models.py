@@ -11,6 +11,11 @@ class RestaurantSettings(models.Model):
     phone = models.CharField(max_length=30, blank=True)
     website = models.CharField(max_length=150, blank=True)
     logo = models.ImageField(upload_to='restaurant/', blank=True)
+    currency = models.CharField(
+        max_length=3,
+        default='KES',
+        help_text='Currency code (e.g. KES, USD, EUR)',
+    )
 
     class Meta:
         verbose_name = 'Restaurant Settings'
@@ -28,6 +33,11 @@ class RestaurantSettings(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+    @property
+    def currency_symbol(self):
+        from .currencies import CURRENCY_SYMBOLS
+        return CURRENCY_SYMBOLS.get(self.currency, self.currency)
 
 
 class Category(models.Model):
@@ -77,6 +87,10 @@ class InventoryItem(models.Model):
         max_digits=10, decimal_places=2, default=5,
         help_text="Alert when stock falls to this level",
     )
+    preferred_supplier = models.ForeignKey(
+        'supplier.Supplier', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='inventory_items',
+    )
 
     class Meta:
         ordering = ['name']
@@ -118,6 +132,11 @@ class MenuItem(models.Model):
       - Neither           → untracked item (no stock impact).
     """
 
+    TIER_CHOICES = [
+        ('regular', 'Regular'),
+        ('premium', 'Premium'),
+    ]
+
     category = models.ForeignKey(Category, related_name='items', on_delete=models.CASCADE)
     title = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250)
@@ -125,6 +144,10 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=7, decimal_places=2)
     image = models.ImageField(upload_to='images/', blank=True)
     is_available = models.BooleanField(default=True)
+    item_tier = models.CharField(
+        max_length=10, choices=TIER_CHOICES, default='regular',
+        help_text="Regular or Premium — affects staff commission eligibility",
+    )
     preparation_time = models.PositiveIntegerField(default=10, help_text="Estimated prep time in minutes")
     inventory_item = models.ForeignKey(
         InventoryItem, on_delete=models.SET_NULL,
@@ -232,7 +255,7 @@ class Table(models.Model):
         ordering = ['number']
 
     def __str__(self):
-        return f"Table {self.number}"
+        return f"Space {self.number}"
 
 
 class Shift(models.Model):
@@ -281,10 +304,20 @@ class Order(models.Model):
         ('cash', 'Cash'),
         ('mpesa', 'M-Pesa'),
         ('card', 'Card'),
+        ('credit', 'Credit (Debtor)'),
     ]
 
     table = models.ForeignKey(Table, on_delete=models.SET_NULL, null=True, related_name='orders')
     waiter = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='orders')
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_orders',
+        help_text="Marketing staff who created this order (earns commission alongside the attendant)",
+    )
+    debtor = models.ForeignKey(
+        'debtor.Debtor', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='orders',
+    )
     shift = models.ForeignKey(Shift, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     payment_method = models.CharField(max_length=10, choices=PAYMENT_CHOICES, blank=True)
@@ -297,7 +330,7 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Order #{self.id} - Table {self.table.number if self.table else 'N/A'}"
+        return f"Order #{self.id} - Space {self.table.number if self.table else 'N/A'}"
 
     def delete(self, *args, **kwargs):
         table = self.table

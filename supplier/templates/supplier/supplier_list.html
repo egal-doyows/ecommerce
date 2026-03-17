@@ -1,0 +1,69 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Suppliers{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1><i class="fa-solid fa-truck-field" style="color:var(--adm-accent);margin-right:8px;"></i> Suppliers</h1>
+        <div class="breadcrumb-text">Manage suppliers and their accounts</div>
+    </div>
+    <a href="{% url 'supplier-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Supplier</a>
+</div>
+
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <div class="adm-filters">
+        <a href="{% url 'supplier-list' %}" class="adm-filter-btn {% if show != 'all' %}active{% endif %}">Active</a>
+        <a href="{% url 'supplier-list' %}?show=all" class="adm-filter-btn {% if show == 'all' %}active{% endif %}">All</a>
+    </div>
+</div>
+
+{% if suppliers %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Supplier</th>
+                <th>Contact</th>
+                <th>Phone</th>
+                <th style="text-align:right;">Invoiced</th>
+                <th style="text-align:right;">Paid</th>
+                <th style="text-align:right;">Balance</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in suppliers %}
+            <tr>
+                <td>
+                    <a href="{% url 'supplier-detail' s.pk %}" style="font-weight:700;color:var(--adm-text);text-decoration:none;">{{ s.name }}</a>
+                    {% if not s.is_active %}<span class="adm-badge adm-badge-muted" style="margin-left:6px;">Inactive</span>{% endif %}
+                </td>
+                <td style="color:var(--adm-muted);">{{ s.contact_person|default:"—" }}</td>
+                <td style="color:var(--adm-muted);">{{ s.phone|default:"—" }}</td>
+                <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ s.total_invoiced|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ s.total_paid|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">
+                    {% if s.balance > 0 %}
+                        <span class="adm-badge adm-badge-danger">{{ restaurant.currency_symbol }} {{ s.balance|floatformat:2|intcomma }}</span>
+                    {% else %}
+                        <span class="adm-badge adm-badge-success">Settled</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right;">
+                    <a href="{% url 'supplier-detail' s.pk %}" class="adm-btn-icon" title="View"><i class="fa-solid fa-eye"></i></a>
+                    <a href="{% url 'supplier-edit' s.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-truck-field"></i>
+    <p>No suppliers yet. Add your first supplier to get started.</p>
+</div>
+{% endif %}
+{% endblock %}

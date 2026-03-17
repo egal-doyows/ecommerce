@@ -1,0 +1,66 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Departments{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Departments</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> / Departments
+        </div>
+    </div>
+    <a href="{% url 'hr-department-create' %}" class="adm-btn adm-btn-primary">
+        <i class="fa-solid fa-plus"></i> Add Department
+    </a>
+</div>
+
+{% if departments %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Department</th>
+                <th>Head</th>
+                <th style="text-align:right;">Positions</th>
+                <th style="text-align:right;">Employees</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in departments %}
+            <tr{% if not d.is_active %} style="opacity:0.5;"{% endif %}>
+                <td>
+                    <div style="font-weight:700;">{{ d.name }}</div>
+                    {% if d.description %}
+                    <div style="font-size:11px;color:var(--adm-muted);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ d.description }}</div>
+                    {% endif %}
+                </td>
+                <td style="font-size:12px;">{% if d.head %}{{ d.head.get_full_name|default:d.head.username }}{% else %}—{% endif %}</td>
+                <td style="text-align:right;"><span class="adm-badge adm-badge-muted">{{ d.position_count }}</span></td>
+                <td style="text-align:right;"><span class="adm-badge adm-badge-info">{{ d.emp_count }}</span></td>
+                <td>
+                    {% if d.is_active %}
+                    <span class="adm-badge adm-badge-success">Active</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right;">
+                    <a href="{% url 'hr-department-edit' d.pk %}" class="adm-btn-icon" title="Edit">
+                        <i class="fa-solid fa-pen" style="font-size:11px;"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-building"></i>
+    <p>No departments created yet.</p>
+</div>
+{% endif %}
+{% endblock %}

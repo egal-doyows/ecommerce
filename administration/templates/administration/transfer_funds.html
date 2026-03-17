@@ -1,0 +1,116 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}Transfer Funds{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Transfer Funds</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'admin-accounts' %}" style="color:var(--adm-accent);text-decoration:none;">Accounts</a> / Transfer
+        </div>
+    </div>
+</div>
+
+<!-- Account balances -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
+    {% for item in account_data %}
+    <div class="adm-stat" style="border:1.5px solid var(--adm-border);">
+        <div class="adm-stat-icon" style="
+            {% if item.account.account_type == 'cash' %}background:rgba(34,197,94,.1);color:#16a34a;
+            {% elif item.account.account_type == 'mpesa' %}background:rgba(34,197,94,.1);color:#15803d;
+            {% else %}background:rgba(59,130,246,.1);color:#2563eb;{% endif %}
+        ">
+            {% if item.account.account_type == 'cash' %}
+                <i class="fa-solid fa-money-bill-wave"></i>
+            {% elif item.account.account_type == 'mpesa' %}
+                <i class="fa-solid fa-mobile-screen-button"></i>
+            {% else %}
+                <i class="fa-solid fa-building-columns"></i>
+            {% endif %}
+        </div>
+        <div>
+            <div style="font-size:12px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;letter-spacing:.5px;">{{ item.account.name }}</div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ item.balance|floatformat:2|intcomma }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Transfer form -->
+<div class="adm-card" style="max-width:500px;">
+    <form method="POST" id="transferForm">
+        {% csrf_token %}
+
+        <div class="adm-form-group">
+            <label class="adm-form-label">From Account</label>
+            <select name="from_account" class="adm-input" id="fromAccount" required>
+                <option value="">Select source account</option>
+                {% for acct in accounts %}
+                <option value="{{ acct.pk }}" data-balance="{{ acct.balance }}">{{ acct.name }} ({{ restaurant.currency_symbol }} {{ acct.balance|floatformat:2|intcomma }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="text-align:center;padding:4px 0;">
+            <i class="fa-solid fa-arrow-down" style="color:var(--adm-accent);font-size:18px;"></i>
+        </div>
+
+        <div class="adm-form-group">
+            <label class="adm-form-label">To Account</label>
+            <select name="to_account" class="adm-input" id="toAccount" required>
+                <option value="">Select destination account</option>
+                {% for acct in accounts %}
+                <option value="{{ acct.pk }}">{{ acct.name }} ({{ restaurant.currency_symbol }} {{ acct.balance|floatformat:2|intcomma }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="adm-form-group">
+            <label class="adm-form-label">Amount</label>
+            <input type="number" name="amount" class="adm-input" step="0.01" min="0.01" id="transferAmount" placeholder="0.00" required>
+        </div>
+
+        <div class="adm-form-group">
+            <label class="adm-form-label">Note (optional)</label>
+            <input type="text" name="note" class="adm-input" placeholder="e.g. Bank deposit, Cash withdrawal">
+        </div>
+
+        <div style="padding:12px 16px;background:rgba(124,131,255,.05);border:1px solid rgba(124,131,255,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
+            <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:6px;"></i>
+            This will debit the source account and credit the destination account by the specified amount.
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button type="submit" class="adm-btn adm-btn-primary" style="flex:1;justify-content:center;">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                <span id="btnLabel">Transfer Funds</span>
+            </button>
+            <a href="{% url 'admin-accounts' %}" class="adm-btn adm-btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    const currencySymbol = '{{ restaurant.currency_symbol }}';
+    const amountInput = document.getElementById('transferAmount');
+    const btnLabel = document.getElementById('btnLabel');
+
+    amountInput.addEventListener('input', function() {
+        const amt = parseFloat(this.value) || 0;
+        btnLabel.textContent = amt > 0
+            ? 'Transfer ' + currencySymbol + ' ' + amt.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+            : 'Transfer Funds';
+    });
+
+    // Prevent selecting same account for both
+    document.getElementById('transferForm').addEventListener('submit', function(e) {
+        const from = document.getElementById('fromAccount').value;
+        const to = document.getElementById('toAccount').value;
+        if (from && to && from === to) {
+            e.preventDefault();
+            alert('Source and destination accounts must be different.');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends 'administration/base.html' %}
+{% block title %}Categories{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Categories</h1>
+        <div class="breadcrumb-text">Organize your menu</div>
+    </div>
+    {% if is_manager %}<a href="{% url 'admin-category-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Category</a>{% endif %}
+</div>
+
+<div class="adm-card">
+    {% if categories %}
+    <table class="adm-table">
+        <thead>
+            <tr><th>Name</th>{% if user.is_superuser %}<th>Icon</th>{% endif %}<th>Items</th>{% if user.is_superuser %}<th>Slug</th>{% endif %}{% if user.is_superuser %}<th></th>{% endif %}</tr>
+        </thead>
+        <tbody>
+        {% for cat in categories %}
+        <tr>
+            <td style="font-weight:600;"><i class="fa-solid {{ cat.icon }}" style="color:var(--adm-accent);margin-right:8px;"></i>{{ cat.name }}</td>
+            {% if user.is_superuser %}<td style="color:var(--adm-muted);font-size:12px;">{{ cat.icon }}</td>{% endif %}
+            <td><span class="adm-badge adm-badge-info">{{ cat.item_count }}</span></td>
+            {% if user.is_superuser %}<td style="color:var(--adm-muted);font-size:12px;">{{ cat.slug }}</td>{% endif %}
+            {% if user.is_superuser %}
+            <td style="white-space:nowrap;">
+                <a href="{% url 'admin-category-edit' cat.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                <a href="{% url 'admin-category-delete' cat.pk %}" class="adm-btn-icon" title="Delete" style="color:var(--adm-danger);"><i class="fa-solid fa-trash"></i></a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-tags"></i><p>No categories yet</p></div>
+    {% endif %}
+</div>
+{% endblock %}

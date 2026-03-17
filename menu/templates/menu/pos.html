@@ -687,7 +687,7 @@
                 <div class="pos-item-info">
                     <div class="pos-item-name">{{ product.title|capfirst }}</div>
                     <div class="pos-item-meta">
-                        <span class="pos-item-price">Ksh {{ product.price|intcomma }}</span>
+                        <span class="pos-item-price">{{ restaurant.currency_symbol }}{{ product.price|floatformat:2|intcomma }}</span>
                     </div>
                 </div>
             </div>
@@ -719,9 +719,9 @@
                 </div>
                 <div class="pos-order-item-details">
                     <div class="pos-order-item-name">{{ product.title|capfirst }}</div>
-                    <div class="pos-order-item-unit">Ksh {{ item.price|intcomma }} each</div>
+                    <div class="pos-order-item-unit">{{ restaurant.currency_symbol }}{{ item.price|floatformat:2|intcomma }} each</div>
                 </div>
-                <div class="pos-order-item-price">Ksh {{ item.total|intcomma }}</div>
+                <div class="pos-order-item-price">{{ restaurant.currency_symbol }}{{ item.total|floatformat:2|intcomma }}</div>
                 <button class="pos-order-item-remove" data-key="{{ item.key }}" title="Remove item">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -741,17 +741,29 @@
                 {% csrf_token %}
 
                 <div class="pos-table-select">
-                    <label><i class="fa fa-th-large"></i> Table</label>
+                    <label><i class="fa fa-th-large"></i> Space</label>
                     <select name="table_id" id="table-select" required>
-                        <option value="">Select table...</option>
+                        <option value="">Select space...</option>
                         {% for table in tables %}
                         <option value="{{ table.id }}">
-                            Table {{ table.number }} &middot; {{ table.capacity }} seats
+                            Space {{ table.number }} &middot; {{ table.capacity }} seats
                             {% if table.status != 'available' %}&mdash; {{ table.get_status_display }}{% endif %}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
+
+                {% if show_attendant_select %}
+                <div class="pos-table-select">
+                    <label><i class="fa fa-user"></i> Attendant</label>
+                    <select name="attendant_id" id="attendant-select" required>
+                        <option value="">Select attendant...</option>
+                        {% for attendant in attendants %}
+                        <option value="{{ attendant.id }}">{{ attendant.username|capfirst }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
 
                 <textarea class="pos-notes-input" name="notes" rows="2" placeholder="Order notes (optional)..."></textarea>
 
@@ -762,7 +774,7 @@
                     </div>
                     <div class="pos-summary-row total">
                         <span class="pos-summary-label">Total</span>
-                        <span class="pos-summary-value" id="summary-total">Ksh {{ cart.get_total|intcomma }}</span>
+                        <span class="pos-summary-value" id="summary-total">{{ restaurant.currency_symbol }}{{ cart.get_total|floatformat:2|intcomma }}</span>
                     </div>
                 </div>
 

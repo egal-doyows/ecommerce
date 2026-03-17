@@ -9,6 +9,7 @@ urlpatterns = [
     # Login / Logout
     path('my-login', views.my_login, name='my-login'),
     path('waiter-login', views.waiter_login, name='waiter-login'),
+    path('setup-login-code', views.setup_login_code, name='setup-login-code'),
     path('dashboard', views.dashboard, name='dashboard'),
     path('user-logout', views.user_logout, name='user-logout'),
 

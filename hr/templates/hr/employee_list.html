@@ -1,0 +1,137 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Employee Directory{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Employee Directory</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> / Employees
+        </div>
+    </div>
+    {% if is_manager %}
+    <a href="{% url 'hr-employee-create' %}" class="adm-btn adm-btn-primary">
+        <i class="fa-solid fa-user-plus"></i> Add Employee
+    </a>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <select name="status" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">Active Staff</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="department" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Departments</option>
+            {% for d in departments %}
+            <option value="{{ d.pk }}" {% if dept_filter == d.pk|stringformat:"d" %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="type" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Types</option>
+            {% for code, label in type_choices %}
+            <option value="{{ code }}" {% if type_filter == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="q" value="{{ search }}" placeholder="Search name, ID, phone..." class="adm-input" style="width:160px;padding:5px 10px;font-size:12px;">
+        <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Filter</button>
+        {% if status_filter or dept_filter or type_filter or search %}
+        <a href="{% url 'hr-employee-list' %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;">
+            <i class="fa-solid fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if employees %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Position</th>
+                <th>Phone</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for emp in employees %}
+            <tr{% if emp.status != 'active' %} style="opacity:0.6;"{% endif %}>
+                <td>
+                    <a href="{% url 'hr-employee-detail' emp.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:700;">
+                        {{ emp.employee_id }}
+                    </a>
+                </td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--adm-accent),#6366f1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">
+                            {{ emp.user.first_name|first|upper }}{{ emp.user.last_name|first|upper }}
+                        </div>
+                        <div>
+                            <div style="font-weight:600;">{{ emp.full_name }}</div>
+                            <div style="font-size:11px;color:var(--adm-muted);">{{ emp.user.username }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    {% if emp.department %}
+                    <span class="adm-badge adm-badge-info">{{ emp.department.name }}</span>
+                    {% else %}
+                    <span style="color:var(--adm-muted);font-size:12px;">—</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:12px;">{{ emp.position.title|default:"—" }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{{ emp.phone|default:"—" }}</td>
+                <td><span class="adm-badge adm-badge-muted">{{ emp.get_employment_type_display }}</span></td>
+                <td>
+                    {% if emp.status == 'active' %}
+                    <span class="adm-badge adm-badge-success">Active</span>
+                    {% elif emp.status == 'on_leave' %}
+                    <span class="adm-badge adm-badge-warning">On Leave</span>
+                    {% elif emp.status == 'suspended' %}
+                    <span class="adm-badge adm-badge-danger">Suspended</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">{{ emp.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ emp.date_joined|date:"d M Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
+    <div style="font-size:12px;color:var(--adm-muted);">
+        Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon"><i class="fa-solid fa-chevron-left" style="font-size:11px;"></i></a>
+        {% endif %}
+        <span style="font-size:12px;padding:0 8px;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon"><i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-users"></i>
+    <p>No employees found{% if status_filter or dept_filter or type_filter or search %} matching your filters{% endif %}.</p>
+</div>
+{% endif %}
+{% endblock %}

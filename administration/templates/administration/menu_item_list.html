@@ -1,0 +1,93 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}Menu Items{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Menu Items</h1>
+        <div class="breadcrumb-text">Manage your food &amp; drinks</div>
+    </div>
+    {% if is_manager %}<a href="{% url 'admin-menu-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Item</a>{% endif %}
+</div>
+
+<!-- Filters -->
+<div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+    <div class="adm-filters">
+        <span style="font-size:12px;font-weight:600;color:var(--adm-muted);margin-right:4px;">Tier:</span>
+        <a href="{% url 'admin-menu-list' %}" class="adm-filter-btn {% if not tier_filter %}active{% endif %}">All</a>
+        <a href="{% url 'admin-menu-list' %}?tier=regular{% if cat_filter %}&category={{ cat_filter }}{% endif %}" class="adm-filter-btn {% if tier_filter == 'regular' %}active{% endif %}">Regular</a>
+        <a href="{% url 'admin-menu-list' %}?tier=premium{% if cat_filter %}&category={{ cat_filter }}{% endif %}" class="adm-filter-btn {% if tier_filter == 'premium' %}active{% endif %}">Premium</a>
+    </div>
+    <div class="adm-filters">
+        <span style="font-size:12px;font-weight:600;color:var(--adm-muted);margin-right:4px;">Category:</span>
+        <a href="{% url 'admin-menu-list' %}{% if tier_filter %}?tier={{ tier_filter }}{% endif %}" class="adm-filter-btn {% if not cat_filter %}active{% endif %}">All</a>
+        {% for cat in categories %}
+        <a href="{% url 'admin-menu-list' %}?category={{ cat.pk }}{% if tier_filter %}&tier={{ tier_filter }}{% endif %}" class="adm-filter-btn {% if cat_filter == cat.pk|slugify %}active{% endif %}">{{ cat.name }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="adm-card">
+    {% if items %}
+    <table class="adm-table">
+        <thead>
+            <tr><th>Item</th><th>Category</th><th>Price</th><th>Tier</th><th>Inventory</th><th>Status</th>{% if is_manager %}<th></th>{% endif %}</tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    {% if item.image %}
+                    <img src="{{ item.image.url }}" style="width:36px;height:36px;border-radius:8px;object-fit:cover;">
+                    {% else %}
+                    <div style="width:36px;height:36px;border-radius:8px;background:var(--adm-bg);display:flex;align-items:center;justify-content:center;color:var(--adm-muted);font-size:14px;">
+                        <i class="fa-solid fa-image"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <div style="font-weight:600;">{{ item.title }}</div>
+                    </div>
+                </div>
+            </td>
+            <td>{{ item.category.name|default:"—" }}</td>
+            <td style="font-weight:600;">{{ restaurant.currency_symbol }} {{ item.price|floatformat:2|intcomma }}</td>
+            <td>
+                <span class="adm-badge {% if item.item_tier == 'premium' %}adm-badge-premium{% else %}adm-badge-regular{% endif %}">
+                    {{ item.get_item_tier_display }}
+                </span>
+            </td>
+            <td>
+                {% if item.inventory_item %}
+                    {% if item.inventory_item.is_low_stock %}
+                        <span class="adm-badge adm-badge-danger">{{ item.inventory_item.stock_quantity }} {{ item.inventory_item.get_unit_display }}</span>
+                    {% else %}
+                        <span style="color:var(--adm-muted);font-size:12px;">{{ item.inventory_item.stock_quantity }} {{ item.inventory_item.get_unit_display }}</span>
+                    {% endif %}
+                {% else %}
+                    <span style="color:var(--adm-muted);font-size:12px;">—</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if item.is_available %}
+                    <span class="adm-badge adm-badge-success">Available</span>
+                {% else %}
+                    <span class="adm-badge adm-badge-danger">Unavailable</span>
+                {% endif %}
+            </td>
+            {% if is_manager %}
+            <td style="white-space:nowrap;">
+                <a href="{% url 'admin-menu-edit' item.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                <a href="{% url 'admin-menu-delete' item.pk %}" class="adm-btn-icon" title="Delete" style="color:var(--adm-danger);"><i class="fa-solid fa-trash"></i></a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-utensils"></i><p>No menu items found</p></div>
+    {% endif %}
+</div>
+{% endblock %}

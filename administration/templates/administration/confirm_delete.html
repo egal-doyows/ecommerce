@@ -1,0 +1,27 @@
+{% extends 'administration/base.html' %}
+{% block title %}Delete {{ object_name }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Confirm Delete</h1>
+    </div>
+</div>
+
+<div style="max-width:480px;">
+    <div class="adm-card" style="text-align:center;padding:40px 32px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:rgba(231,76,60,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+            <i class="fa-solid fa-trash" style="font-size:22px;color:var(--adm-danger);"></i>
+        </div>
+        <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Delete {{ object_name }}?</h3>
+        <p style="color:var(--adm-muted);font-size:14px;margin:0 0 28px;">This action cannot be undone. All associated data will be permanently removed.</p>
+        <form method="post">
+            {% csrf_token %}
+            <div style="display:flex;justify-content:center;gap:10px;">
+                <button type="submit" class="adm-btn adm-btn-danger"><i class="fa-solid fa-trash"></i> Delete</button>
+                <a href="{% url cancel_url %}" class="adm-btn adm-btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

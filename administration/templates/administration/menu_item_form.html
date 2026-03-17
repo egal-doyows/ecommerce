@@ -1,0 +1,64 @@
+{% extends 'administration/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text"><a href="{% url 'admin-menu-list' %}" style="color:var(--adm-accent);text-decoration:none;">Menu Items</a> / {{ title }}</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:{% if menu_item %}2fr 1fr{% else %}1fr{% endif %};gap:20px;align-items:start;">
+    <div class="adm-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="adm-form-group">
+                <label class="adm-form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="adm-help-text">{{ field.help_text }}</div>{% endif %}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+            <div style="display:flex;gap:10px;margin-top:24px;">
+                <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save</button>
+                <a href="{% url 'admin-menu-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    {% if menu_item %}
+    <!-- Recipe / Ingredients -->
+    <div class="adm-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="font-size:14px;font-weight:700;margin:0;">Recipe</h3>
+            <a href="{% url 'admin-recipe-add' menu_item.pk %}" class="adm-btn adm-btn-sm adm-btn-primary"><i class="fa-solid fa-plus"></i> Add</a>
+        </div>
+        {% if recipes %}
+        <table class="adm-table">
+            <thead><tr><th>Ingredient</th><th>Qty</th><th></th></tr></thead>
+            <tbody>
+            {% for r in recipes %}
+            <tr>
+                <td style="font-weight:500;">{{ r.inventory_item.name }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ r.quantity_required }} {{ r.inventory_item.get_unit_display }}</td>
+                <td>
+                    <form method="post" action="{% url 'admin-recipe-delete' r.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="adm-btn-icon" style="color:var(--adm-danger);border:none;" title="Remove">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:20px;"><i class="fa-solid fa-list"></i><p>No ingredients added</p></div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

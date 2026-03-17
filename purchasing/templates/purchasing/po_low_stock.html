@@ -1,0 +1,70 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Create PO from Low Stock{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Create PO from Low Stock</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'po-list' %}" style="color:var(--adm-accent);text-decoration:none;">Purchase Orders</a> / From Low Stock
+        </div>
+    </div>
+</div>
+
+<div style="padding:12px 16px;background:rgba(124,131,255,.05);border:1px solid rgba(124,131,255,.15);border-radius:8px;margin-bottom:24px;font-size:13px;color:var(--adm-muted);">
+    <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:6px;"></i>
+    Low-stock items are grouped by their preferred supplier. Select a supplier to create a draft PO with suggested reorder quantities.
+</div>
+
+{% for sid, data in suppliers.items %}
+<div class="adm-card" style="margin-bottom:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h3 style="font-size:15px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-truck-field" style="color:var(--adm-accent);"></i>
+            {{ data.supplier.name }}
+        </h3>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="supplier_id" value="{{ sid }}">
+            <button type="submit" class="adm-btn adm-btn-primary" style="font-size:12px;">
+                <i class="fa-solid fa-plus"></i> Create PO ({{ data.items|length }} items)
+            </button>
+        </form>
+    </div>
+
+    <table class="adm-table" style="margin:0;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Current Stock</th>
+                <th style="text-align:right;">Threshold</th>
+                <th style="text-align:right;">Buying Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data.items %}
+            <tr>
+                <td style="font-weight:600;">{{ item.name }}</td>
+                <td style="color:var(--adm-muted);">{{ item.get_unit_display }}</td>
+                <td style="text-align:right;color:var(--adm-danger);font-weight:700;">{{ item.stock_quantity }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ item.low_stock_threshold }}</td>
+                <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ item.buying_price|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+
+{% if not suppliers %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-check-circle" style="color:var(--adm-success);"></i>
+    <p>No low-stock items with preferred suppliers. All stocked up!</p>
+</div>
+{% endif %}
+
+<a href="{% url 'po-list' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-arrow-left"></i> Back to Purchase Orders</a>
+{% endblock %}

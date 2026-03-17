@@ -1,0 +1,323 @@
+{% extends "menu/base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .sc-page { max-width: 700px; margin: 30px auto; padding: 0 20px; }
+
+    .sc-header h2 {
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--pos-text);
+        margin: 0 0 4px;
+    }
+
+    .sc-header-sub {
+        font-size: 13px;
+        color: var(--pos-muted);
+        margin: 0 0 24px;
+    }
+
+    /* Compensation Type Banner */
+    .sc-comp-banner {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 24px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+        border: 1.5px solid;
+    }
+
+    .sc-comp-banner.commission { background: #eff6ff; border-color: #bfdbfe; }
+    .sc-comp-banner.salary { background: #f0fdf4; border-color: #bbf7d0; }
+
+    .sc-comp-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .sc-comp-banner.commission .sc-comp-icon { background: #dbeafe; color: #1d4ed8; }
+    .sc-comp-banner.salary .sc-comp-icon { background: #dcfce7; color: #15803d; }
+
+    .sc-comp-info h4 {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0 0 2px;
+        color: var(--pos-text);
+    }
+
+    .sc-comp-info p {
+        font-size: 13px;
+        margin: 0;
+        color: var(--pos-muted);
+    }
+
+    /* Current Month Label */
+    .sc-current-label {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0 0 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sc-current-label i { color: var(--pos-accent); font-size: 14px; }
+
+    .sc-current-label span {
+        margin-left: auto;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--pos-accent);
+        background: #f0f0ff;
+        padding: 4px 12px;
+        border-radius: 6px;
+    }
+
+    /* Stats Grid */
+    .sc-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap: 14px;
+        margin-bottom: 28px;
+    }
+
+    .sc-stat-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 22px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+    }
+
+    .sc-stat-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--pos-muted);
+        margin-bottom: 6px;
+    }
+
+    .sc-stat-value {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--pos-text);
+    }
+
+    .sc-stat-value.green { color: #15803d; }
+
+    /* History Section */
+    .sc-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0 0 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sc-section-title i { color: var(--pos-accent); font-size: 14px; }
+
+    .sc-history {
+        background: #fff;
+        border-radius: 14px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+        overflow: hidden;
+    }
+
+    .sc-history-row {
+        display: flex;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #f3f4f6;
+        gap: 14px;
+    }
+
+    .sc-history-row:last-child { border-bottom: none; }
+
+    .sc-history-month {
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--pos-text);
+        min-width: 140px;
+    }
+
+    .sc-history-details {
+        flex: 1;
+        font-size: 13px;
+        color: var(--pos-muted);
+    }
+
+    .sc-history-amount {
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--pos-text);
+        min-width: 120px;
+        text-align: right;
+    }
+
+    .sc-pay-status {
+        padding: 3px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        min-width: 70px;
+        text-align: center;
+    }
+
+    .sc-pay-paid { background: #f0fdf4; color: #15803d; }
+    .sc-pay-pending { background: #fef3c7; color: #92400e; }
+
+    .sc-empty {
+        text-align: center;
+        padding: 48px 20px;
+        background: #fff;
+        border-radius: 14px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+    }
+
+    .sc-empty i { font-size: 36px; color: #d1d5db; margin-bottom: 12px; }
+    .sc-empty p { color: var(--pos-muted); margin: 0; font-size: 14px; }
+
+    .sc-empty-history {
+        text-align: center;
+        padding: 32px;
+        color: var(--pos-muted);
+        font-size: 13px;
+    }
+</style>
+
+<div class="sc-page">
+
+    <div class="sc-header">
+        <h2><i class="fa-solid fa-wallet" style="color: var(--pos-accent); margin-right: 8px;"></i>My Earnings</h2>
+        <p class="sc-header-sub">Track your compensation and payment history</p>
+    </div>
+
+    {% if compensation %}
+
+    <!-- Compensation Banner -->
+    <div class="sc-comp-banner {{ compensation.compensation_type }}">
+        <div class="sc-comp-icon">
+            {% if compensation.compensation_type == 'commission' %}
+            <i class="fa-solid fa-percent"></i>
+            {% else %}
+            <i class="fa-solid fa-money-bill-wave"></i>
+            {% endif %}
+        </div>
+        <div class="sc-comp-info">
+            {% if compensation.compensation_type == 'commission' %}
+            <h4>Commission-Based — {{ compensation.get_commission_scope_display }}</h4>
+            <p>
+                {% if compensation.commission_scope == 'regular' %}
+                    {{ compensation.commission_rate_regular }}% on regular items
+                {% elif compensation.commission_scope == 'premium' %}
+                    {{ compensation.commission_rate_premium }}% on premium items
+                {% else %}
+                    {{ compensation.commission_rate_regular }}% regular / {{ compensation.commission_rate_premium }}% premium
+                {% endif %}
+            </p>
+            {% else %}
+            <h4>Fixed Salary — {{ restaurant.currency_symbol }} {{ compensation.salary_amount|floatformat:2|intcomma }}</h4>
+            <p>Paid {{ compensation.get_payment_frequency_display|lower }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Current Month Stats -->
+    <h3 class="sc-current-label">
+        <i class="fa-solid fa-chart-line"></i> Current Month
+        <span>{{ current_month }}</span>
+    </h3>
+
+    <div class="sc-stats">
+        <div class="sc-stat-card">
+            <div class="sc-stat-label">Total Sales</div>
+            <div class="sc-stat-value">{{ restaurant.currency_symbol }} {{ current_month_sales|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="sc-stat-card">
+            <div class="sc-stat-label">Orders Closed</div>
+            <div class="sc-stat-value">{{ current_month_orders }}</div>
+        </div>
+        {% if compensation.compensation_type == 'commission' %}
+        <div class="sc-stat-card">
+            <div class="sc-stat-label">Eligible Sales</div>
+            <div class="sc-stat-value">{{ restaurant.currency_symbol }} {{ current_month_eligible_sales|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="sc-stat-card">
+            <div class="sc-stat-label">Commission Earned</div>
+            <div class="sc-stat-value green">{{ restaurant.currency_symbol }} {{ current_month_commission|floatformat:2|intcomma }}</div>
+        </div>
+        {% else %}
+        <div class="sc-stat-card">
+            <div class="sc-stat-label">{{ compensation.get_payment_frequency_display }} Salary</div>
+            <div class="sc-stat-value green">{{ restaurant.currency_symbol }} {{ compensation.salary_amount|floatformat:2|intcomma }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+
+    <div class="sc-empty">
+        <i class="fa-solid fa-circle-info"></i>
+        <p>Your compensation plan has not been set up yet.<br>Please contact your administrator.</p>
+    </div>
+
+    {% endif %}
+
+    <!-- Daily Commission Breakdown -->
+    {% if daily_breakdown %}
+    <h3 class="sc-section-title"><i class="fa-solid fa-calendar-days"></i> Daily Commission Breakdown</h3>
+    <div class="sc-history">
+        {% for day in daily_breakdown %}
+        <div class="sc-history-row">
+            <span class="sc-history-month">{{ day.date|date:"D, d M Y" }}</span>
+            <span class="sc-history-details">
+                {{ day.order_count }} order{{ day.order_count|pluralize }} &middot;
+                {{ restaurant.currency_symbol }} {{ day.eligible_sales|floatformat:2|intcomma }} eligible / {{ restaurant.currency_symbol }} {{ day.total_sales|floatformat:2|intcomma }} total
+            </span>
+            <span class="sc-history-amount">{{ restaurant.currency_symbol }} {{ day.commission|floatformat:2|intcomma }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% elif compensation and compensation.compensation_type == 'commission' %}
+    <h3 class="sc-section-title"><i class="fa-solid fa-calendar-days"></i> Daily Commission Breakdown</h3>
+    <div class="sc-history">
+        <div class="sc-empty-history">No commission data yet. Daily records will appear here as orders are completed.</div>
+    </div>
+    {% endif %}
+
+    <!-- Payment History -->
+    {% if payment_history %}
+    <h3 class="sc-section-title" style="margin-top:28px;"><i class="fa-solid fa-clock-rotate-left"></i> Payment History</h3>
+    <div class="sc-history">
+        {% for record in payment_history %}
+        <div class="sc-history-row">
+            <span class="sc-history-month">{{ record.month_label }}</span>
+            <span class="sc-history-details">
+                {{ record.order_count }} order{{ record.order_count|pluralize }} &middot;
+                {{ restaurant.currency_symbol }} {{ record.eligible_sales|floatformat:2|intcomma }} eligible / {{ restaurant.currency_symbol }} {{ record.total_sales|floatformat:2|intcomma }} total
+            </span>
+            <span class="sc-history-amount">{{ restaurant.currency_symbol }} {{ record.amount|floatformat:2|intcomma }}</span>
+            <span class="sc-pay-status {% if record.status == 'paid' %}sc-pay-paid{% else %}sc-pay-pending{% endif %}">
+                {{ record.status }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

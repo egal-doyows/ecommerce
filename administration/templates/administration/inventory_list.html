@@ -1,0 +1,55 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}Inventory{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Inventory</h1>
+        <div class="breadcrumb-text">Track your stock levels</div>
+    </div>
+    {% if is_manager %}<a href="{% url 'admin-inventory-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Item</a>{% endif %}
+</div>
+
+<div class="adm-filters" style="margin-bottom:20px;">
+    <a href="{% url 'admin-inventory-list' %}" class="adm-filter-btn {% if not show %}active{% endif %}">All</a>
+    <a href="{% url 'admin-inventory-list' %}?show=low" class="adm-filter-btn {% if show == 'low' %}active{% endif %}">Low Stock</a>
+</div>
+
+<div class="adm-card">
+    {% if items %}
+    <table class="adm-table">
+        <thead>
+            <tr><th>Name</th><th>Stock</th><th>Unit</th><th>Buying Price</th><th>Threshold</th><th>Status</th><th></th></tr>
+            {# Supervisors can edit stock, managers can also delete #}
+        </thead>
+        <tbody>
+        {% for item in items %}
+        <tr>
+            <td style="font-weight:600;">{{ item.name }}</td>
+            <td style="font-weight:600;">{{ item.stock_quantity|floatformat:2 }}</td>
+            <td style="color:var(--adm-muted);">{{ item.get_unit_display }}</td>
+            <td>{{ restaurant.currency_symbol }} {{ item.buying_price|floatformat:2|intcomma }}</td>
+            <td style="color:var(--adm-muted);">{{ item.low_stock_threshold }}</td>
+            <td>
+                {% if item.is_low_stock %}
+                    <span class="adm-badge adm-badge-danger">Low Stock</span>
+                {% else %}
+                    <span class="adm-badge adm-badge-success">OK</span>
+                {% endif %}
+            </td>
+            {% if user.is_superuser %}
+            <td style="white-space:nowrap;">
+                <a href="{% url 'admin-inventory-edit' item.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                <a href="{% url 'admin-inventory-delete' item.pk %}" class="adm-btn-icon" title="Delete" style="color:var(--adm-danger);"><i class="fa-solid fa-trash"></i></a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-boxes-stacked"></i><p>No inventory items found</p></div>
+    {% endif %}
+</div>
+{% endblock %}

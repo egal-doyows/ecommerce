@@ -1,0 +1,44 @@
+{% extends "administration/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'debtor-list' %}" style="color:var(--adm-accent);text-decoration:none;">Debtors</a> / {{ title }}
+        </div>
+    </div>
+</div>
+
+<div class="adm-card" style="max-width:600px;">
+    <form method="POST">
+        {% csrf_token %}
+        {% for field in form %}
+        {% if field.name != 'is_active' %}
+        <div class="adm-form-group">
+            <label class="adm-form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        {% if form.instance.pk %}
+        <div class="adm-form-group">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;">
+                {{ form.is_active }} Active
+            </label>
+        </div>
+        {% endif %}
+
+        <div style="display:flex;gap:10px;margin-top:24px;">
+            <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save</button>
+            <a href="{% url 'debtor-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

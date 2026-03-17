@@ -4,7 +4,70 @@ from django import forms
 from django.forms.widgets import PasswordInput, TextInput
 
 
+COMPENSATION_TYPE_CHOICES = [
+    ('commission', 'Commission'),
+    ('salary', 'Salary'),
+]
+
+COMMISSION_SCOPE_CHOICES = [
+    ('regular', 'Regular Items Only'),
+    ('premium', 'Premium Items Only'),
+    ('both', 'Both Regular & Premium'),
+]
+
+PAYMENT_FREQUENCY_CHOICES = [
+    ('weekly', 'Weekly'),
+    ('biweekly', 'Bi-Weekly'),
+    ('monthly', 'Monthly'),
+]
+
+
 class CreateUserForm(UserCreationForm):
+    compensation_type = forms.ChoiceField(
+        choices=COMPENSATION_TYPE_CHOICES,
+        widget=forms.RadioSelect(attrs={'class': 'comp-radio'}),
+        label='Compensation Type',
+    )
+    commission_scope = forms.ChoiceField(
+        choices=COMMISSION_SCOPE_CHOICES,
+        required=False,
+        widget=forms.RadioSelect(attrs={'class': 'scope-radio'}),
+        label='Commission Scope',
+    )
+    commission_rate_regular = forms.DecimalField(
+        required=False, min_value=0, max_value=100,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g. 10',
+            'step': '0.01',
+        }),
+        label='Regular Items Rate (%)',
+    )
+    commission_rate_premium = forms.DecimalField(
+        required=False, min_value=0, max_value=100,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g. 15',
+            'step': '0.01',
+        }),
+        label='Premium Items Rate (%)',
+    )
+    salary_amount = forms.DecimalField(
+        required=False, min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g. 30000',
+            'step': '0.01',
+        }),
+        label='Salary Amount',
+    )
+    payment_frequency = forms.ChoiceField(
+        choices=PAYMENT_FREQUENCY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        label='Payment Frequency',
+    )
+
     class Meta:
         model = User
         fields = ['username', 'email', 'password1', 'password2']
@@ -20,6 +83,23 @@ class CreateUserForm(UserCreationForm):
         if len(email) >= 350:
             raise forms.ValidationError('Your email is too long.')
         return email
+
+    def clean(self):
+        cleaned_data = super().clean()
+        comp_type = cleaned_data.get('compensation_type')
+        if comp_type == 'commission':
+            scope = cleaned_data.get('commission_scope', 'both')
+            rate_reg = cleaned_data.get('commission_rate_regular') or 0
+            rate_prem = cleaned_data.get('commission_rate_premium') or 0
+            if scope in ('regular', 'both') and rate_reg <= 0:
+                self.add_error('commission_rate_regular', 'Rate is required for regular items.')
+            if scope in ('premium', 'both') and rate_prem <= 0:
+                self.add_error('commission_rate_premium', 'Rate is required for premium items.')
+        elif comp_type == 'salary':
+            amount = cleaned_data.get('salary_amount')
+            if not amount or amount <= 0:
+                self.add_error('salary_amount', 'Salary amount is required.')
+        return cleaned_data
 
 
 class LoginForm(AuthenticationForm):

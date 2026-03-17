@@ -1,0 +1,83 @@
+{% extends 'administration/base.html' %}
+{% block title %}Staff{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Staff Members</h1>
+        <div class="breadcrumb-text">Manage your team</div>
+    </div>
+    {% if is_manager %}<a href="{% url 'admin-staff-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Staff</a>{% endif %}
+</div>
+
+<div class="adm-card">
+    {% if staff_list %}
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Login Code</th>
+                <th>Compensation</th>
+                <th>Status</th>
+                <th>Joined</th>
+                {% if user.is_superuser %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for member in staff_list %}
+        <tr>
+            <td style="font-weight:600;">{{ member.username }}</td>
+            <td style="color:var(--adm-muted);">{{ member.email|default:"—" }}</td>
+            <td>
+                {% for g in member.groups.all %}
+                    <span class="adm-badge {% if g.name == 'Manager' %}adm-badge-premium{% elif g.name == 'Supervisor' %}adm-badge-warning{% elif g.name == 'Cashier' %}adm-badge-success{% else %}adm-badge-info{% endif %}">{{ g.name }}</span>
+                {% empty %}
+                    <span class="adm-badge adm-badge-muted">No role</span>
+                {% endfor %}
+            </td>
+            <td>
+                {% if member.waiter_code %}
+                    <code style="background:var(--adm-bg);padding:2px 8px;border-radius:4px;font-size:13px;font-weight:600;">{{ member.waiter_code.code }}</code>
+                {% else %}
+                    <span style="color:var(--adm-muted);">—</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if member.compensation %}
+                    {% if member.compensation.compensation_type == 'commission' %}
+                        <span class="adm-badge adm-badge-info">Commission</span>
+                    {% else %}
+                        <span class="adm-badge adm-badge-success">Salary</span>
+                    {% endif %}
+                {% else %}
+                    <span class="adm-badge adm-badge-muted">Not set</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if member.is_active %}
+                    <span class="adm-badge adm-badge-success">Active</span>
+                {% else %}
+                    <span class="adm-badge adm-badge-danger">Inactive</span>
+                {% endif %}
+            </td>
+            <td style="color:var(--adm-muted);font-size:12px;">{{ member.date_joined|date:"M d, Y" }}</td>
+            {% if user.is_superuser %}
+            <td style="white-space:nowrap;">
+                <a href="{% url 'admin-staff-edit' member.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                <a href="{% url 'admin-staff-delete' member.pk %}" class="adm-btn-icon" title="Delete" style="color:var(--adm-danger);"><i class="fa-solid fa-trash"></i></a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty">
+        <i class="fa-solid fa-users"></i>
+        <p>No staff members yet</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

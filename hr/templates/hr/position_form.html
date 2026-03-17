@@ -1,0 +1,55 @@
+{% extends "administration/base.html" %}
+
+{% block title %}{{ title_text }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title_text }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> /
+            <a href="{% url 'hr-position-list' %}" style="color:var(--adm-accent);text-decoration:none;">Positions</a> /
+            {{ title_text }}
+        </div>
+    </div>
+</div>
+
+<form method="POST" style="max-width:550px;">
+    {% csrf_token %}
+    <div class="adm-card" style="margin-bottom:20px;">
+        <div class="adm-form-group">
+            <label class="adm-form-label">Position Title <span style="color:var(--adm-danger);">*</span></label>
+            <input type="text" name="title" class="adm-input" required
+                   value="{% if pos %}{{ pos.title }}{% endif %}" placeholder="e.g. Head Chef">
+        </div>
+        <div class="adm-form-group">
+            <label class="adm-form-label">Department</label>
+            <select name="department" class="adm-input">
+                <option value="">— None —</option>
+                {% for d in departments %}
+                <option value="{{ d.pk }}" {% if pos and pos.department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="adm-form-group">
+            <label class="adm-form-label">Description</label>
+            <textarea name="description" class="adm-input" rows="2" placeholder="Job responsibilities...">{% if pos %}{{ pos.description }}{% endif %}</textarea>
+        </div>
+        {% if pos %}
+        <div class="adm-form-group" style="margin-bottom:0;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                <input type="checkbox" name="is_active" {% if pos.is_active %}checked{% endif %}>
+                Active
+            </label>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="display:flex;gap:10px;">
+        <button type="submit" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-check"></i> {{ action }}
+        </button>
+        <a href="{% url 'hr-position-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}

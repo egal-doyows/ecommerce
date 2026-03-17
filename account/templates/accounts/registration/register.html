@@ -16,7 +16,7 @@
 
     .register-card {
         width: 100%;
-        max-width: 440px;
+        max-width: 520px;
         background: #fff;
         border-radius: 16px;
         padding: 40px 32px;
@@ -68,9 +68,164 @@
         transition: color 0.2s;
     }
 
-    .register-links a:hover {
-        color: var(--pos-blue);
+    .register-links a:hover { color: var(--pos-blue); }
+
+    /* Compensation Section */
+    .reg-section-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-text);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 20px 0 12px;
+        padding-top: 16px;
+        border-top: 1px solid #f3f4f6;
     }
+
+    .comp-toggle {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .comp-option {
+        flex: 1;
+        position: relative;
+    }
+
+    .comp-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .comp-label {
+        display: block;
+        padding: 14px 12px;
+        border-radius: 10px;
+        border: 2px solid #e5e7eb;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .comp-option input:checked + .comp-label {
+        border-color: #7c83ff;
+        background: #f0f0ff;
+        box-shadow: 0 0 0 3px rgba(124,131,255,0.15);
+    }
+
+    .comp-label:hover { border-color: #c7c9ff; }
+
+    .comp-label i {
+        display: block;
+        font-size: 18px;
+        margin-bottom: 6px;
+        color: #7c83ff;
+    }
+
+    .comp-label strong {
+        display: block;
+        font-size: 13px;
+        color: var(--pos-text);
+    }
+
+    .comp-label span {
+        font-size: 11px;
+        color: var(--pos-muted);
+    }
+
+    .comp-fields {
+        display: none;
+        animation: compFadeIn 0.2s ease;
+    }
+
+    .comp-fields.visible { display: block; }
+
+    @keyframes compFadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .comp-field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--pos-text);
+        margin-bottom: 4px;
+        display: block;
+    }
+
+    .comp-field-help {
+        font-size: 11px;
+        color: var(--pos-muted);
+        margin-top: 2px;
+        margin-bottom: 10px;
+    }
+
+    .comp-error {
+        color: #dc2626;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    /* Scope Toggle */
+    .comp-scope-toggle {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+
+    .comp-scope-opt {
+        flex: 1;
+        position: relative;
+    }
+
+    .comp-scope-opt input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .comp-scope-lbl {
+        display: block;
+        padding: 8px 6px;
+        border-radius: 8px;
+        border: 1.5px solid #e5e7eb;
+        cursor: pointer;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pos-text);
+        transition: all 0.2s;
+    }
+
+    .comp-scope-opt input:checked + .comp-scope-lbl {
+        border-color: #7c83ff;
+        background: #f0f0ff;
+        color: #7c83ff;
+    }
+
+    .comp-rate-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .comp-rate-col { flex: 1; }
+
+    .comp-tier-badge {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-left: 4px;
+    }
+
+    .tier-regular { background: #f0f2f5; color: #6b7280; }
+    .tier-premium { background: #fef3c7; color: #92400e; }
 </style>
 
 <div class="register-wrapper">
@@ -87,6 +242,101 @@
             {{ form.password1|as_crispy_field }}
             <br>
             {{ form.password2|as_crispy_field }}
+
+            <!-- Compensation Section -->
+            <div class="reg-section-label">Compensation Plan</div>
+
+            <div class="comp-toggle">
+                <div class="comp-option">
+                    <input type="radio" name="compensation_type" value="commission" id="reg_commission"
+                           {% if form.compensation_type.value == 'commission' %}checked{% endif %}>
+                    <label for="reg_commission" class="comp-label">
+                        <i class="fa-solid fa-percent"></i>
+                        <strong>Commission</strong>
+                        <span>Earns % per sale</span>
+                    </label>
+                </div>
+                <div class="comp-option">
+                    <input type="radio" name="compensation_type" value="salary" id="reg_salary"
+                           {% if form.compensation_type.value == 'salary' %}checked{% endif %}>
+                    <label for="reg_salary" class="comp-label">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                        <strong>Salary</strong>
+                        <span>Fixed pay per period</span>
+                    </label>
+                </div>
+            </div>
+
+            {% if form.errors.compensation_type %}
+            <div class="comp-error">{{ form.errors.compensation_type.0 }}</div>
+            {% endif %}
+
+            <!-- Commission Fields -->
+            <div class="comp-fields" id="regCommFields">
+                <label class="comp-field-label">Commission Scope</label>
+                <div class="comp-scope-toggle">
+                    <div class="comp-scope-opt">
+                        <input type="radio" name="commission_scope" value="regular" id="reg_scope_regular"
+                               {% if form.commission_scope.value == 'regular' %}checked{% endif %}>
+                        <label for="reg_scope_regular" class="comp-scope-lbl">Regular Only</label>
+                    </div>
+                    <div class="comp-scope-opt">
+                        <input type="radio" name="commission_scope" value="premium" id="reg_scope_premium"
+                               {% if form.commission_scope.value == 'premium' %}checked{% endif %}>
+                        <label for="reg_scope_premium" class="comp-scope-lbl">Premium Only</label>
+                    </div>
+                    <div class="comp-scope-opt">
+                        <input type="radio" name="commission_scope" value="both" id="reg_scope_both"
+                               {% if form.commission_scope.value == 'both' or not form.commission_scope.value %}checked{% endif %}>
+                        <label for="reg_scope_both" class="comp-scope-lbl">Both</label>
+                    </div>
+                </div>
+
+                <div class="comp-rate-row">
+                    <div class="comp-rate-col" id="regRateRegCol">
+                        <label class="comp-field-label">
+                            Regular Rate (%) <span class="comp-tier-badge tier-regular">Regular</span>
+                        </label>
+                        <input type="number" name="commission_rate_regular" class="form-control"
+                               value="{{ form.commission_rate_regular.value|default_if_none:'' }}"
+                               placeholder="e.g. 10" min="0" max="100" step="0.01">
+                        {% if form.errors.commission_rate_regular %}
+                        <div class="comp-error">{{ form.errors.commission_rate_regular.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="comp-rate-col" id="regRatePremCol">
+                        <label class="comp-field-label">
+                            Premium Rate (%) <span class="comp-tier-badge tier-premium">Premium</span>
+                        </label>
+                        <input type="number" name="commission_rate_premium" class="form-control"
+                               value="{{ form.commission_rate_premium.value|default_if_none:'' }}"
+                               placeholder="e.g. 15" min="0" max="100" step="0.01">
+                        {% if form.errors.commission_rate_premium %}
+                        <div class="comp-error">{{ form.errors.commission_rate_premium.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <p class="comp-field-help">Set different rates for regular and premium menu items</p>
+            </div>
+
+            <!-- Salary Fields -->
+            <div class="comp-fields" id="regSalFields">
+                <label class="comp-field-label">Salary Amount ({{ restaurant.currency_symbol }})</label>
+                <input type="number" name="salary_amount" class="form-control"
+                       value="{{ form.salary_amount.value|default_if_none:'' }}"
+                       placeholder="e.g. 30000" min="0" step="0.01" style="margin-bottom:10px;">
+                {% if form.errors.salary_amount %}
+                <div class="comp-error">{{ form.errors.salary_amount.0 }}</div>
+                {% endif %}
+
+                <label class="comp-field-label">Payment Frequency</label>
+                <select name="payment_frequency" class="form-control">
+                    <option value="weekly" {% if form.payment_frequency.value == 'weekly' %}selected{% endif %}>Weekly</option>
+                    <option value="biweekly" {% if form.payment_frequency.value == 'biweekly' %}selected{% endif %}>Bi-Weekly</option>
+                    <option value="monthly" {% if form.payment_frequency.value == 'monthly' or not form.payment_frequency.value %}selected{% endif %}>Monthly</option>
+                </select>
+            </div>
+
             <br>
             <button type="submit" class="register-btn">Create Account</button>
         </form>
@@ -96,5 +346,41 @@
         </div>
     </div>
 </div>
+
+<script>
+    (function() {
+        const commRadio = document.getElementById('reg_commission');
+        const salRadio = document.getElementById('reg_salary');
+        const commFields = document.getElementById('regCommFields');
+        const salFields = document.getElementById('regSalFields');
+
+        const scopeRegular = document.getElementById('reg_scope_regular');
+        const scopePremium = document.getElementById('reg_scope_premium');
+        const scopeBoth = document.getElementById('reg_scope_both');
+        const rateRegCol = document.getElementById('regRateRegCol');
+        const ratePremCol = document.getElementById('regRatePremCol');
+
+        function toggleType() {
+            commFields.classList.toggle('visible', commRadio.checked);
+            salFields.classList.toggle('visible', salRadio.checked);
+            if (commRadio.checked) toggleScope();
+        }
+
+        function toggleScope() {
+            const scope = document.querySelector('input[name="commission_scope"]:checked');
+            if (!scope) return;
+            rateRegCol.style.display = (scope.value === 'premium') ? 'none' : '';
+            ratePremCol.style.display = (scope.value === 'regular') ? 'none' : '';
+        }
+
+        commRadio.addEventListener('change', toggleType);
+        salRadio.addEventListener('change', toggleType);
+        scopeRegular.addEventListener('change', toggleScope);
+        scopePremium.addEventListener('change', toggleScope);
+        scopeBoth.addEventListener('change', toggleScope);
+
+        toggleType();
+    })();
+</script>
 
 {% endblock %}

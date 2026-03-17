@@ -1,0 +1,178 @@
+{% extends "menu/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    .setup-wrapper {
+        min-height: calc(100vh - 60px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        padding: 20px;
+    }
+
+    .setup-card {
+        max-width: 440px;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 50px 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .setup-card h4 {
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 6px;
+    }
+
+    .setup-card .subtitle {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 30px;
+    }
+
+    .code-input {
+        width: 100%;
+        text-align: center;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 10px;
+        padding: 14px;
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        background: #f8f9fa;
+        color: #1a1a2e;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .code-input:focus {
+        border-color: #0f3460;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(15, 52, 96, 0.15);
+    }
+
+    .btn-setup {
+        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        font-size: 16px;
+        padding: 14px;
+        border-radius: 12px;
+        width: 100%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 20px;
+    }
+
+    .btn-setup:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(15, 52, 96, 0.4);
+    }
+
+    .suggest-btn {
+        display: inline-block;
+        background: none;
+        border: 1px solid #dee2e6;
+        color: #6c757d;
+        font-size: 12px;
+        padding: 4px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: all 0.2s;
+    }
+
+    .suggest-btn:hover {
+        border-color: #0f3460;
+        color: #0f3460;
+    }
+
+    .alert-danger {
+        border: none;
+        border-radius: 10px;
+        background: #fff5f5;
+        color: #c0392b;
+        font-size: 14px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+    }
+
+    .info-text {
+        font-size: 12px;
+        color: #adb5bd;
+        margin-top: 8px;
+    }
+
+    .welcome-icon {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0f3460, #1a1a2e);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .welcome-icon i {
+        font-size: 28px;
+        color: #fff;
+    }
+</style>
+
+<div class="setup-wrapper">
+<div class="setup-card">
+    <div class="text-center">
+        <div class="welcome-icon">
+            <i class="fa-solid fa-key"></i>
+        </div>
+        <h4>Set Up Your Login Code</h4>
+        <p class="subtitle">
+            Welcome, <strong>{{ user.username|capfirst }}</strong>! Create a 6-digit code to quickly log in next time.
+        </p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger text-center" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" autocomplete="off">
+        {% csrf_token %}
+        <div class="text-center">
+            <input type="text" name="code" class="code-input" maxlength="6" inputmode="numeric"
+                   pattern="[0-9]{6}" placeholder="000000" value="{{ suggested }}" autofocus
+                   oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            <div class="info-text">
+                <i class="fa-solid fa-circle-info"></i>
+                Choose a memorable 6-digit code or use the one suggested above
+            </div>
+            <button type="button" class="suggest-btn" onclick="generateCode()">
+                <i class="fa-solid fa-rotate"></i> Suggest another code
+            </button>
+        </div>
+
+        <button type="submit" class="btn-setup">
+            <i class="fa-solid fa-check"></i> &nbsp; Save Login Code
+        </button>
+    </form>
+</div>
+</div>
+
+<script>
+function generateCode() {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += Math.floor(Math.random() * 10);
+    }
+    document.querySelector('.code-input').value = code;
+}
+</script>
+
+{% endblock content %}

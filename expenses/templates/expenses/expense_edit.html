@@ -1,0 +1,91 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Edit {{ expense.expense_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Edit Expense</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'expense-list' %}" style="color:var(--adm-accent);text-decoration:none;">Expenses</a> /
+            <a href="{% url 'expense-detail' expense.pk %}" style="color:var(--adm-accent);text-decoration:none;">{{ expense.expense_number }}</a> /
+            Edit
+        </div>
+    </div>
+</div>
+
+<form method="POST" style="max-width:700px;">
+    {% csrf_token %}
+
+    <div class="adm-card" style="margin-bottom:20px;">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Category</label>
+                <select name="category" class="adm-input">
+                    <option value="">— Select category —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.pk }}" {% if expense.category_id == cat.pk %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Date</label>
+                <input type="date" name="date" value="{{ expense.date|date:'Y-m-d' }}" class="adm-input">
+            </div>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:16px;">
+            <label class="adm-form-label">Description <span style="color:var(--adm-danger);">*</span></label>
+            <input type="text" name="description" value="{{ expense.description }}" class="adm-input" required>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:160px;">
+                <label class="adm-form-label">Amount ({{ currency_symbol }}) <span style="color:var(--adm-danger);">*</span></label>
+                <input type="number" name="amount" value="{{ expense.amount }}" class="adm-input" step="0.01" min="0.01" required>
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:160px;">
+                <label class="adm-form-label">Payment Method</label>
+                <select name="payment_method" class="adm-input">
+                    {% for code, label in payment_choices %}
+                    <option value="{{ code }}" {% if expense.payment_method == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Vendor / Paid to</label>
+                <input type="text" name="vendor" value="{{ expense.vendor }}" class="adm-input">
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:160px;">
+                <label class="adm-form-label">Receipt / Invoice #</label>
+                <input type="text" name="receipt_number" value="{{ expense.receipt_number }}" class="adm-input">
+            </div>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:16px;">
+            <label class="adm-form-label">Recurring</label>
+            <select name="recurring" class="adm-input" style="max-width:200px;">
+                {% for code, label in recurring_choices %}
+                <option value="{{ code }}" {% if expense.recurring == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:0;">
+            <label class="adm-form-label">Notes</label>
+            <textarea name="notes" class="adm-input" rows="2">{{ expense.notes }}</textarea>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+        <button type="submit" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-check"></i> Save Changes
+        </button>
+        <a href="{% url 'expense-detail' expense.pk %}" class="adm-btn adm-btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}

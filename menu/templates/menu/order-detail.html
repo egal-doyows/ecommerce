@@ -336,6 +336,45 @@
     }
 
     .od-back:hover { color: var(--pos-text); }
+
+    /* Add item section */
+    .od-add-item {
+        padding: 12px 24px;
+        border-top: 1px dashed var(--pos-border);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .od-add-item select {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1.5px solid var(--pos-border);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        outline: none;
+        background: #fff;
+    }
+
+    .od-add-item select:focus { border-color: #6366f1; }
+
+    .od-add-btn {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s;
+    }
+
+    .od-add-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
 </style>
 
 <div class="od-page">
@@ -350,6 +389,9 @@
         <div class="od-meta">
             <div><i class="fa fa-th-large"></i> &nbsp; <strong>{{ order.table }}</strong></div>
             <div><i class="fa fa-user"></i> &nbsp; <strong>{{ order.waiter.username|capfirst }}</strong></div>
+            {% if order.created_by %}
+            <div><i class="fa fa-bullhorn"></i> &nbsp; <strong>{{ order.created_by.username|capfirst }}</strong> <span style="font-size:11px; color:var(--pos-muted);">(Marketing)</span></div>
+            {% endif %}
             <div><i class="fa fa-clock-o"></i> &nbsp; {{ order.created_at|date:"H:i" }}</div>
             <div><i class="fa fa-shopping-basket"></i> &nbsp; {{ order.get_item_count }} items</div>
         </div>
@@ -361,9 +403,24 @@
                 <div class="od-item-name">{{ item.menu_item.title|capfirst }}</div>
                 {% if item.notes %}<div class="od-item-notes">{{ item.notes }}</div>{% endif %}
             </div>
-            <div class="od-item-price">Ksh {{ item.get_subtotal|intcomma }}</div>
+            <div class="od-item-price">{{ restaurant.currency_symbol }}{{ item.get_subtotal|floatformat:2|intcomma }}</div>
         </div>
         {% endfor %}
+
+        {% if order.status == 'active' %}
+        <form method="POST" action="{% url 'order-edit-item' order.id %}" class="od-add-item">
+            {% csrf_token %}
+            <select name="menu_item_id" required>
+                <option value="">Add an item...</option>
+                {% for mi in menu_items %}
+                <option value="{{ mi.id }}">{{ mi.title|capfirst }} — {{ restaurant.currency_symbol }}{{ mi.price|floatformat:2|intcomma }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="od-add-btn">
+                <i class="fa fa-plus"></i> Add
+            </button>
+        </form>
+        {% endif %}
 
         {% if order.notes %}
         <div style="padding:12px 24px; font-size:13px; color:var(--pos-muted); background:#fffbeb; border-top:1px solid var(--pos-border);">
@@ -374,7 +431,7 @@
         <div class="od-footer">
             <div class="od-total">
                 <span class="od-total-label">Total</span>
-                <span class="od-total-amount">Ksh {{ order.get_total|intcomma }}</span>
+                <span class="od-total-amount">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</span>
             </div>
 
             {% if order.status == 'paid' %}
@@ -382,6 +439,7 @@
                 <i class="fa fa-check-circle"></i>
                 Paid via <strong>{{ order.get_payment_method_display }}</strong>
                 {% if order.mpesa_code %} &mdash; Code: <strong>{{ order.mpesa_code }}</strong>{% endif %}
+                {% if order.debtor %} &mdash; <strong>{{ order.debtor.name }}</strong>{% endif %}
             </div>
             {% endif %}
 
@@ -406,10 +464,23 @@
                             <i class="fa-solid fa-credit-card"></i>
                             <span>Card</span>
                         </div>
+                        <div class="od-pay-tab" data-method="credit" onclick="selectPayment('credit')">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                            <span>Credit</span>
+                        </div>
                     </div>
 
                     <div class="od-mpesa-input" id="mpesaInput">
                         <input type="text" name="mpesa_code" id="mpesaCode" placeholder="Last 4 characters e.g. AB12" maxlength="4" minlength="4" style="text-transform:uppercase; letter-spacing:4px; text-align:center; font-size:18px;">
+                    </div>
+
+                    <div class="od-debtor-select" id="debtorSelect" style="display:none;margin-bottom:14px;">
+                        <select name="debtor_id" id="debtorId" style="width:100%;padding:12px 14px;border:2px solid var(--pos-border);border-radius:10px;font-size:14px;font-weight:600;outline:none;">
+                            <option value="">Select debtor...</option>
+                            {% for d in debtors %}
+                            <option value="{{ d.pk }}">{{ d.name }}{% if d.balance > 0 %} (owes {{ restaurant.currency_symbol }}{{ d.balance|floatformat:2|intcomma }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <button type="submit" class="od-pay-confirm" id="payBtn" disabled>
@@ -426,15 +497,24 @@
 
                     const mpesaInput = document.getElementById('mpesaInput');
                     const mpesaCode = document.getElementById('mpesaCode');
+                    const debtorSelect = document.getElementById('debtorSelect');
+                    const debtorId = document.getElementById('debtorId');
                     const payBtn = document.getElementById('payBtn');
+
+                    mpesaInput.classList.remove('show');
+                    mpesaCode.required = false;
+                    debtorSelect.style.display = 'none';
+                    debtorId.required = false;
 
                     if (method === 'mpesa') {
                         mpesaInput.classList.add('show');
                         mpesaCode.required = true;
                         payBtn.disabled = !mpesaCode.value.trim();
+                    } else if (method === 'credit') {
+                        debtorSelect.style.display = 'block';
+                        debtorId.required = true;
+                        payBtn.disabled = !debtorId.value;
                     } else {
-                        mpesaInput.classList.remove('show');
-                        mpesaCode.required = false;
                         mpesaCode.value = '';
                         payBtn.disabled = false;
                     }
@@ -443,6 +523,12 @@
                 document.getElementById('mpesaCode').addEventListener('input', function() {
                     this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
                     document.getElementById('payBtn').disabled = this.value.trim().length !== 4;
+                });
+
+                document.getElementById('debtorId').addEventListener('change', function() {
+                    if (document.getElementById('paymentMethod').value === 'credit') {
+                        document.getElementById('payBtn').disabled = !this.value;
+                    }
                 });
             </script>
             {% endif %}
@@ -477,8 +563,13 @@
         <span>{{ order.created_at|date:"H:i" }}</span>
     </div>
     <div class="receipt-row receipt-sm">
-        <span>Waiter: {{ order.waiter.username|capfirst }}</span>
+        <span>Attendant: {{ order.waiter.username|capfirst }}</span>
     </div>
+    {% if order.created_by %}
+    <div class="receipt-row receipt-sm">
+        <span>Created by: {{ order.created_by.username|capfirst }} (Marketing)</span>
+    </div>
+    {% endif %}
     <hr class="receipt-divider">
 
     <div class="receipt-bold receipt-row" style="margin-bottom:6px;">
@@ -491,7 +582,7 @@
     <div class="receipt-item">
         <div class="receipt-item-name">
             <span>{{ item.quantity }}x {{ item.menu_item.title|capfirst }}</span>
-            <span>{{ item.get_subtotal|intcomma }}</span>
+            <span>{{ item.get_subtotal|floatformat:2|intcomma }}</span>
         </div>
         {% if item.notes %}
         <div class="receipt-item-detail">{{ item.notes }}</div>
@@ -503,7 +594,7 @@
 
     <div class="receipt-total-row">
         <span>TOTAL</span>
-        <span>Ksh {{ order.get_total|intcomma }}</span>
+        <span>{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</span>
     </div>
 
     {% if order.payment_method %}

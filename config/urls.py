@@ -20,12 +20,23 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from menu.views import service_worker_view
+
 urlpatterns = [
+    path('sw.js', service_worker_view, name='service-worker'),
     path('admin/', admin.site.urls),
     path('', include('menu.urls')),
     path('cart/', include('cart.urls')),
     path('account/', include('account.urls')),
-    
+    path('compensation/', include('staff_compensation.urls')),
+    path('manage/', include('administration.urls')),
+    path('suppliers/', include('supplier.urls')),
+    path('debtors/', include('debtor.urls')),
+    path('purchasing/', include('purchasing.urls')),
+    path('receiving/', include('receiving.urls')),
+    path('waste/', include('waste.urls')),
+    path('expenses/', include('expenses.urls')),
+    path('hr/', include('hr.urls')),
 ]
 
 urlpatterns+= static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

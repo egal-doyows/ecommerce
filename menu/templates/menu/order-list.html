@@ -201,12 +201,12 @@
     <div class="ol-summary">
         <div class="ol-summary-card ol-summary-unpaid">
             <div class="ol-summary-label">Unpaid</div>
-            <div class="ol-summary-value">Ksh {{ total_unpaid|intcomma }}</div>
+            <div class="ol-summary-value">{{ restaurant.currency_symbol }}{{ total_unpaid|floatformat:2|intcomma }}</div>
             <div class="ol-summary-count">{{ unpaid_orders|length }} order{{ unpaid_orders|length|pluralize }}</div>
         </div>
         <div class="ol-summary-card ol-summary-paid">
             <div class="ol-summary-label">Paid</div>
-            <div class="ol-summary-value">Ksh {{ total_paid|intcomma }}</div>
+            <div class="ol-summary-value">{{ restaurant.currency_symbol }}{{ total_paid|floatformat:2|intcomma }}</div>
             <div class="ol-summary-count">{{ paid_orders|length }} order{{ paid_orders|length|pluralize }}</div>
         </div>
     </div>
@@ -232,7 +232,7 @@
                 <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if item.variant %} ({{ item.variant.name }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
             </div>
             <span class="status-badge status-active">Unpaid</span>
-            <div class="ol-card-total">Ksh {{ order.get_total|intcomma }}</div>
+            <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
         </div>
     </a>
     {% empty %}
@@ -263,7 +263,7 @@
                 <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if item.variant %} ({{ item.variant.name }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
             </div>
             <span class="status-badge status-paid">Paid</span>
-            <div class="ol-card-total">Ksh {{ order.get_total|intcomma }}</div>
+            <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
         </div>
     </a>
     {% empty %}

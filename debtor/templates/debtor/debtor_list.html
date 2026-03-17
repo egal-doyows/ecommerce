@@ -1,0 +1,69 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Debtors{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1><i class="fa-solid fa-hand-holding-dollar" style="color:var(--adm-accent);margin-right:8px;"></i> Debtors</h1>
+        <div class="breadcrumb-text">Track customers who owe you money</div>
+    </div>
+    <a href="{% url 'debtor-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Debtor</a>
+</div>
+
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <div class="adm-filters">
+        <a href="{% url 'debtor-list' %}" class="adm-filter-btn {% if show != 'all' %}active{% endif %}">Active</a>
+        <a href="{% url 'debtor-list' %}?show=all" class="adm-filter-btn {% if show == 'all' %}active{% endif %}">All</a>
+    </div>
+</div>
+
+{% if debtors %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Debtor</th>
+                <th>Contact</th>
+                <th>Phone</th>
+                <th style="text-align:right;">Total Owed</th>
+                <th style="text-align:right;">Total Received</th>
+                <th style="text-align:right;">Balance</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in debtors %}
+            <tr>
+                <td>
+                    <a href="{% url 'debtor-detail' d.pk %}" style="font-weight:700;color:var(--adm-text);text-decoration:none;">{{ d.name }}</a>
+                    {% if not d.is_active %}<span class="adm-badge adm-badge-muted" style="margin-left:6px;">Inactive</span>{% endif %}
+                </td>
+                <td style="color:var(--adm-muted);">{{ d.contact_person|default:"—" }}</td>
+                <td style="color:var(--adm-muted);">{{ d.phone|default:"—" }}</td>
+                <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ d.total_owed|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ d.total_received|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">
+                    {% if d.balance > 0 %}
+                        <span class="adm-badge adm-badge-warning">{{ restaurant.currency_symbol }} {{ d.balance|floatformat:2|intcomma }}</span>
+                    {% else %}
+                        <span class="adm-badge adm-badge-success">Settled</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right;">
+                    <a href="{% url 'debtor-detail' d.pk %}" class="adm-btn-icon" title="View"><i class="fa-solid fa-eye"></i></a>
+                    <a href="{% url 'debtor-edit' d.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-hand-holding-dollar"></i>
+    <p>No debtors yet. Add a debtor to start tracking credit sales.</p>
+</div>
+{% endif %}
+{% endblock %}

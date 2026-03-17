@@ -349,7 +349,7 @@
 
         <div class="shift-stats">
             <div class="shift-stat">
-                <div class="shift-stat-value">Ksh {{ active_shift.starting_cash|intcomma }}</div>
+                <div class="shift-stat-value">{{ restaurant.currency_symbol }} {{ active_shift.starting_cash|floatformat:2|intcomma }}</div>
                 <div class="shift-stat-label">Starting Cash</div>
             </div>
             <div class="shift-stat">
@@ -365,7 +365,7 @@
                 <div class="shift-stat-label">Duration</div>
             </div>
             <div class="shift-stat">
-                <div class="shift-stat-value">Ksh {{ active_shift.get_total_sales|intcomma }}</div>
+                <div class="shift-stat-value">{{ restaurant.currency_symbol }} {{ active_shift.get_total_sales|floatformat:2|intcomma }}</div>
                 <div class="shift-stat-label">Sales (Paid)</div>
             </div>
         </div>
@@ -380,7 +380,7 @@
         <form method="POST" action="{% url 'shift-clock-in' %}" class="shift-clockin-form">
             {% csrf_token %}
             <div class="shift-cash-input-wrap">
-                <label for="starting_cash">Starting Cash (Ksh)</label>
+                <label for="starting_cash">Starting Cash ({{ restaurant.currency_symbol }})</label>
                 <input type="number" name="starting_cash" id="starting_cash" min="0" step="0.01" placeholder="0.00" required class="shift-cash-input">
             </div>
             <button type="submit" class="shift-clock-in-btn">
@@ -406,7 +406,7 @@
                 <span><i class="fa fa-list-alt"></i> {{ shift.get_order_count }} orders</span>
                 <span><i class="fa fa-shopping-basket"></i> {{ shift.get_total_items }} items</span>
             </div>
-            <div class="shift-history-sales">Ksh {{ shift.get_total_sales|intcomma }}</div>
+            <div class="shift-history-sales">{{ restaurant.currency_symbol }} {{ shift.get_total_sales|floatformat:2|intcomma }}</div>
         </div>
     </a>
     {% endfor %}

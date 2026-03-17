@@ -457,7 +457,7 @@
                     </div>
                     <div>
                         <div class="rp-item-name">{{ product.title|capfirst }}</div>
-                        <div class="rp-item-unit">Ksh {{ item.price|intcomma }}</div>
+                        <div class="rp-item-unit">{{ restaurant.currency_symbol }}{{ item.price|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
 
@@ -467,7 +467,7 @@
                     <button type="button" class="rp-qty-btn qty-increase" data-key="{{ item.key }}">+</button>
                 </div>
 
-                <div class="rp-item-subtotal">Ksh {{ item.total|intcomma }}</div>
+                <div class="rp-item-subtotal">{{ restaurant.currency_symbol }}{{ item.total|floatformat:2|intcomma }}</div>
 
                 <div class="rp-item-remove">
                     <button type="button" class="delete-button" data-key="{{ item.key }}" title="Remove item">
@@ -482,12 +482,12 @@
         <!-- Right: Summary -->
         <div class="rp-summary-card">
             <div class="rp-summary-section">
-                <div class="rp-summary-label">Assign Table</div>
+                <div class="rp-summary-label">Assign Space</div>
                 <select name="table_id" class="rp-table-select" required>
-                    <option value="">-- Select a table --</option>
+                    <option value="">-- Select a space --</option>
                     {% for table in tables %}
                     <option value="{{ table.id }}" {% if table.status != 'available' %}style="color:var(--pos-muted);"{% endif %}>
-                        Table {{ table.number }} &middot; {{ table.capacity }} seats
+                        Space {{ table.number }} &middot; {{ table.capacity }} seats
                         {% if table.status != 'available' %} ({{ table.get_status_display }}){% endif %}
                     </option>
                     {% endfor %}
@@ -502,7 +502,7 @@
             <div class="rp-summary-section">
                 <div class="rp-cost-row">
                     <span class="rp-cost-label">Subtotal</span>
-                    <span class="rp-cost-value" id="cost-subtotal">Ksh {{ cart.get_total|intcomma }}</span>
+                    <span class="rp-cost-value" id="cost-subtotal">{{ restaurant.currency_symbol }}{{ cart.get_total|floatformat:2|intcomma }}</span>
                 </div>
                 <div class="rp-cost-row">
                     <span class="rp-cost-label">Items</span>
@@ -511,7 +511,7 @@
                 <hr class="rp-cost-divider">
                 <div class="rp-cost-row rp-cost-total">
                     <span class="rp-cost-label">Total</span>
-                    <span class="rp-cost-value" id="cost-total">Ksh {{ cart.get_total|intcomma }}</span>
+                    <span class="rp-cost-value" id="cost-total">{{ restaurant.currency_symbol }}{{ cart.get_total|floatformat:2|intcomma }}</span>
                 </div>
             </div>
 

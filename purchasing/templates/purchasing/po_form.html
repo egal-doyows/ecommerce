@@ -1,0 +1,37 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'po-list' %}" style="color:var(--adm-accent);text-decoration:none;">Purchase Orders</a> /
+            {% if po %}{{ po.po_number }}{% else %}New{% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="adm-card" style="max-width:600px;">
+    <form method="POST">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="adm-form-group">
+            <label class="adm-form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="adm-help-text">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}
+            <ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div style="display:flex;gap:10px;">
+            <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save</button>
+            <a href="{% if po %}{% url 'po-detail' po.pk %}{% else %}{% url 'po-list' %}{% endif %}" class="adm-btn adm-btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

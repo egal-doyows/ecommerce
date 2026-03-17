@@ -1,0 +1,54 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}Orders{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Orders</h1>
+        <div class="breadcrumb-text">View all transactions</div>
+    </div>
+    {% if unpaid_count > 0 %}
+    <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+        <i class="fa-solid fa-circle-exclamation" style="color:#f59e0b;"></i>
+        <span style="font-size:13px;font-weight:600;color:#92400e;">{{ unpaid_count }} unpaid order{{ unpaid_count|pluralize }} — {{ restaurant.currency_symbol }} {{ total_unpaid|floatformat:2|intcomma }}</span>
+    </div>
+    {% endif %}
+</div>
+
+<div class="adm-filters" style="margin-bottom:20px;">
+    <a href="{% url 'admin-order-list' %}?status=active" class="adm-filter-btn {% if status_filter == 'active' %}active{% endif %}">Unpaid</a>
+    <a href="{% url 'admin-order-list' %}?status=paid" class="adm-filter-btn {% if status_filter == 'paid' %}active{% endif %}">Paid</a>
+    <a href="{% url 'admin-order-list' %}?status=cancelled" class="adm-filter-btn {% if status_filter == 'cancelled' %}active{% endif %}">Cancelled</a>
+    <a href="{% url 'admin-order-list' %}?status=all" class="adm-filter-btn {% if status_filter == 'all' %}active{% endif %}">All</a>
+</div>
+
+<div class="adm-card">
+    {% if orders %}
+    <table class="adm-table">
+        <thead>
+            <tr><th>Order #</th><th>Served By</th><th>Space</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+        {% for order in orders %}
+        <tr>
+            <td style="font-weight:600;">#{{ order.pk }}</td>
+            <td>{{ order.waiter.username|default:"—" }}</td>
+            <td>{% if order.table %}S{{ order.table.number }}{% else %}—{% endif %}</td>
+            <td>{{ order.items.count }}</td>
+            <td style="font-weight:600;">{{ restaurant.currency_symbol }} {{ order.get_total|floatformat:2 }}</td>
+            <td>
+                <span class="adm-badge {% if order.status == 'paid' %}adm-badge-success{% elif order.status == 'active' %}adm-badge-warning{% else %}adm-badge-muted{% endif %}">
+                    {{ order.status|capfirst }}
+                </span>
+            </td>
+            <td style="color:var(--adm-muted);font-size:12px;">{{ order.created_at|date:"M d, H:i" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-receipt"></i><p>No orders found</p></div>
+    {% endif %}
+</div>
+{% endblock %}

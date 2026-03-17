@@ -1,0 +1,163 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Dashboard</h1>
+        <div class="breadcrumb-text">Overview of today's activity</div>
+    </div>
+</div>
+
+<!-- Stat cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);">
+            <i class="fa-solid fa-money-bill-trend-up"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ today_sales|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Today's Sales</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-receipt"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ today_order_count }}</div>
+            <div class="adm-stat-label">Paid Orders Today</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(245,158,11,.1);color:var(--adm-warning);">
+            <i class="fa-solid fa-fire"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ active_orders }}</div>
+            <div class="adm-stat-label">Active Orders</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-users"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ active_shifts.count }}</div>
+            <div class="adm-stat-label">Active Shifts</div>
+        </div>
+    </div>
+    <a href="{% url 'admin-inventory-list' %}?show=low" class="adm-stat" style="text-decoration:none;color:inherit;cursor:pointer;">
+        <div class="adm-stat-icon" style="background:rgba(231,76,60,.1);color:var(--adm-danger);">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ low_stock_count }}</div>
+            <div class="adm-stat-label">Low Stock Items</div>
+        </div>
+    </a>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);">
+            <i class="fa-solid fa-chair"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value">{{ table_stats.available }} / {{ table_stats.total }}</div>
+            <div class="adm-stat-label">Spaces Available</div>
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <!-- Recent orders -->
+    <div class="adm-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="font-size:15px;font-weight:700;margin:0;">Recent Orders</h3>
+            <a href="{% url 'admin-order-list' %}" class="adm-btn adm-btn-sm adm-btn-outline">View All</a>
+        </div>
+        {% if recent_orders %}
+        <table class="adm-table">
+            <thead><tr><th>#</th><th>Waiter</th><th>Space</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for order in recent_orders %}
+            <tr>
+                <td style="font-weight:600;">#{{ order.pk }}</td>
+                <td>{{ order.waiter.username|default:"—" }}</td>
+                <td>{% if order.table %}S{{ order.table.number }}{% else %}—{% endif %}</td>
+                <td>
+                    <span class="adm-badge {% if order.status == 'paid' %}adm-badge-success{% elif order.status == 'active' %}adm-badge-warning{% else %}adm-badge-muted{% endif %}">
+                        {{ order.status|capfirst }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty"><i class="fa-solid fa-receipt"></i><p>No orders yet</p></div>
+        {% endif %}
+    </div>
+
+    <!-- Low stock + quick stats -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+        <!-- Low stock -->
+        <div class="adm-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="font-size:15px;font-weight:700;margin:0;">Low Stock Alerts</h3>
+                <a href="{% url 'admin-inventory-list' %}?show=low" class="adm-btn adm-btn-sm adm-btn-outline">View All</a>
+            </div>
+            {% if low_stock_items %}
+            <table class="adm-table">
+                <thead><tr><th>Item</th><th>Stock</th><th>Threshold</th></tr></thead>
+                <tbody>
+                {% for item in low_stock_items %}
+                <tr>
+                    <td style="font-weight:600;">{{ item.name }}</td>
+                    <td><span class="adm-badge adm-badge-danger">{{ item.stock_quantity }} {{ item.get_unit_display }}</span></td>
+                    <td>{{ item.low_stock_threshold }} {{ item.get_unit_display }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="adm-empty" style="padding:24px;"><i class="fa-solid fa-check-circle"></i><p>All stock levels healthy</p></div>
+            {% endif %}
+        </div>
+
+        <!-- Active shifts -->
+        <div class="adm-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="font-size:15px;font-weight:700;margin:0;">Active Shifts</h3>
+                <a href="{% url 'admin-shift-list' %}?show=active" class="adm-btn adm-btn-sm adm-btn-outline">View All</a>
+            </div>
+            {% if active_shifts %}
+            <table class="adm-table">
+                <thead><tr><th>Waiter</th><th>Started</th></tr></thead>
+                <tbody>
+                {% for shift in active_shifts %}
+                <tr>
+                    <td style="font-weight:600;">{{ shift.waiter.username }}</td>
+                    <td style="color:var(--adm-muted);font-size:12px;">{{ shift.start_time|date:"M d, H:i" }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="adm-empty" style="padding:24px;"><i class="fa-solid fa-clock"></i><p>No active shifts</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick links -->
+<div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+    {% if is_manager %}
+    <a href="{% url 'admin-staff-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-user-plus"></i> Add Staff</a>
+    <a href="{% url 'admin-menu-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-plus"></i> Add Menu Item</a>
+    <a href="{% url 'admin-inventory-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-box"></i> Add Inventory</a>
+    <a href="{% url 'admin-table-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-chair"></i> Add Space</a>
+    {% endif %}
+    <a href="{% url 'admin-order-list' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-receipt"></i> View Orders</a>
+    <a href="{% url 'admin-shift-list' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-clock"></i> View Shifts</a>
+</div>
+{% endblock %}

@@ -83,7 +83,7 @@
         <img class="cat-item-img" src="{{ product.image.url }}" alt="{{ product.title }}">
         <div class="cat-item-info">
             <div class="cat-item-name">{{ product.title|capfirst }}</div>
-            <div class="cat-item-price">Ksh {{ product.price|intcomma }}</div>
+            <div class="cat-item-price">{{ restaurant.currency_symbol }}{{ product.price|floatformat:2|intcomma }}</div>
         </div>
     </a>
     {% endfor %}

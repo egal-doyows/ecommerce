@@ -1,0 +1,325 @@
+{% extends "menu/base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .pay-page { max-width: 560px; margin: 30px auto; padding: 0 20px; }
+
+    .pay-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        text-decoration: none;
+        margin-bottom: 20px;
+        transition: color 0.15s;
+    }
+
+    .pay-back:hover { color: var(--pos-accent); }
+
+    .pay-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1.5px solid var(--pos-border, #e5e7eb);
+        overflow: hidden;
+    }
+
+    .pay-header {
+        padding: 24px 28px;
+        border-bottom: 1.5px solid var(--pos-border, #e5e7eb);
+        background: #fafbfc;
+    }
+
+    .pay-header h2 {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--pos-text);
+        margin: 0 0 4px;
+    }
+
+    .pay-header-sub {
+        font-size: 13px;
+        color: var(--pos-muted);
+        margin: 0;
+    }
+
+    .pay-summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 28px;
+        border-bottom: 1.5px solid var(--pos-border, #e5e7eb);
+        background: #f0fdf4;
+    }
+
+    .pay-amount-label { font-size: 13px; color: #065f46; font-weight: 600; }
+    .pay-amount-value { font-size: 26px; font-weight: 800; color: #15803d; }
+
+    .pay-body { padding: 24px 28px; }
+
+    .pay-section-title {
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--pos-muted);
+        margin: 0 0 14px;
+    }
+
+    /* Account cards */
+    .pay-accounts {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .pay-account-option {
+        flex: 1;
+        position: relative;
+    }
+
+    .pay-account-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .pay-account-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 16px 10px;
+        border: 2px solid var(--pos-border, #e5e7eb);
+        border-radius: 14px;
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+    }
+
+    .pay-account-label:hover { border-color: #a5b4fc; background: #eef2ff; }
+
+    .pay-account-option input:checked + .pay-account-label {
+        border-color: #6366f1;
+        background: #eef2ff;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+
+    .pay-account-label i { font-size: 22px; color: var(--pos-text); }
+    .pay-account-option input:checked + .pay-account-label i { color: #6366f1; }
+    .pay-account-label .acct-name { font-size: 11px; font-weight: 700; color: var(--pos-text); }
+    .pay-account-label .acct-balance { font-size: 12px; font-weight: 600; color: var(--pos-muted); }
+
+    .pay-account-option.insufficient .pay-account-label {
+        opacity: 0.45;
+        cursor: not-allowed;
+        border-color: #fecaca;
+        background: #fef2f2;
+    }
+    .pay-account-option.insufficient .pay-account-label:hover {
+        border-color: #fecaca;
+        background: #fef2f2;
+    }
+    .pay-account-option.insufficient .acct-balance { color: #dc2626; }
+    .pay-account-option.insufficient .insufficient-tag {
+        font-size: 10px;
+        font-weight: 700;
+        color: #dc2626;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .pay-amount-field { margin-bottom: 20px; }
+    .pay-amount-field input {
+        width: 100%;
+        padding: 14px 18px;
+        border: 2px solid var(--pos-border, #e5e7eb);
+        border-radius: 12px;
+        font-size: 20px;
+        font-weight: 800;
+        text-align: center;
+        outline: none;
+        transition: border-color 0.15s;
+    }
+    .pay-amount-field input:focus { border-color: #6366f1; }
+
+    .pay-notes-field { margin-bottom: 20px; }
+    .pay-notes-field label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin-bottom: 6px;
+    }
+
+    .pay-notes-field textarea {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid var(--pos-border, #e5e7eb);
+        border-radius: 10px;
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        resize: none;
+        transition: border-color 0.15s;
+    }
+
+    .pay-notes-field textarea:focus { border-color: #6366f1; }
+
+    .pay-confirm-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 16px;
+        border: none;
+        border-radius: 14px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 14px rgba(22,163,74,0.35);
+    }
+
+    .pay-confirm-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(22,163,74,0.45);
+    }
+
+    .pay-confirm-btn:disabled {
+        background: #e2e8f0;
+        color: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .pay-error {
+        padding: 10px 16px;
+        background: #fef2f2;
+        border: 1.5px solid #fecaca;
+        border-radius: 10px;
+        color: #991b1b;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+</style>
+
+<div class="pay-page">
+
+    <a href="{% url 'compensation-detail' payment.staff.pk %}" class="pay-back">
+        <i class="fa-solid fa-arrow-left"></i> Back to {{ payment.staff.username|capfirst }}
+    </a>
+
+    <div class="pay-card">
+        <div class="pay-header">
+            <h2><i class="fa-solid fa-wallet" style="color:var(--pos-accent);margin-right:8px;"></i> Pay {{ payment.staff.username|capfirst }}</h2>
+            <p class="pay-header-sub">{{ payment.month_label }} &mdash; {{ payment.order_count }} order{{ payment.order_count|pluralize }}, {{ restaurant.currency_symbol }} {{ payment.eligible_sales|floatformat:2|intcomma }} eligible sales</p>
+        </div>
+
+        <div class="pay-summary">
+            <div>
+                <span class="pay-amount-label">Commission Amount</span>
+                <span class="pay-amount-value">{{ restaurant.currency_symbol }} {{ payment.amount|floatformat:2|intcomma }}</span>
+            </div>
+            <div style="text-align:right;">
+                <span class="pay-amount-label">Remaining</span>
+                <span class="pay-amount-value" id="remainingDisplay">{{ restaurant.currency_symbol }} {{ payment.remaining|floatformat:2|intcomma }}</span>
+            </div>
+        </div>
+        {% if payment.amount_paid > 0 %}
+        <div style="padding:10px 28px;background:#fffbeb;border-bottom:1.5px solid var(--pos-border,#e5e7eb);font-size:13px;color:#92400e;font-weight:600;">
+            <i class="fa-solid fa-clock-rotate-left" style="margin-right:6px;"></i>
+            {{ restaurant.currency_symbol }} {{ payment.amount_paid|floatformat:2|intcomma }} already paid
+        </div>
+        {% endif %}
+
+        <div class="pay-body">
+            <form method="POST" id="payForm">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="pay-error">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="pay-section-title">Pay From Account</div>
+
+                <div class="pay-accounts">
+                    {% for acct in account_list %}
+                    <div class="pay-account-option {% if not acct.sufficient %}insufficient{% endif %}">
+                        <input type="radio" name="account" id="account_{{ acct.pk }}" value="{{ acct.pk }}" data-type="{{ acct.account_type }}" {% if not acct.sufficient %}disabled{% endif %}>
+                        <label for="account_{{ acct.pk }}" class="pay-account-label">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                            <span class="acct-name">{{ acct.name }}</span>
+                            <span class="acct-balance">{{ restaurant.currency_symbol }} {{ acct.balance|floatformat:2|intcomma }}</span>
+                            {% if not acct.sufficient %}
+                                <span class="insufficient-tag">Insufficient</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if form.account.errors %}
+                <div class="pay-error">{{ form.account.errors.0 }}</div>
+                {% endif %}
+
+                <!-- Amount -->
+                <div class="pay-section-title">Amount</div>
+                <div class="pay-amount-field">
+                    {{ form.amount }}
+                    {% if form.amount.errors %}
+                    <div class="pay-error" style="margin-top:8px;">{{ form.amount.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Notes -->
+                <div class="pay-notes-field">
+                    <label>{{ form.notes.label }}</label>
+                    {{ form.notes }}
+                </div>
+
+                <button type="submit" class="pay-confirm-btn" id="payBtn" disabled>
+                    <i class="fa-solid fa-check-circle"></i> <span id="btnLabel">Confirm Payment &mdash; {{ restaurant.currency_symbol }} {{ payment.remaining|floatformat:2|intcomma }}</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const radios = document.querySelectorAll('input[name="account"]');
+    const payBtn = document.getElementById('payBtn');
+    const amountInput = document.querySelector('input[name="amount"]');
+    const btnLabel = document.getElementById('btnLabel');
+
+    const currencySymbol = '{{ restaurant.currency_symbol }}';
+
+    function formatCurrency(n) {
+        return currencySymbol + ' ' + Number(n).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function updateUI() {
+        const selected = document.querySelector('input[name="account"]:checked');
+        const amt = parseFloat(amountInput.value) || 0;
+        payBtn.disabled = !selected || amt <= 0;
+        btnLabel.textContent = amt > 0 ? 'Confirm Payment — ' + formatCurrency(amt) : 'Confirm Payment';
+    }
+
+    radios.forEach(r => r.addEventListener('change', updateUI));
+    amountInput.addEventListener('input', updateUI);
+    updateUI();
+</script>
+
+{% endblock %}

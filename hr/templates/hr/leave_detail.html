@@ -1,0 +1,183 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Leave Request — {{ lr.employee.full_name }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Leave Request</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> /
+            <a href="{% url 'hr-leave-list' %}" style="color:var(--adm-accent);text-decoration:none;">Leave</a> /
+            {{ lr.employee.full_name }}
+        </div>
+    </div>
+</div>
+
+<!-- Status Banner -->
+{% if lr.status == 'pending' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-clock" style="color:#d97706;font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:14px;color:#d97706;">Pending Approval</div>
+            <div style="font-size:11px;color:var(--adm-muted);">This leave request is awaiting manager review</div>
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        {% if is_manager %}
+        <form method="POST" action="{% url 'hr-leave-approve' lr.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn adm-btn-sm" style="background:var(--adm-success);color:#fff;padding:6px 16px;">
+                <i class="fa-solid fa-check" style="font-size:10px;"></i> Approve
+            </button>
+        </form>
+        <button type="button" onclick="document.getElementById('rejectModal').style.display='flex'" class="adm-btn adm-btn-sm" style="background:var(--adm-danger);color:#fff;padding:6px 16px;">
+            <i class="fa-solid fa-xmark" style="font-size:10px;"></i> Reject
+        </button>
+        {% endif %}
+        <form method="POST" action="{% url 'hr-leave-cancel' lr.pk %}" style="display:inline;"
+              onsubmit="return confirm('Cancel this leave request?');">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn adm-btn-sm adm-btn-outline" style="padding:6px 16px;">
+                Cancel Request
+            </button>
+        </form>
+    </div>
+</div>
+{% elif lr.status == 'approved' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-success);">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(40,167,69,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-check-circle" style="color:var(--adm-success);font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:14px;color:var(--adm-success);">Approved</div>
+            <div style="font-size:12px;color:var(--adm-muted);">
+                Approved by {{ lr.reviewed_by.get_full_name|default:lr.reviewed_by.username|default:"—" }}
+                {% if lr.reviewed_at %} on {{ lr.reviewed_at|date:"d M Y, H:i" }}{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% elif lr.status == 'rejected' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-danger);">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(220,53,69,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-ban" style="color:var(--adm-danger);font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:14px;color:var(--adm-danger);">Rejected</div>
+            <div style="font-size:12px;color:var(--adm-muted);">
+                Rejected by {{ lr.reviewed_by.get_full_name|default:lr.reviewed_by.username|default:"—" }}
+                {% if lr.reviewed_at %} on {{ lr.reviewed_at|date:"d M Y, H:i" }}{% endif %}
+                {% if lr.review_note %} — {{ lr.review_note }}{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% elif lr.status == 'cancelled' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-muted);">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(136,150,167,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-xmark" style="color:var(--adm-muted);font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:14px;color:var(--adm-muted);">Cancelled</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Summary -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-user"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:16px;">
+                <a href="{% url 'hr-employee-detail' lr.employee.pk %}" style="color:inherit;text-decoration:none;">{{ lr.employee.full_name }}</a>
+            </div>
+            <div class="adm-stat-label">Employee</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-tag"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:16px;">{{ lr.leave_type.name }}</div>
+            <div class="adm-stat-label">Leave Type {% if lr.leave_type.is_paid %}(Paid){% else %}(Unpaid){% endif %}</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-calendar-days"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:16px;">{{ lr.start_date|date:"d M" }} — {{ lr.end_date|date:"d M Y" }}</div>
+            <div class="adm-stat-label">Period</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-hashtag"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:22px;">{{ lr.days }}</div>
+            <div class="adm-stat-label">Day{{ lr.days|pluralize }}</div>
+        </div>
+    </div>
+</div>
+
+{% if lr.reason %}
+<div class="adm-card" style="margin-bottom:24px;">
+    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-message" style="color:var(--adm-accent);font-size:12px;"></i> Reason
+    </h3>
+    <p style="font-size:13px;margin:0;color:var(--adm-muted);">{{ lr.reason }}</p>
+</div>
+{% endif %}
+
+{% if lr.review_note %}
+<div class="adm-card" style="margin-bottom:24px;">
+    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-comment-dots" style="color:var(--adm-accent);font-size:12px;"></i> Review Note
+    </h3>
+    <p style="font-size:13px;margin:0;color:var(--adm-muted);">{{ lr.review_note }}</p>
+</div>
+{% endif %}
+
+<div style="font-size:11px;color:var(--adm-muted);">
+    Submitted on {{ lr.created_at|date:"d M Y, H:i" }}
+    {% if lr.employee.department %} | Department: {{ lr.employee.department.name }}{% endif %}
+</div>
+
+<!-- Reject Modal -->
+{% if is_manager and lr.status == 'pending' %}
+<div id="rejectModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div class="adm-card" style="max-width:450px;width:90%;margin:0;animation:fadeIn .15s;">
+        <h3 style="font-size:16px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-ban" style="color:var(--adm-danger);"></i> Reject Leave Request
+        </h3>
+        <form method="POST" action="{% url 'hr-leave-reject' lr.pk %}">
+            {% csrf_token %}
+            <div class="adm-form-group" style="margin-bottom:16px;">
+                <label class="adm-form-label">Reason for rejection</label>
+                <textarea name="note" class="adm-input" rows="3" placeholder="Explain why this leave is being rejected..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" onclick="document.getElementById('rejectModal').style.display='none'" class="adm-btn adm-btn-outline adm-btn-sm">Cancel</button>
+                <button type="submit" class="adm-btn adm-btn-sm" style="background:var(--adm-danger);color:#fff;">
+                    <i class="fa-solid fa-ban"></i> Reject
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

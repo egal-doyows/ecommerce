@@ -1,0 +1,60 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ title }} — {{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'po-list' %}" style="color:var(--adm-accent);text-decoration:none;">Purchase Orders</a> /
+            <a href="{% url 'po-detail' po.pk %}" style="color:var(--adm-accent);text-decoration:none;">{{ po.po_number }}</a> /
+            Add Item
+        </div>
+    </div>
+</div>
+
+<div class="adm-card" style="max-width:600px;">
+    <form method="POST">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="adm-form-group">
+            <label class="adm-form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<div class="adm-help-text">{{ field.help_text }}</div>{% endif %}
+            {% if field.errors %}
+            <ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div style="padding:12px 16px;background:rgba(124,131,255,.05);border:1px solid rgba(124,131,255,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
+            <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:6px;"></i>
+            Unit price defaults to the item's buying price. You can change it for this order.
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Item</button>
+            <a href="{% url 'po-detail' po.pk %}" class="adm-btn adm-btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Auto-fill unit price from inventory item buying price
+    const itemSelect = document.querySelector('select[name="inventory_item"]');
+    const priceInput = document.querySelector('input[name="unit_price"]');
+    const buyingPrices = {
+        {% for item in form.fields.inventory_item.queryset %}
+        '{{ item.pk }}': '{{ item.buying_price }}',
+        {% endfor %}
+    };
+    itemSelect.addEventListener('change', function() {
+        const price = buyingPrices[this.value];
+        if (price && (!priceInput.value || priceInput.value === '0')) {
+            priceInput.value = price;
+        }
+    });
+</script>
+{% endblock %}

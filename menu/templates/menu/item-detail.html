@@ -113,7 +113,7 @@
     <div class="product-detail-body">
         <div class="product-detail-name">{{ product.title|capfirst }}</div>
         <p class="product-detail-desc">{{ product.description|capfirst }}</p>
-        <div class="product-detail-price">Ksh {{ product.price|intcomma }}</div>
+        <div class="product-detail-price">{{ restaurant.currency_symbol }}{{ product.price|floatformat:2|intcomma }}</div>
         <div class="product-detail-actions">
             <select id="select" class="qty-select">
                 <option value="1">1</option>

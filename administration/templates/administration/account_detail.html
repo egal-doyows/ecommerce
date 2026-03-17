@@ -1,0 +1,183 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}{{ account.name }} — Statement{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ account.name }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'admin-accounts' %}" style="color:var(--adm-accent);text-decoration:none;">Accounts</a> / {{ account.name }} / Statement
+        </div>
+    </div>
+    <div style="text-align:right;">
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;letter-spacing:.5px;">Current Balance</div>
+        <div style="font-size:26px;font-weight:800;">{{ restaurant.currency_symbol }} {{ balance|floatformat:2|intcomma }}</div>
+    </div>
+</div>
+
+<!-- Date range selector -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="GET" style="display:flex;align-items:end;gap:14px;flex-wrap:wrap;">
+        {% if txn_type %}
+        <input type="hidden" name="type" value="{{ txn_type }}">
+        {% endif %}
+        <div>
+            <label class="adm-form-label" style="margin-bottom:4px;display:block;font-size:11px;">From</label>
+            <input type="date" name="from" value="{{ date_from }}" class="adm-input" style="width:160px;">
+        </div>
+        <div>
+            <label class="adm-form-label" style="margin-bottom:4px;display:block;font-size:11px;">To</label>
+            <input type="date" name="to" value="{{ date_to }}" class="adm-input" style="width:160px;">
+        </div>
+        <button type="submit" class="adm-btn adm-btn-primary" style="height:38px;">
+            <i class="fa-solid fa-filter"></i> Filter
+        </button>
+        {% if has_date_filter %}
+        <a href="{% url 'admin-account-detail' account.pk %}{% if txn_type %}?type={{ txn_type }}{% endif %}" class="adm-btn adm-btn-outline" style="height:38px;">
+            Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Type filters -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <div class="adm-filters">
+        <a href="{% url 'admin-account-detail' account.pk %}{% if date_from or date_to %}?from={{ date_from }}&to={{ date_to }}{% endif %}" class="adm-filter-btn {% if not txn_type %}active{% endif %}">All</a>
+        <a href="{% url 'admin-account-detail' account.pk %}?type=credit{% if date_from %}&from={{ date_from }}{% endif %}{% if date_to %}&to={{ date_to }}{% endif %}" class="adm-filter-btn {% if txn_type == 'credit' %}active{% endif %}">Credits (In)</a>
+        <a href="{% url 'admin-account-detail' account.pk %}?type=debit{% if date_from %}&from={{ date_from }}{% endif %}{% if date_to %}&to={{ date_to }}{% endif %}" class="adm-filter-btn {% if txn_type == 'debit' %}active{% endif %}">Debits (Out)</a>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
+    {% if has_date_filter %}
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ restaurant.currency_symbol }} {{ opening_balance|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Opening Balance</div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(34,197,94,.1);color:#16a34a;">
+            <i class="fa-solid fa-arrow-down"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;color:#16a34a;">{{ restaurant.currency_symbol }} {{ total_credits|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Credits</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(220,38,38,.1);color:#dc2626;">
+            <i class="fa-solid fa-arrow-up"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;color:#dc2626;">{{ restaurant.currency_symbol }} {{ total_debits|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Debits</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:{% if net >= 0 %}rgba(34,197,94,.1);color:#16a34a;{% else %}rgba(220,38,38,.1);color:#dc2626;{% endif %}">
+            <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;color:{% if net >= 0 %}#16a34a{% else %}#dc2626{% endif %};">
+                {% if net >= 0 %}+{% endif %}{{ restaurant.currency_symbol }} {{ net|floatformat:2|intcomma }}
+            </div>
+            <div class="adm-stat-label">{% if has_date_filter %}Net Movement{% else %}Net{% endif %}</div>
+        </div>
+    </div>
+    {% if has_date_filter %}
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-flag-checkered"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ restaurant.currency_symbol }} {{ closing_balance|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Closing Balance</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Statement table -->
+<div class="adm-card" style="padding:0;">
+    {% if transactions %}
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Source</th>
+                <th style="text-align:right;">Debit (Out)</th>
+                <th style="text-align:right;">Credit (In)</th>
+                <th style="text-align:right;">Balance</th>
+                <th>By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if has_date_filter %}
+            <tr style="background:var(--adm-hover);">
+                <td colspan="5" style="font-weight:700;font-size:12px;color:var(--adm-muted);">Opening Balance</td>
+                <td style="text-align:right;font-weight:700;">{{ restaurant.currency_symbol }} {{ opening_balance|floatformat:2|intcomma }}</td>
+                <td></td>
+            </tr>
+            {% endif %}
+            {% for txn in transactions %}
+            <tr>
+                <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ txn.created_at|date:"d M Y H:i" }}</td>
+                <td style="font-weight:600;">{{ txn.description }}</td>
+                <td>
+                    {% if txn.reference_type == 'order' %}
+                        <span class="adm-badge adm-badge-info">Order</span>
+                    {% elif txn.reference_type == 'staff_payment' %}
+                        <span class="adm-badge adm-badge-warning">Staff Pay</span>
+                    {% elif txn.reference_type == 'supplier_payment' %}
+                        <span class="adm-badge adm-badge-danger">Supplier</span>
+                    {% elif txn.reference_type == 'debtor_payment' %}
+                        <span class="adm-badge adm-badge-success">Debtor</span>
+                    {% elif txn.reference_type == 'transfer' %}
+                        <span class="adm-badge" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">Transfer</span>
+                    {% elif txn.reference_type == 'manual' %}
+                        <span class="adm-badge adm-badge-muted">Manual</span>
+                    {% else %}
+                        <span class="adm-badge adm-badge-muted">{{ txn.reference_type|default:"—" }}</span>
+                    {% endif %}
+                </td>
+                {% if txn.transaction_type == 'debit' %}
+                    <td style="text-align:right;font-weight:700;color:#dc2626;">{{ restaurant.currency_symbol }} {{ txn.amount|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;color:var(--adm-muted);">—</td>
+                {% else %}
+                    <td style="text-align:right;color:var(--adm-muted);">—</td>
+                    <td style="text-align:right;font-weight:700;color:#16a34a;">{{ restaurant.currency_symbol }} {{ txn.amount|floatformat:2|intcomma }}</td>
+                {% endif %}
+                <td style="text-align:right;font-weight:600;">{{ restaurant.currency_symbol }} {{ txn.running_balance|floatformat:2|intcomma }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{{ txn.created_by.username|default:"System"|capfirst }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-border);">
+                <td colspan="3" style="font-weight:700;font-size:13px;">Totals</td>
+                <td style="text-align:right;font-weight:800;color:#dc2626;">{{ restaurant.currency_symbol }} {{ total_debits|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:800;color:#16a34a;">{{ restaurant.currency_symbol }} {{ total_credits|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:800;">
+                    {% if has_date_filter %}{{ restaurant.currency_symbol }} {{ closing_balance|floatformat:2|intcomma }}{% endif %}
+                </td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <div class="adm-empty" style="padding:40px;">
+        <i class="fa-solid fa-landmark"></i>
+        <p>No transactions found{% if has_date_filter %} for the selected date range{% endif %}.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends "administration/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> /
+            <a href="{% url 'hr-employee-list' %}" style="color:var(--adm-accent);text-decoration:none;">Employees</a> /
+            {{ title }}
+        </div>
+    </div>
+</div>
+
+<form method="POST" style="max-width:800px;">
+    {% csrf_token %}
+
+    {% if is_create %}
+    <!-- User Selection -->
+    <div class="adm-card" style="margin-bottom:20px;">
+        <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-user-check" style="color:var(--adm-accent);font-size:13px;"></i> Select Staff Member
+        </h3>
+        <div class="adm-form-group" style="margin-bottom:0;">
+            <label class="adm-form-label">Staff Account <span style="color:var(--adm-danger);">*</span></label>
+            <select name="user" class="adm-input" required>
+                <option value="">— Select staff member —</option>
+                {% for u in available_users %}
+                <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                {% endfor %}
+            </select>
+            <div class="adm-help-text">Only staff without an existing HR profile are shown.</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Personal Information -->
+    <div class="adm-card" style="margin-bottom:20px;">
+        <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-user" style="color:var(--adm-accent);font-size:13px;"></i> Personal Information
+        </h3>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">First Name <span style="color:var(--adm-danger);">*</span></label>
+                <input type="text" name="first_name" class="adm-input" required
+                       value="{% if emp %}{{ emp.user.first_name }}{% endif %}">
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">Last Name <span style="color:var(--adm-danger);">*</span></label>
+                <input type="text" name="last_name" class="adm-input" required
+                       value="{% if emp %}{{ emp.user.last_name }}{% endif %}">
+            </div>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">Email</label>
+                <input type="email" name="email" class="adm-input"
+                       value="{% if emp %}{{ emp.user.email }}{% endif %}" placeholder="work@email.com">
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">Personal Email</label>
+                <input type="email" name="personal_email" class="adm-input"
+                       value="{% if emp %}{{ emp.personal_email }}{% endif %}" placeholder="personal@email.com">
+            </div>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+                <label class="adm-form-label">Phone</label>
+                <input type="text" name="phone" class="adm-input"
+                       value="{% if emp %}{{ emp.phone }}{% endif %}" placeholder="e.g. 0712345678">
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+                <label class="adm-form-label">Alt. Phone</label>
+                <input type="text" name="alt_phone" class="adm-input"
+                       value="{% if emp %}{{ emp.alt_phone }}{% endif %}">
+            </div>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+                <label class="adm-form-label">Date of Birth</label>
+                <input type="date" name="date_of_birth" class="adm-input"
+                       value="{% if emp and emp.date_of_birth %}{{ emp.date_of_birth|date:'Y-m-d' }}{% endif %}">
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:140px;margin-bottom:0;">
+                <label class="adm-form-label">Gender</label>
+                <select name="gender" class="adm-input">
+                    <option value="">— Select —</option>
+                    {% for code, label in gender_choices %}
+                    <option value="{{ code }}" {% if emp and emp.gender == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:140px;margin-bottom:0;">
+                <label class="adm-form-label">Marital Status</label>
+                <select name="marital_status" class="adm-input">
+                    <option value="">— Select —</option>
+                    {% for code, label in marital_choices %}
+                    <option value="{{ code }}" {% if emp and emp.marital_status == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">National ID / Passport</label>
+                <input type="text" name="national_id" class="adm-input"
+                       value="{% if emp %}{{ emp.national_id }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:0;">
+            <label class="adm-form-label">Address</label>
+            <textarea name="address" class="adm-input" rows="2" placeholder="Residential address...">{% if emp %}{{ emp.address }}{% endif %}</textarea>
+        </div>
+    </div>
+
+    <!-- Employment Details -->
+    <div class="adm-card" style="margin-bottom:20px;">
+        <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-briefcase" style="color:var(--adm-accent);font-size:13px;"></i> Employment Details
+        </h3>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">Department</label>
+                <select name="department" class="adm-input">
+                    <option value="">— Select department —</option>
+                    {% for d in departments %}
+                    <option value="{{ d.pk }}" {% if emp and emp.department_id == d.pk %}selected{% endif %}>{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">Position</label>
+                <select name="position" class="adm-input">
+                    <option value="">— Select position —</option>
+                    {% for p in positions %}
+                    <option value="{{ p.pk }}" {% if emp and emp.position_id == p.pk %}selected{% endif %}>{{ p.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+                <label class="adm-form-label">Employment Type</label>
+                <select name="employment_type" class="adm-input">
+                    {% for code, label in type_choices %}
+                    <option value="{{ code }}" {% if emp and emp.employment_type == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+                <label class="adm-form-label">Date Joined</label>
+                <input type="date" name="date_joined" class="adm-input"
+                       value="{% if emp %}{{ emp.date_joined|date:'Y-m-d' }}{% elif today %}{{ today }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:0;">
+            <label class="adm-form-label">HR Notes</label>
+            <textarea name="notes" class="adm-input" rows="2" placeholder="Internal notes...">{% if emp %}{{ emp.notes }}{% endif %}</textarea>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+        <button type="submit" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-check"></i> {% if is_create %}Create Profile{% else %}Save Changes{% endif %}
+        </button>
+        <a href="{% if emp %}{% url 'hr-employee-detail' emp.pk %}{% else %}{% url 'hr-employee-list' %}{% endif %}" class="adm-btn adm-btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}

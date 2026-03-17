@@ -1,0 +1,46 @@
+{% extends 'administration/base.html' %}
+{% block title %}Shifts{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Shifts</h1>
+        <div class="breadcrumb-text">Staff shift history</div>
+    </div>
+</div>
+
+<div class="adm-filters" style="margin-bottom:20px;">
+    <a href="{% url 'admin-shift-list' %}" class="adm-filter-btn {% if show == 'active' %}active{% endif %}">Active Now</a>
+    <a href="{% url 'admin-shift-list' %}?show=all" class="adm-filter-btn {% if show == 'all' %}active{% endif %}">All</a>
+</div>
+
+<div class="adm-card">
+    {% if shifts %}
+    <table class="adm-table">
+        <thead>
+            <tr><th>Waiter</th><th>Started</th><th>Ended</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+        {% for shift in shifts %}
+        <tr>
+            <td style="font-weight:600;">{{ shift.waiter.username }}</td>
+            <td style="font-size:12px;">{{ shift.started_at|date:"M d, Y H:i" }}</td>
+            <td style="font-size:12px;color:var(--adm-muted);">
+                {% if shift.ended_at %}{{ shift.ended_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
+            </td>
+            <td>
+                {% if shift.is_active %}
+                    <span class="adm-badge adm-badge-success">Active</span>
+                {% else %}
+                    <span class="adm-badge adm-badge-muted">Ended</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-clock"></i><p>No shifts found</p></div>
+    {% endif %}
+</div>
+{% endblock %}

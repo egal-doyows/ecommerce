@@ -1,0 +1,69 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Leave Types{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Leave Types</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> /
+            <a href="{% url 'hr-leave-list' %}" style="color:var(--adm-accent);text-decoration:none;">Leave</a> /
+            Types
+        </div>
+    </div>
+    <a href="{% url 'hr-leave-type-create' %}" class="adm-btn adm-btn-primary">
+        <i class="fa-solid fa-plus"></i> Add Leave Type
+    </a>
+</div>
+
+{% if leave_types %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th style="text-align:right;">Annual Days</th>
+                <th>Paid</th>
+                <th style="text-align:right;">Approved Requests</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lt in leave_types %}
+            <tr{% if not lt.is_active %} style="opacity:0.5;"{% endif %}>
+                <td style="font-weight:700;">{{ lt.name }}</td>
+                <td style="text-align:right;font-weight:600;">{% if lt.days_allowed > 0 %}{{ lt.days_allowed }}{% else %}Unlimited{% endif %}</td>
+                <td>
+                    {% if lt.is_paid %}
+                    <span class="adm-badge adm-badge-success">Paid</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">Unpaid</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right;">{{ lt.request_count }}</td>
+                <td>
+                    {% if lt.is_active %}
+                    <span class="adm-badge adm-badge-success">Active</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right;">
+                    <a href="{% url 'hr-leave-type-edit' lt.pk %}" class="adm-btn-icon" title="Edit">
+                        <i class="fa-solid fa-pen" style="font-size:11px;"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-tags"></i>
+    <p>No leave types created yet.</p>
+</div>
+{% endif %}
+{% endblock %}

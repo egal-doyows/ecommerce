@@ -1,0 +1,138 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Leave Management{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Leave Management</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> / Leave
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        {% if is_manager %}
+        <a href="{% url 'hr-leave-type-list' %}" class="adm-btn adm-btn-outline">
+            <i class="fa-solid fa-tags"></i> Leave Types
+        </a>
+        {% endif %}
+        <a href="{% url 'hr-leave-request' %}" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-plus"></i> Request Leave
+        </a>
+    </div>
+</div>
+
+<!-- Pending banner -->
+{% if is_manager and pending_count > 0 %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:34px;height:34px;border-radius:8px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-clock" style="color:#d97706;font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:14px;">{{ pending_count }} Pending Request{{ pending_count|pluralize }}</div>
+            <div style="font-size:11px;color:var(--adm-muted);">Leave requests awaiting your review</div>
+        </div>
+    </div>
+    <a href="?status=pending" class="adm-btn adm-btn-sm" style="background:#d97706;color:#fff;padding:4px 14px;">
+        <i class="fa-solid fa-eye" style="font-size:10px;"></i> Review
+    </a>
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <select name="status" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Statuses</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="type" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Types</option>
+            {% for lt in leave_types %}
+            <option value="{{ lt.pk }}" {% if type_filter == lt.pk|stringformat:"d" %}selected{% endif %}>{{ lt.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="q" value="{{ search }}" placeholder="Search employee..." class="adm-input" style="width:160px;padding:5px 10px;font-size:12px;">
+        <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Filter</button>
+        {% if status_filter or type_filter or search %}
+        <a href="{% url 'hr-leave-list' %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;">
+            <i class="fa-solid fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if leaves %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Leave Type</th>
+                <th>Start</th>
+                <th>End</th>
+                <th style="text-align:right;">Days</th>
+                <th>Status</th>
+                <th>Reviewed By</th>
+                <th>Submitted</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lr in leaves %}
+            <tr{% if lr.status == 'cancelled' or lr.status == 'rejected' %} style="opacity:0.6;"{% endif %}>
+                <td>
+                    <a href="{% url 'hr-leave-detail' lr.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:700;">
+                        {{ lr.employee.full_name }}
+                    </a>
+                </td>
+                <td><span class="adm-badge adm-badge-info">{{ lr.leave_type.name }}</span></td>
+                <td style="font-size:12px;white-space:nowrap;">{{ lr.start_date|date:"d M Y" }}</td>
+                <td style="font-size:12px;white-space:nowrap;">{{ lr.end_date|date:"d M Y" }}</td>
+                <td style="text-align:right;font-weight:700;">{{ lr.days }}</td>
+                <td>
+                    {% if lr.status == 'approved' %}
+                    <span class="adm-badge adm-badge-success">Approved</span>
+                    {% elif lr.status == 'pending' %}
+                    <span class="adm-badge" style="background:rgba(245,158,11,.1);color:#d97706;">Pending</span>
+                    {% elif lr.status == 'rejected' %}
+                    <span class="adm-badge adm-badge-danger">Rejected</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">Cancelled</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:12px;color:var(--adm-muted);">{{ lr.reviewed_by.get_full_name|default:lr.reviewed_by.username|default:"—" }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ lr.created_at|date:"d M Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
+    <div style="font-size:12px;color:var(--adm-muted);">
+        Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon"><i class="fa-solid fa-chevron-left" style="font-size:11px;"></i></a>
+        {% endif %}
+        <span style="font-size:12px;padding:0 8px;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon"><i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-calendar-days"></i>
+    <p>No leave requests{% if status_filter or type_filter or search %} matching your filters{% endif %}.</p>
+</div>
+{% endif %}
+{% endblock %}

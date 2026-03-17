@@ -1,0 +1,147 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Receiving Summary — {{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Receiving Summary</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'receipt-list' %}" style="color:var(--adm-accent);text-decoration:none;">Receiving</a> /
+            <a href="{% url 'po-detail' po.pk %}" style="color:var(--adm-accent);text-decoration:none;">{{ po.po_number }}</a> /
+            Summary
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'po-detail' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-clipboard-list"></i> View PO</a>
+        {% if po.status == 'approved' %}
+        <a href="{% url 'receipt-create' po.pk %}" class="adm-btn adm-btn-primary" style="background:var(--adm-success);">
+            <i class="fa-solid fa-truck-ramp-box"></i> Receive More Goods
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- PO info -->
+<div class="adm-card" style="margin-bottom:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+    <div>
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;">Purchase Order</div>
+        <div style="font-size:18px;font-weight:700;">{{ po.po_number }}</div>
+    </div>
+    <div style="border-left:1px solid var(--adm-border);height:36px;"></div>
+    <div>
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;">Supplier</div>
+        <div style="font-size:18px;font-weight:700;">{{ po.supplier.name }}</div>
+    </div>
+    <div style="border-left:1px solid var(--adm-border);height:36px;"></div>
+    <div>
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;">Status</div>
+        <div style="font-size:16px;font-weight:700;">
+            {% if po.status == 'received' %}
+            <span class="adm-badge adm-badge-success">Fully Received</span>
+            {% elif po.status == 'approved' %}
+            <span class="adm-badge" style="background:rgba(245,158,11,.1);color:#d97706;">Partially Received</span>
+            {% else %}
+            <span class="adm-badge adm-badge-muted" style="text-transform:capitalize;">{{ po.status }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <div style="border-left:1px solid var(--adm-border);height:36px;"></div>
+    <div>
+        <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;">Receipts</div>
+        <div style="font-size:18px;font-weight:700;">{{ receipts|length }}</div>
+    </div>
+</div>
+
+<!-- Item receiving status -->
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-boxes-stacked" style="color:var(--adm-accent);"></i>
+    Item Status
+</h3>
+
+<div class="adm-card" style="padding:0;margin-bottom:24px;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Ordered</th>
+                <th style="text-align:right;">Total Received</th>
+                <th style="text-align:right;">Remaining</th>
+                <th style="text-align:right;">Unit Price</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in items_data %}
+            <tr>
+                <td style="font-weight:600;">{{ d.item.inventory_item.name }}</td>
+                <td style="color:var(--adm-muted);">{{ d.item.inventory_item.get_unit_display }}</td>
+                <td style="text-align:right;">{{ d.item.quantity|floatformat:2 }}</td>
+                <td style="text-align:right;font-weight:700;color:{% if d.fully_received %}var(--adm-success){% elif d.total_received > 0 %}var(--adm-warning){% else %}var(--adm-muted){% endif %};">
+                    {{ d.total_received|floatformat:2 }}
+                </td>
+                <td style="text-align:right;{% if d.remaining > 0 %}color:var(--adm-danger);font-weight:600;{% else %}color:var(--adm-muted);{% endif %}">
+                    {{ d.remaining|floatformat:2 }}
+                </td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ d.item.unit_price|floatformat:2|intcomma }}</td>
+                <td>
+                    {% if d.fully_received %}
+                        <span class="adm-badge adm-badge-success">Complete</span>
+                    {% elif d.total_received > 0 %}
+                        <span class="adm-badge" style="background:rgba(245,158,11,.1);color:#d97706;">Partial</span>
+                    {% else %}
+                        <span class="adm-badge adm-badge-muted">Pending</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Receipt history -->
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-clock-rotate-left" style="color:var(--adm-accent);"></i>
+    Receipt History
+</h3>
+
+{% if receipts %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>GRN #</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th style="text-align:right;">Value</th>
+                <th>Received By</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in receipts %}
+            <tr>
+                <td>
+                    <a href="{% url 'receipt-detail' r.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:700;">
+                        {{ r.grn_number }}
+                    </a>
+                </td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ r.received_date|date:"d M Y" }}</td>
+                <td>{{ r.item_count }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ r.total_value|floatformat:2|intcomma }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ r.received_by.username|default:"—" }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ r.notes|default:"—"|truncatechars:50 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-truck-ramp-box"></i>
+    <p>No goods have been received for this purchase order yet.</p>
+</div>
+{% endif %}
+{% endblock %}

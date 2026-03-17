@@ -12,6 +12,7 @@ from .forms import CreateUserForm, LoginForm, UserUpdateForm, WaiterLoginForm, W
 from .models import WaiterCode
 from .token import user_tokenizer_generate
 from menu.models import Shift
+from staff_compensation.models import StaffCompensation
 
 
 def register(request):
@@ -23,6 +24,19 @@ def register(request):
             user = form.save()
             user.is_active = False
             user.save()
+
+            # Create compensation record
+            comp_type = form.cleaned_data['compensation_type']
+            scope = form.cleaned_data.get('commission_scope') or 'both'
+            StaffCompensation.objects.create(
+                user=user,
+                compensation_type=comp_type,
+                commission_scope=scope,
+                commission_rate_regular=form.cleaned_data.get('commission_rate_regular') or 0,
+                commission_rate_premium=form.cleaned_data.get('commission_rate_premium') or 0,
+                salary_amount=form.cleaned_data.get('salary_amount') or 0,
+                payment_frequency=form.cleaned_data.get('payment_frequency') or 'monthly',
+            )
 
             current_site = get_current_site(request)
             subject = 'Account Verification Email'
@@ -68,6 +82,32 @@ def email_verification_failed(request):
     return render(request, 'accounts/registration/email-verification-failed.html')
 
 
+def _get_post_login_redirect(user):
+    """Route user to the right landing page after login."""
+    # Superusers → Django admin
+    if user.is_superuser:
+        return redirect('/admin/')
+    # Managers → auto-shift (no starting cash) + admin dashboard
+    if user.groups.filter(name='Manager').exists():
+        if not Shift.objects.filter(waiter=user, is_active=True).exists():
+            Shift.objects.create(waiter=user, starting_cash=0)
+        return redirect('admin-dashboard')
+    # Supervisors → auto-shift + POS (they create orders on behalf of attendants)
+    if user.groups.filter(name='Supervisor').exists():
+        if not Shift.objects.filter(waiter=user, is_active=True).exists():
+            Shift.objects.create(waiter=user, starting_cash=0)
+        return redirect('pos')
+    # Marketing → auto-shift (no starting cash) + POS
+    if user.groups.filter(name='Marketing').exists():
+        if not Shift.objects.filter(waiter=user, is_active=True).exists():
+            Shift.objects.create(waiter=user, starting_cash=0)
+        return redirect('pos')
+    # Front Service / Cashiers / others → shift or POS
+    if Shift.objects.filter(waiter=user, is_active=True).exists():
+        return redirect('pos')
+    return redirect('shift')
+
+
 def my_login(request):
     form = LoginForm()
     if request.method == 'POST':
@@ -78,19 +118,13 @@ def my_login(request):
             user = authenticate(username=username, password=password)
             if user is not None:
                 auth.login(request, user)
-                if user.is_superuser:
-                    return redirect('dashboard')
-                return _waiter_redirect(user)
+                # Prompt to create login code if they don't have one
+                if not user.is_superuser and not hasattr(user, 'waiter_code'):
+                    return redirect('setup-login-code')
+                return _get_post_login_redirect(user)
 
     context = {'form': form}
     return render(request, 'accounts/my-login.html', context)
-
-
-def _waiter_redirect(user):
-    """Send waiter to shift page or POS based on active shift."""
-    if Shift.objects.filter(waiter=user, is_active=True).exists():
-        return redirect('pos')
-    return redirect('shift')
 
 
 def waiter_login(request):
@@ -106,7 +140,7 @@ def waiter_login(request):
                 user = waiter_code.user
                 if user.is_active:
                     auth.login(request, user)
-                    return _waiter_redirect(user)
+                    return _get_post_login_redirect(user)
                 else:
                     error = 'This account is not active.'
             except WaiterCode.DoesNotExist:
@@ -117,11 +151,39 @@ def waiter_login(request):
 
 
 @login_required(login_url='my-login')
+def setup_login_code(request):
+    # If they already have a code, skip
+    if hasattr(request.user, 'waiter_code'):
+        return _get_post_login_redirect(request.user)
+
+    error = None
+    if request.method == 'POST':
+        code = request.POST.get('code', '').strip()
+        if len(code) != 6 or not code.isdigit():
+            error = 'Please enter a valid 6-digit code.'
+        elif WaiterCode.objects.filter(code=code).exists():
+            error = 'This code is already taken. Choose a different one.'
+        else:
+            WaiterCode.objects.create(user=request.user, code=code)
+            return _get_post_login_redirect(request.user)
+
+    suggested = WaiterCode.generate_code()
+    return render(request, 'accounts/setup-login-code.html', {
+        'error': error,
+        'suggested': suggested,
+    })
+
+
+@login_required(login_url='my-login')
 def dashboard(request):
     from django.utils import timezone
     from menu.models import Shift, Order
     active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
-    today_orders = Order.objects.filter(waiter=request.user, created_at__date=timezone.now().date())
+    from django.db.models import Q
+    today_orders = Order.objects.filter(
+        Q(waiter=request.user) | Q(created_by=request.user),
+        created_at__date=timezone.now().date(),
+    ).distinct()
     context = {
         'active_shift': active_shift,
         'today_order_count': today_orders.count(),

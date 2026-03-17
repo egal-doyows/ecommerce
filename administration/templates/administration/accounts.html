@@ -1,0 +1,119 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}Accounts{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Accounts</h1>
+        <div class="breadcrumb-text">Track money across Cash, M-Pesa Till &amp; Bank</div>
+    </div>
+    <div>
+        <a href="{% url 'admin-transfer-funds' %}" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer Funds
+        </a>
+    </div>
+</div>
+
+<!-- Account Cards -->
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-bottom:28px;">
+    {% for item in account_data %}
+    <a href="{% url 'admin-account-detail' item.account.pk %}" style="text-decoration:none;">
+        <div class="adm-stat" style="flex-direction:column; gap:12px; transition:all .15s; border:1.5px solid var(--adm-border);">
+            <div style="display:flex; align-items:center; gap:14px; width:100%;">
+                <div class="adm-stat-icon" style="
+                    {% if item.account.account_type == 'cash' %}background:rgba(34,197,94,.1); color:#16a34a;
+                    {% elif item.account.account_type == 'mpesa' %}background:rgba(34,197,94,.1); color:#15803d;
+                    {% else %}background:rgba(59,130,246,.1); color:#2563eb;{% endif %}
+                ">
+                    {% if item.account.account_type == 'cash' %}
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                    {% elif item.account.account_type == 'mpesa' %}
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                    {% else %}
+                        <i class="fa-solid fa-building-columns"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <div style="font-size:12px; font-weight:600; color:var(--adm-muted); text-transform:uppercase; letter-spacing:.5px;">{{ item.account.name }}</div>
+                    <div class="adm-stat-value" style="font-size:22px;">{{ restaurant.currency_symbol }} {{ item.balance|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:16px; width:100%; border-top:1px solid var(--adm-border); padding-top:10px;">
+                <div style="font-size:12px;">
+                    <span style="color:var(--adm-muted);">Today in:</span>
+                    <strong style="color:#16a34a;">+{{ restaurant.currency_symbol }} {{ item.today_in|floatformat:2|intcomma }}</strong>
+                </div>
+                <div style="font-size:12px;">
+                    <span style="color:var(--adm-muted);">Today out:</span>
+                    <strong style="color:#dc2626;">-{{ restaurant.currency_symbol }} {{ item.today_out|floatformat:2|intcomma }}</strong>
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+
+    <!-- Total Balance Card -->
+    <div class="adm-stat" style="flex-direction:column; gap:12px; background:var(--adm-dark); border:none;">
+        <div style="display:flex; align-items:center; gap:14px; width:100%;">
+            <div class="adm-stat-icon" style="background:rgba(124,131,255,.2); color:#7c83ff;">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div>
+                <div style="font-size:12px; font-weight:600; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.5px;">Total Balance</div>
+                <div class="adm-stat-value" style="font-size:22px; color:#fff;">{{ restaurant.currency_symbol }} {{ total_balance|floatformat:2|intcomma }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="adm-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <h3 style="font-size:15px; font-weight:700; margin:0;">Recent Transactions</h3>
+        <span style="font-size:12px; color:var(--adm-muted);">{{ current_month }}</span>
+    </div>
+
+    {% if recent_transactions %}
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Account</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th style="text-align:right;">Amount</th>
+                <th>By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for txn in recent_transactions %}
+            <tr>
+                <td style="font-size:12px; color:var(--adm-muted); white-space:nowrap;">{{ txn.created_at|date:"d M Y H:i" }}</td>
+                <td>
+                    <span style="font-weight:600;">{{ txn.account.name }}</span>
+                </td>
+                <td style="color:var(--adm-muted);">{{ txn.description }}</td>
+                <td>
+                    {% if txn.transaction_type == 'credit' %}
+                        <span class="adm-badge adm-badge-success">Credit</span>
+                    {% else %}
+                        <span class="adm-badge adm-badge-danger">Debit</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right; font-weight:700; {% if txn.transaction_type == 'credit' %}color:#16a34a;{% else %}color:#dc2626;{% endif %}">
+                    {% if txn.transaction_type == 'credit' %}+{% else %}-{% endif %}{{ restaurant.currency_symbol }} {{ txn.amount|floatformat:2|intcomma }}
+                </td>
+                <td style="font-size:12px; color:var(--adm-muted);">{{ txn.created_by.username|default:"System"|capfirst }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty">
+        <i class="fa-solid fa-landmark"></i>
+        <p>No transactions yet. Transactions are recorded automatically when orders are paid or staff are paid.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

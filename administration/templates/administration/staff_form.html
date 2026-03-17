@@ -1,0 +1,105 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text"><a href="{% url 'admin-staff-list' %}" style="color:var(--adm-accent);text-decoration:none;">Staff</a> / {{ title }}</div>
+    </div>
+</div>
+
+<div style="max-width:640px;">
+    <div class="adm-card">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="adm-form-group">
+                <label class="adm-form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="adm-help-text">{{ field.help_text }}</div>{% endif %}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+
+            {% if wc_form %}
+            <div style="border-top:1px solid var(--adm-border);padding-top:18px;margin-top:18px;">
+                <h3 style="font-size:14px;font-weight:700;margin:0 0 14px;">Login Code</h3>
+                {% for field in wc_form %}
+                <div class="adm-form-group">
+                    <label class="adm-form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if compensation %}
+            <div style="border-top:1px solid var(--adm-border);padding-top:18px;margin-top:18px;">
+                <h3 style="font-size:14px;font-weight:700;margin:0 0 14px;">Compensation Info</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;">
+                    <div>
+                        <span style="color:var(--adm-muted);">Type</span><br>
+                        <strong>{{ compensation.get_compensation_type_display }}</strong>
+                    </div>
+                    {% if compensation.compensation_type == 'commission' %}
+                    <div>
+                        <span style="color:var(--adm-muted);">Scope</span><br>
+                        <strong>{{ compensation.get_commission_scope_display }}</strong>
+                    </div>
+                    <div>
+                        <span style="color:var(--adm-muted);">Regular Rate</span><br>
+                        <strong>{{ compensation.commission_rate_regular }}%</strong>
+                    </div>
+                    <div>
+                        <span style="color:var(--adm-muted);">Premium Rate</span><br>
+                        <strong>{{ compensation.commission_rate_premium }}%</strong>
+                    </div>
+                    {% else %}
+                    <div>
+                        <span style="color:var(--adm-muted);">Salary</span><br>
+                        <strong>{{ restaurant.currency_symbol }} {{ compensation.salary_amount|floatformat:2|intcomma }}</strong>
+                    </div>
+                    <div>
+                        <span style="color:var(--adm-muted);">Frequency</span><br>
+                        <strong>{{ compensation.get_payment_frequency_display }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                <div style="margin-top:12px;">
+                    <a href="{% url 'compensation-edit' staff_user.pk %}" class="adm-btn adm-btn-sm adm-btn-outline">
+                        <i class="fa-solid fa-pen"></i> Edit Compensation
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <div style="display:flex;gap:10px;margin-top:24px;">
+                <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save</button>
+                <a href="{% url 'admin-staff-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not staff_user %}
+<script>
+    // Hide password fields when Attendant role is selected (they can't login)
+    const roleSelect = document.getElementById('id_role');
+    if (roleSelect) {
+        function togglePasswordFields() {
+            const selectedText = roleSelect.options[roleSelect.selectedIndex]?.text || '';
+            const isAttendant = selectedText.trim() === 'Attendant';
+            document.querySelectorAll('#id_password1, #id_password2').forEach(el => {
+                const group = el.closest('.adm-form-group');
+                if (group) group.style.display = isAttendant ? 'none' : '';
+            });
+        }
+        roleSelect.addEventListener('change', togglePasswordFields);
+        togglePasswordFields();
+    }
+</script>
+{% endif %}
+{% endblock %}

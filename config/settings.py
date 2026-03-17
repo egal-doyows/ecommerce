@@ -42,6 +42,15 @@ INSTALLED_APPS = [
     'mathfilters',
     'django.contrib.humanize',
     'account',
+    'staff_compensation',
+    'administration',
+    'supplier',
+    'debtor',
+    'purchasing',
+    'receiving',
+    'waste',
+    'expenses',
+    'hr',
     'crispy_forms'
 ]
 
@@ -72,6 +81,7 @@ TEMPLATES = [
                 'menu.views.categories',
                 'menu.views.restaurant_settings',
                 'cart.context_processors.cart',
+                'administration.context_processors.admin_role',
             ],
         },
     },

@@ -1,0 +1,121 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Request Expense{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Request Expense</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'expense-list' %}" style="color:var(--adm-accent);text-decoration:none;">Expenses</a> / New Request
+        </div>
+    </div>
+</div>
+
+<form method="POST" style="max-width:700px;">
+    {% csrf_token %}
+
+    <div class="adm-card" style="margin-bottom:20px;">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Category</label>
+                <select name="category" class="adm-input">
+                    <option value="">— Select category —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.pk }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Date</label>
+                <input type="date" name="date" value="{{ today }}" class="adm-input">
+            </div>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:16px;">
+            <label class="adm-form-label">Description <span style="color:var(--adm-danger);">*</span></label>
+            <input type="text" name="description" class="adm-input" required placeholder="e.g. Electricity bill for March">
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:160px;">
+                <label class="adm-form-label">Amount ({{ currency_symbol }}) <span style="color:var(--adm-danger);">*</span></label>
+                <input type="number" name="amount" class="adm-input" step="0.01" min="0.01" required placeholder="0.00">
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:160px;">
+                <label class="adm-form-label">Payment Method</label>
+                <select name="payment_method" class="adm-input">
+                    {% for code, label in payment_choices %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Vendor / Paid to</label>
+                <input type="text" name="vendor" class="adm-input" placeholder="e.g. Kenya Power">
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:160px;">
+                <label class="adm-form-label">Receipt / Invoice #</label>
+                <input type="text" name="receipt_number" class="adm-input" placeholder="e.g. INV-1234">
+            </div>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:16px;">
+            <label class="adm-form-label">Recurring</label>
+            <select name="recurring" class="adm-input" style="max-width:200px;">
+                {% for code, label in recurring_choices %}
+                <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="adm-form-group" style="margin-bottom:0;">
+            <label class="adm-form-label">Notes</label>
+            <textarea name="notes" class="adm-input" rows="2" placeholder="Additional details..."></textarea>
+        </div>
+    </div>
+
+    {% if user_is_manager %}
+    <div style="padding:12px 16px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
+        <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:6px;"></i>
+        Expenses under <strong>{{ currency_symbol }} {{ auto_approve_limit|floatformat:0|intcomma }}</strong> will be approved automatically. Amounts of {{ currency_symbol }} {{ auto_approve_limit|floatformat:0|intcomma }} and above require approval from another manager.
+    </div>
+    {% else %}
+    <div style="padding:12px 16px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
+        <i class="fa-solid fa-clock" style="color:#d97706;margin-right:6px;"></i>
+        This expense will be submitted for <strong>manager approval</strong>. No funds will be deducted until approved.
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:10px;">
+        <button type="submit" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Submit Request
+        </button>
+        <a href="{% url 'expense-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+    </div>
+</form>
+
+<script>
+(function(){
+    const balances = {{ account_balances_json|safe }};
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e){
+        const method = form.querySelector('[name="payment_method"]').value;
+        const amount = parseFloat(form.querySelector('[name="amount"]').value) || 0;
+        const bal = parseFloat(balances[method]);
+        if (!isNaN(bal) && amount > bal) {
+            const methodLabel = form.querySelector('[name="payment_method"] option:checked').textContent;
+            const fmtBal = bal.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+            const fmtAmt = amount.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+            if (!confirm('Warning: The ' + methodLabel + ' account balance ({{ currency_symbol }} ' + fmtBal + ') is less than this expense ({{ currency_symbol }} ' + fmtAmt + '). Proceed anyway?')) {
+                e.preventDefault();
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

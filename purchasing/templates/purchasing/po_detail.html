@@ -1,0 +1,452 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ po.po_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ po.po_number }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'po-list' %}" style="color:var(--adm-accent);text-decoration:none;">Purchase Orders</a> / {{ po.po_number }}
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        {% if items %}
+        <a href="{% url 'po-pdf' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
+        {% endif %}
+        {% if po.status == 'draft' %}
+            {% if can_edit %}
+            <a href="{% url 'po-edit' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-pen"></i> Edit</a>
+            {% endif %}
+            {% if can_approve %}
+                {% if items %}
+                <form method="POST" action="{% url 'po-approve' po.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="adm-btn" style="background:#2563eb;color:#fff;" onclick="return confirm('Approve this purchase order?')">
+                        <i class="fa-solid fa-check-double"></i> Approve
+                    </button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{% url 'po-cancel' po.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);" onclick="return confirm('Cancel this purchase order?')">
+                        <i class="fa-solid fa-xmark"></i> Cancel
+                    </button>
+                </form>
+            {% elif can_edit and items %}
+                <form method="POST" action="{% url 'po-submit' po.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="adm-btn" style="background:#2563eb;color:#fff;" onclick="return confirm('Submit this PO for manager approval?')">
+                        <i class="fa-solid fa-paper-plane"></i> Submit for Approval
+                    </button>
+                </form>
+            {% endif %}
+        {% elif po.status == 'pending' %}
+            {% if can_approve %}
+                <a href="{% url 'po-edit' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-pen"></i> Edit</a>
+                {% if items %}
+                <form method="POST" action="{% url 'po-approve' po.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="adm-btn" style="background:#2563eb;color:#fff;" onclick="return confirm('Approve this purchase order?')">
+                        <i class="fa-solid fa-check-double"></i> Approve
+                    </button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{% url 'po-cancel' po.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);" onclick="return confirm('Cancel this purchase order?')">
+                        <i class="fa-solid fa-xmark"></i> Cancel
+                    </button>
+                </form>
+            {% else %}
+                <span class="adm-btn adm-btn-outline" style="opacity:.6;cursor:default;">
+                    <i class="fa-solid fa-clock"></i> Awaiting Manager Approval
+                </span>
+            {% endif %}
+        {% elif po.status == 'approved' %}
+            {% if can_approve %}
+            <a href="{% url 'receipt-create' po.pk %}" class="adm-btn adm-btn-primary" style="background:var(--adm-success);">
+                <i class="fa-solid fa-truck-ramp-box"></i> Receive Goods
+            </a>
+            <a href="{% url 'po-receiving-summary' po.pk %}" class="adm-btn adm-btn-outline">
+                <i class="fa-solid fa-list-check"></i> Receiving History
+            </a>
+            <form method="POST" action="{% url 'po-cancel' po.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);" onclick="return confirm('Cancel this purchase order?')">
+                    <i class="fa-solid fa-xmark"></i> Cancel
+                </button>
+            </form>
+            {% endif %}
+        {% elif po.status == 'received' %}
+            <a href="{% url 'po-receiving-summary' po.pk %}" class="adm-btn adm-btn-outline">
+                <i class="fa-solid fa-list-check"></i> Receiving History
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Status & info cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="
+            {% if po.status == 'draft' %}background:rgba(136,150,167,.1);color:var(--adm-muted);
+            {% elif po.status == 'pending' %}background:rgba(245,158,11,.1);color:#d97706;
+            {% elif po.status == 'approved' %}background:rgba(59,130,246,.1);color:#2563eb;
+            {% elif po.status == 'received' %}background:rgba(40,167,69,.1);color:var(--adm-success);
+            {% else %}background:rgba(231,76,60,.1);color:var(--adm-danger);{% endif %}
+        ">
+            {% if po.status == 'draft' %}<i class="fa-solid fa-file-pen"></i>
+            {% elif po.status == 'pending' %}<i class="fa-solid fa-clock"></i>
+            {% elif po.status == 'approved' %}<i class="fa-solid fa-check-double"></i>
+            {% elif po.status == 'received' %}<i class="fa-solid fa-truck-ramp-box"></i>
+            {% else %}<i class="fa-solid fa-ban"></i>{% endif %}
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;text-transform:capitalize;">{{ po.status }}</div>
+            <div class="adm-stat-label">Status</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-truck-field"></i>
+        </div>
+        <div>
+            {% if po.status == 'draft' and can_edit %}
+            <form method="POST" action="{% url 'po-change-supplier' po.pk %}" style="display:flex;align-items:center;gap:6px;">
+                {% csrf_token %}
+                <select name="supplier" class="adm-input" style="font-size:13px;height:34px;padding:4px 8px;min-width:140px;" onchange="this.form.submit()">
+                    {% for s in suppliers %}
+                    <option value="{{ s.pk }}" {% if s.pk == po.supplier_id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            <div class="adm-stat-label">Supplier</div>
+            {% else %}
+            <div class="adm-stat-value" style="font-size:17px;">{{ po.supplier.name }}</div>
+            <div class="adm-stat-label">Supplier</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-money-bill"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;" id="poTotal">{{ currency_symbol }} {{ po.total|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Order Total</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-calendar"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:15px;">{{ po.order_date|date:"d M Y" }}</div>
+            <div class="adm-stat-label">Order Date</div>
+        </div>
+    </div>
+</div>
+
+<!-- PO info -->
+<div class="adm-card" style="margin-bottom:24px;">
+    <div style="display:flex;flex-wrap:wrap;gap:24px;font-size:13px;">
+        <div><span style="color:var(--adm-muted);font-weight:600;">Created by:</span> {{ po.created_by.username|default:"—" }}</div>
+        {% if po.approved_by %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Approved by:</span> {{ po.approved_by.username }}</div>
+        {% endif %}
+        {% if po.expected_date %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Expected:</span> {{ po.expected_date|date:"d M Y" }}</div>
+        {% endif %}
+        {% if po.received_date %}
+        <div><span style="color:var(--adm-muted);font-weight:600;">Received:</span> {{ po.received_date|date:"d M Y, H:i" }}</div>
+        {% endif %}
+        {% if po.notes %}
+        <div style="width:100%;"><span style="color:var(--adm-muted);font-weight:600;">Notes:</span> {{ po.notes }}</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if can_edit %}
+<!-- ══════════════ INLINE ADD ITEMS PANEL ══════════════ -->
+<div style="display:grid;grid-template-columns:1fr 380px;gap:24px;margin-bottom:24px;align-items:start;">
+
+    <!-- Left: Current items -->
+    <div>
+        <h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-list" style="color:var(--adm-accent);"></i>
+            Order Items ({{ items|length }})
+        </h3>
+        {% if items %}
+        <div class="adm-card" style="padding:0;">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Unit</th>
+                        <th style="text-align:right;">Qty</th>
+                        <th style="text-align:right;">Price</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:center;width:90px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr data-row="{{ item.pk }}">
+                        <td style="font-weight:600;">{{ item.inventory_item.name }}</td>
+                        <td style="color:var(--adm-muted);font-size:12px;">{{ item.inventory_item.get_unit_display }}</td>
+                        <td style="text-align:right;">
+                            <form method="POST" action="{% url 'po-update-item' po.pk item.pk %}" id="updateForm{{ item.pk }}" style="display:none;">
+                                {% csrf_token %}
+                                <input type="hidden" name="quantity" id="hQty{{ item.pk }}">
+                                <input type="hidden" name="unit_price" id="hPrice{{ item.pk }}">
+                            </form>
+                            <input type="number" value="{{ item.quantity }}" step="0.01" min="0.01"
+                                   class="adm-input row-qty" data-pk="{{ item.pk }}"
+                                   style="width:75px;height:30px;text-align:center;font-size:12px;padding:4px;">
+                        </td>
+                        <td style="text-align:right;">
+                            <input type="number" value="{{ item.unit_price }}" step="0.01" min="0"
+                                   class="adm-input row-price" data-pk="{{ item.pk }}"
+                                   style="width:90px;height:30px;text-align:center;font-size:12px;padding:4px;">
+                        </td>
+                        <td style="text-align:right;font-weight:700;" class="row-total" data-pk="{{ item.pk }}">{{ currency_symbol }} {{ item.line_total|floatformat:2|intcomma }}</td>
+                        <td style="text-align:center;">
+                            <form method="POST" action="{% url 'po-remove-item' po.pk item.pk %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="adm-btn adm-btn-icon" style="color:var(--adm-danger);padding:4px 8px;" onclick="return confirm('Remove?')">
+                                    <i class="fa-solid fa-trash" style="font-size:12px;"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="border-top:2px solid var(--adm-border);">
+                        <td colspan="4" style="text-align:right;font-weight:700;">Total</td>
+                        <td style="text-align:right;font-weight:800;font-size:15px;" id="grandTotal">{{ currency_symbol }} {{ po.total|floatformat:2|intcomma }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="adm-card adm-empty">
+            <i class="fa-solid fa-box-open"></i>
+            <p>No items yet. Search and add items from the panel on the right.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right: Search & add items -->
+    <div>
+        <h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-magnifying-glass" style="color:var(--adm-accent);"></i>
+            Add Items
+        </h3>
+        <div class="adm-card" style="padding:16px;">
+            <!-- Search box -->
+            <input type="text" id="itemSearch" class="adm-input" placeholder="Search inventory items..."
+                   style="margin-bottom:10px;" autofocus>
+
+            <!-- Tabs: All / Low Stock -->
+            <div style="display:flex;gap:6px;margin-bottom:12px;">
+                <button type="button" class="adm-filter-btn active" id="tabAll" onclick="switchTab('all')">All</button>
+                <button type="button" class="adm-filter-btn" id="tabLow" onclick="switchTab('low')">
+                    <i class="fa-solid fa-arrow-trend-down" style="font-size:10px;margin-right:4px;"></i> Low Stock
+                </button>
+            </div>
+
+            <!-- Item list -->
+            <div id="itemList" style="max-height:420px;overflow-y:auto;border:1px solid var(--adm-border);border-radius:8px;">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Hidden form for adding items -->
+<form method="POST" action="{% url 'po-add-item' po.pk %}" id="addItemForm" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="inventory_item" id="addItemId">
+    <input type="hidden" name="quantity" id="addItemQty">
+    <input type="hidden" name="unit_price" id="addItemPrice">
+</form>
+
+<script>
+const inventoryItems = {{ inventory_json|safe }};
+const currencySymbol = '{{ currency_symbol }}';
+let currentTab = 'all';
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tabAll').className = 'adm-filter-btn' + (tab === 'all' ? ' active' : '');
+    document.getElementById('tabLow').className = 'adm-filter-btn' + (tab === 'low' ? ' active' : '');
+    renderItems();
+}
+
+function renderItems() {
+    const query = document.getElementById('itemSearch').value.toLowerCase().trim();
+    const list = document.getElementById('itemList');
+    let filtered = inventoryItems;
+
+    if (currentTab === 'low') {
+        filtered = filtered.filter(i => i.low);
+    }
+    if (query) {
+        filtered = filtered.filter(i => i.name.toLowerCase().includes(query));
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--adm-muted);font-size:13px;">' +
+            (currentTab === 'low' ? 'No low-stock items found.' : 'No items match your search.') + '</div>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(function(item) {
+        const stockColor = item.low ? 'var(--adm-danger)' : 'var(--adm-success)';
+        const lowBadge = item.low ? '<span style="background:rgba(231,76,60,.1);color:var(--adm-danger);padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">LOW</span>' : '';
+        html += '<div class="po-item-row" style="padding:10px 14px;border-bottom:1px solid var(--adm-border);display:flex;align-items:center;gap:10px;" data-pk="' + item.pk + '">' +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-weight:600;font-size:13px;display:flex;align-items:center;">' + item.name + lowBadge + '</div>' +
+                '<div style="font-size:11px;color:var(--adm-muted);">' + item.unit + ' &middot; Stock: <span style="color:' + stockColor + ';font-weight:600;">' + item.stock + '</span> &middot; ' + currencySymbol + ' ' + item.price.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '/unit</div>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">' +
+                '<input type="number" class="adm-input item-qty" data-pk="' + item.pk + '" style="width:65px;height:32px;text-align:center;font-size:12px;padding:4px;" value="1" step="0.01" min="0.01">' +
+                '<button type="button" class="adm-btn adm-btn-primary" style="height:32px;padding:0 10px;font-size:12px;" onclick="addItem(' + item.pk + ',' + item.price + ')">' +
+                    '<i class="fa-solid fa-plus"></i>' +
+                '</button>' +
+            '</div>' +
+        '</div>';
+    });
+    list.innerHTML = html;
+}
+
+function addItem(pk, price) {
+    const qtyInput = document.querySelector('.item-qty[data-pk="' + pk + '"]');
+    const qty = parseFloat(qtyInput.value) || 1;
+    if (qty <= 0) return;
+
+    document.getElementById('addItemId').value = pk;
+    document.getElementById('addItemQty').value = qty;
+    document.getElementById('addItemPrice').value = price;
+    document.getElementById('addItemForm').submit();
+}
+
+document.getElementById('itemSearch').addEventListener('input', renderItems);
+
+// Sort low stock items to top
+inventoryItems.sort(function(a, b) {
+    if (a.low && !b.low) return -1;
+    if (!a.low && b.low) return 1;
+    return a.name.localeCompare(b.name);
+});
+renderItems();
+
+// ── Auto-save qty/price on change with live total update ──
+let saveTimers = {};
+
+function fmt(n) {
+    return currencySymbol + ' ' + n.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function recalcRow(pk) {
+    const qtyEl = document.querySelector('.row-qty[data-pk="' + pk + '"]');
+    const priceEl = document.querySelector('.row-price[data-pk="' + pk + '"]');
+    const totalEl = document.querySelector('.row-total[data-pk="' + pk + '"]');
+    const qty = parseFloat(qtyEl.value) || 0;
+    const price = parseFloat(priceEl.value) || 0;
+    totalEl.textContent = fmt(qty * price);
+    recalcGrandTotal();
+}
+
+function recalcGrandTotal() {
+    let total = 0;
+    document.querySelectorAll('.row-qty').forEach(function(el) {
+        const pk = el.dataset.pk;
+        const qty = parseFloat(el.value) || 0;
+        const price = parseFloat(document.querySelector('.row-price[data-pk="' + pk + '"]').value) || 0;
+        total += qty * price;
+    });
+    document.getElementById('grandTotal').textContent = fmt(total);
+    document.getElementById('poTotal').textContent = fmt(total);
+}
+
+function scheduleAutoSave(pk) {
+    recalcRow(pk);
+    clearTimeout(saveTimers[pk]);
+    saveTimers[pk] = setTimeout(function() {
+        const qtyEl = document.querySelector('.row-qty[data-pk="' + pk + '"]');
+        const priceEl = document.querySelector('.row-price[data-pk="' + pk + '"]');
+        const qty = parseFloat(qtyEl.value);
+        if (!qty || qty <= 0) return;
+        document.getElementById('hQty' + pk).value = qtyEl.value;
+        document.getElementById('hPrice' + pk).value = priceEl.value;
+        document.getElementById('updateForm' + pk).submit();
+    }, 800);
+}
+
+document.querySelectorAll('.row-qty, .row-price').forEach(function(el) {
+    el.addEventListener('input', function() { scheduleAutoSave(this.dataset.pk); });
+});
+</script>
+
+{% else %}
+<!-- ══════════════ READ-ONLY ITEMS (non-draft) ══════════════ -->
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-list" style="color:var(--adm-accent);"></i>
+    Items ({{ items|length }})
+</h3>
+
+{% if items %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Qty</th>
+                <th style="text-align:right;">Unit Price</th>
+                <th style="text-align:right;">Line Total</th>
+                {% if po.status == 'received' %}
+                <th style="text-align:right;">Received</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td style="font-weight:600;">{{ item.inventory_item.name }}</td>
+                <td style="color:var(--adm-muted);">{{ item.inventory_item.get_unit_display }}</td>
+                <td style="text-align:right;">{{ item.quantity|floatformat:2 }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ item.unit_price|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ item.line_total|floatformat:2|intcomma }}</td>
+                {% if po.status == 'received' %}
+                <td style="text-align:right;font-weight:600;color:{% if item.received_quantity >= item.quantity %}var(--adm-success){% else %}var(--adm-warning){% endif %};">
+                    {{ item.received_quantity|floatformat:2 }}
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-border);">
+                <td colspan="4" style="text-align:right;font-weight:700;">Total</td>
+                <td style="text-align:right;font-weight:800;font-size:15px;">{{ currency_symbol }} {{ po.total|floatformat:2|intcomma }}</td>
+                {% if po.status == 'received' %}<td></td>{% endif %}
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-box-open"></i>
+    <p>No items on this order.</p>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
