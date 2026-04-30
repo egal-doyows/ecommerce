@@ -1,3 +1,6 @@
+# Optional Docker stack — production uses systemd + nginx (see deployment/systemd
+# and deployment/nginx). Run from this directory: `docker compose up --build`.
+# Build context is the repo root so the Dockerfile can COPY the whole project.
 services:
   db:
     image: postgres:16-alpine
@@ -24,14 +27,16 @@ services:
       retries: 5
 
   web:
-    build: .
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
     restart: unless-stopped
     command: >
       sh -c "python manage.py migrate &&
              python manage.py setup_groups &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     volumes:
-      - .:/app
+      - ../..:/app
       - static_files:/app/staticfiles
       - media_files:/app/static/media
     ports:
@@ -42,7 +47,7 @@ services:
       redis:
         condition: service_healthy
     env_file:
-      - .env
+      - ../../.env
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_pass}@db:5432/${POSTGRES_DB:-ecommerce}
       - REDIS_URL=redis://redis:6379/0
@@ -54,35 +59,39 @@ services:
       start_period: 30s
 
   celery:
-    build: .
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
     restart: unless-stopped
     command: celery -A config worker -l info
     volumes:
-      - .:/app
+      - ../..:/app
     depends_on:
       web:
         condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
-      - .env
+      - ../../.env
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_pass}@db:5432/${POSTGRES_DB:-ecommerce}
       - REDIS_URL=redis://redis:6379/0
 
   celery-beat:
-    build: .
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
     restart: unless-stopped
     command: celery -A config beat -l info
     volumes:
-      - .:/app
+      - ../..:/app
     depends_on:
       web:
         condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
-      - .env
+      - ../../.env
     environment:
       - DATABASE_URL=postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_pass}@db:5432/${POSTGRES_DB:-ecommerce}
       - REDIS_URL=redis://redis:6379/0

@@ -1,3 +1,6 @@
+# Optional Docker image — production deploys use systemd + nginx.
+# Build from the repo root:
+#   docker build -f deployment/docker/Dockerfile -t ecommerce .
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
