@@ -15,6 +15,8 @@ from .views import (
     _must_select_attendant, _is_supervisor, _is_marketing,
     _is_auto_shift_user, _ensure_shift, _is_manager_or_above,
 )
+from .services import place_order as service_place_order, update_order_status as service_update_order_status, InvalidTransition
+from .models import _InsufficientStock
 
 logger = logging.getLogger(__name__)
 
@@ -120,31 +122,38 @@ def api_place_order(request):
         if _is_marketing(request.user):
             order_created_by = request.user
 
-    with transaction.atomic():
-        order = Order.objects.create(
+    cart_items = []
+    for cart_item in items:
+        menu_item = get_object_or_404(MenuItem, id=cart_item['id'])
+        qty = int(cart_item.get('qty', 1))
+        cart_items.append({
+            'product': menu_item,
+            'qty': qty,
+            'price': menu_item.price,
+        })
+
+    try:
+        order = service_place_order(
+            cart_items=cart_items,
             table=table,
             waiter=order_waiter,
             created_by=order_created_by,
             shift=active_shift,
             notes=notes,
-            status='active',
+            branch=getattr(request, 'branch', None),
         )
-        for cart_item in items:
-            menu_item = get_object_or_404(MenuItem, id=cart_item['id'])
-            qty = int(cart_item.get('qty', 1))
-            OrderItem.objects.create(
-                order=order,
-                menu_item=menu_item,
-                quantity=qty,
-                unit_price=menu_item.price,
-            )
-            try:
-                menu_item.deduct_stock(qty)
-            except Exception:
-                logger.warning("Stock deduction failed for %s", menu_item.title)
-
-        table.status = 'occupied'
-        table.save()
+    except _InsufficientStock as e:
+        # Distinct 409 so the offline-sync client can surface "out of stock"
+        # rather than retrying as a generic failure. _InsufficientStock is
+        # raised with the inventory item name as its single argument.
+        item_name = str(e)
+        return JsonResponse({
+            'error': f'Not enough stock for {item_name}',
+            'insufficient_item': item_name,
+        }, status=409)
+    except Exception as e:
+        logger.warning("Order placement failed: %s", str(e), exc_info=True)
+        return JsonResponse({'error': 'Order could not be placed. Please try again.'}, status=400)
 
     return JsonResponse({
         'success': True,
@@ -174,50 +183,32 @@ def api_update_order_status(request, order_id):
     if new_status not in dict(Order.STATUS_CHOICES):
         return JsonResponse({'error': 'Invalid status'}, status=400)
 
+    payment_method = data.get('payment_method', '')
+    mpesa_code = data.get('mpesa_code', '')
+    debtor = None
+
     if new_status == 'paid':
-        payment_method = data.get('payment_method', '')
         if payment_method not in dict(Order.PAYMENT_CHOICES):
             return JsonResponse({'error': 'Invalid payment method'}, status=400)
-        order.payment_method = payment_method
-        if payment_method == 'mpesa':
-            order.mpesa_code = data.get('mpesa_code', '')
         if payment_method == 'credit':
             debtor_id = data.get('debtor_id')
             if debtor_id:
                 from debtor.models import Debtor
                 try:
-                    order.debtor = Debtor.objects.get(pk=debtor_id, is_active=True)
+                    debtor = Debtor.objects.get(pk=debtor_id, is_active=True)
                 except Debtor.DoesNotExist:
                     return JsonResponse({'error': 'Debtor not found'}, status=400)
 
-    if new_status == 'cancelled' and order.status == 'active':
-        for oi in order.items.select_related('menu_item').all():
-            try:
-                oi.menu_item.restore_stock(oi.quantity)
-            except Exception:
-                logger.warning("Stock restore failed for %s", oi.menu_item.title)
-
-    order.status = new_status
-    order.save()
-
-    if new_status == 'paid':
-        if order.payment_method == 'credit':
-            from debtor.models import DebtorTransaction
-            DebtorTransaction.objects.create(
-                debtor=order.debtor,
-                transaction_type='debit',
-                amount=order.get_total(),
-                description=f'Order #{order.id} — Space {order.table.number if order.table else "N/A"}',
-                reference=str(order.id),
-                created_by=request.user,
-            )
-        else:
-            from administration.models import record_order_payment
-            record_order_payment(order, created_by=request.user)
-
-    if new_status in ['paid', 'cancelled'] and order.table:
-        order.table.status = 'available'
-        order.table.save()
+    try:
+        service_update_order_status(
+            order, new_status,
+            payment_method=payment_method,
+            mpesa_code=mpesa_code,
+            debtor=debtor,
+            user=request.user,
+        )
+    except InvalidTransition as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
     return JsonResponse({'success': True, 'order_id': order.id})
 
