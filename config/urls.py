@@ -21,8 +21,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from menu.views import service_worker_view
+from core.views import health_check
 
 urlpatterns = [
+    path('health/', health_check, name='health-check'),
+    path('healthz/', health_check, name='healthz'),
     path('sw.js', service_worker_view, name='service-worker'),
     path('admin/', admin.site.urls),
     path('', include('menu.urls')),
@@ -34,9 +37,16 @@ urlpatterns = [
     path('debtors/', include('debtor.urls')),
     path('purchasing/', include('purchasing.urls')),
     path('receiving/', include('receiving.urls')),
-    path('waste/', include('waste.urls')),
+    path('wastage/', include('wastage.urls')),
     path('expenses/', include('expenses.urls')),
     path('hr/', include('hr.urls')),
+    path('finance/', include('finance.urls')),
+    path('tax/', include('tax.urls')),
+    path('stocks/', include('stocks.urls')),
+    path('assets/', include('assets.urls')),
+    path('branches/', include('branches.urls')),
+    path('api/v1/', include('api.urls')),
 ]
 
-urlpatterns+= static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
