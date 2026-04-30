@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -15,6 +16,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -23,6 +25,7 @@ services:
 
   web:
     build: .
+    restart: unless-stopped
     command: >
       sh -c "python manage.py migrate &&
              python manage.py setup_groups &&
@@ -52,6 +55,7 @@ services:
 
   celery:
     build: .
+    restart: unless-stopped
     command: celery -A config worker -l info
     volumes:
       - .:/app
@@ -68,6 +72,7 @@ services:
 
   celery-beat:
     build: .
+    restart: unless-stopped
     command: celery -A config beat -l info
     volumes:
       - .:/app
