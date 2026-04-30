@@ -1,25 +1,58 @@
 import json
 from datetime import datetime
 from decimal import Decimal
+from functools import wraps
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 
-from core.permissions import (
-    is_admin_user, is_manager, is_overall_manager,
-    admin_required as staff_required,
-    manager_required,
-)
 from .models import PurchaseOrder, PurchaseOrderItem
 from .forms import PurchaseOrderForm, PurchaseOrderItemForm
 from supplier.models import Supplier, SupplierTransaction
 
 
+def _is_manager(user):
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name='Manager').exists()
+
+
+def _is_admin_user(user):
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
+
+
+def staff_required(view_func):
+    """Managers, Supervisors, and superusers can access."""
+    @wraps(view_func)
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        if not _is_admin_user(request.user):
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+def manager_required(view_func):
+    """Managers and superusers only."""
+    @wraps(view_func)
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        if not _is_manager(request.user):
+            messages.error(request, 'You do not have permission to perform this action.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 def _can_edit_po(user, po):
     """Managers/Superuser can edit any draft/pending PO; supervisors only their own drafts."""
-    if is_manager(user):
+    if _is_manager(user):
         return po.status in ('draft', 'pending')
     # Supervisor — only their own draft POs
     return po.status == 'draft' and po.created_by == user
@@ -29,8 +62,7 @@ def superuser_only(view_func):
     @wraps(view_func)
     @login_required(login_url='my-login')
     def wrapper(request, *args, **kwargs):
-        from core.auth import has_full_access
-        if not has_full_access(request.user):
+        if not request.user.is_superuser:
             messages.error(request, 'Only the administrator can perform this action.')
             return redirect('admin-dashboard')
         return view_func(request, *args, **kwargs)
@@ -41,7 +73,7 @@ def superuser_only(view_func):
 
 @staff_required
 def po_list(request):
-    orders = PurchaseOrder.objects.filter(branch=request.branch).select_related('supplier', 'created_by', 'branch').order_by('-order_date', '-pk')
+    orders = PurchaseOrder.objects.select_related('supplier', 'created_by').order_by('-order_date', '-pk')
 
     status_filter = request.GET.get('status')
     if status_filter in ('draft', 'pending', 'approved', 'received', 'cancelled'):
@@ -49,14 +81,18 @@ def po_list(request):
     else:
         status_filter = None
 
-    # Date filtering
-    from core.utils import parse_date
+    def _parse_date(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date() if s else None
+        except ValueError:
+            return None
+
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
-    parsed_from = parse_date(date_from)
+    parsed_from = _parse_date(date_from)
     if parsed_from:
         orders = orders.filter(order_date__gte=parsed_from)
-    parsed_to = parse_date(date_to)
+    parsed_to = _parse_date(date_to)
     if parsed_to:
         orders = orders.filter(order_date__lte=parsed_to)
 
@@ -80,13 +116,11 @@ def po_list(request):
 
 @staff_required
 def po_create(request):
-    from branches.utils import resolve_branch
     if request.method == 'POST':
         form = PurchaseOrderForm(request.POST)
         if form.is_valid():
             po = form.save(commit=False)
             po.created_by = request.user
-            po.branch = resolve_branch(request)
             po.save()
             messages.success(request, f'{po.po_number} created.')
             return redirect('po-detail', pk=po.pk)
@@ -114,7 +148,7 @@ def po_detail(request, pk):
     if can_edit:
         existing_inv_ids = set(items.values_list('inventory_item_id', flat=True))
 
-        for inv in InventoryItem.objects.filter(branch=request.branch).order_by('name'):
+        for inv in InventoryItem.objects.all().order_by('name'):
             if inv.pk in existing_inv_ids:
                 continue
             inventory_items.append({
@@ -136,7 +170,7 @@ def po_detail(request, pk):
         'currency_symbol': symbol,
         'inventory_items_data': inventory_items,
         'suppliers': suppliers,
-        'can_approve': is_manager(request.user),
+        'can_approve': _is_manager(request.user),
         'can_edit': can_edit,
     })
 
@@ -687,7 +721,7 @@ def po_from_low_stock(request):
     """Create a PO pre-filled with low-stock items grouped by preferred supplier."""
     from menu.models import InventoryItem
 
-    low_stock = [i for i in InventoryItem.objects.filter(branch=request.branch) if i.is_low_stock and i.preferred_supplier]
+    low_stock = [i for i in InventoryItem.objects.all() if i.is_low_stock and i.preferred_supplier]
 
     if not low_stock:
         messages.info(request, 'No low-stock items with preferred suppliers found.')
@@ -715,12 +749,10 @@ def po_from_low_stock(request):
             messages.error(request, 'Invalid supplier.')
             return redirect('po-from-low-stock')
 
-        from branches.utils import resolve_branch
         with transaction.atomic():
             po = PurchaseOrder.objects.create(
                 supplier=supplier_data['supplier'],
                 created_by=request.user,
-                branch=resolve_branch(request),
                 notes='Auto-generated from low stock items',
             )
             for item in supplier_data['items']:
