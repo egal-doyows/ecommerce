@@ -1,6 +1,7 @@
 import logging
 
 from django.shortcuts import render, redirect
+from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.models import auth
 from django.contrib.auth import authenticate, login, logout
@@ -87,60 +88,31 @@ def email_verification_failed(request):
     return render(request, 'accounts/registration/email-verification-failed.html')
 
 
-def _resolve_user_branch(user):
-    """Resolve the user's primary branch after login (middleware hasn't re-run yet)."""
-    from branches.models import UserBranch, Branch
-    assignment = (
-        UserBranch.objects.filter(user=user, branch__is_active=True)
-        .select_related('branch')
-        .order_by('-is_primary', 'branch__name')
-        .first()
-    )
-    if assignment:
-        return assignment.branch
-    # Overall managers / superusers may not have an assignment
-    return Branch.objects.filter(is_active=True).first()
-
-
-def _ensure_login_shift(user, branch):
+def _ensure_login_shift(user):
     """Create an auto-shift for manager-type roles if one doesn't exist."""
     if not Shift.objects.filter(waiter=user, is_active=True).exists():
-        Shift.objects.create(waiter=user, starting_cash=0, branch=branch)
+        Shift.objects.create(waiter=user, starting_cash=0)
 
 
 def _get_post_login_redirect(request):
     """Route user to the right landing page after login."""
     user = request.user
-    # Always resolve fresh from UserBranch on login (ignore stale session)
-    branch = _resolve_user_branch(user)
-    if branch:
-        request.session['branch_id'] = branch.pk
 
     # Superusers → Django admin
     if user.is_superuser:
         return redirect('/admin/')
-    # Admin role → admin dashboard (full access, no Django admin)
-    if user.groups.filter(name='Owner').exists():
-        _ensure_login_shift(user, branch)
-        return redirect('admin-dashboard')
-    # Overall Managers → admin dashboard (no shift needed)
-    if user.groups.filter(name='Overall Manager').exists():
-        return redirect('admin-dashboard')
-    # Branch Managers → auto-shift + admin dashboard
-    if user.groups.filter(name='Branch Manager').exists():
-        _ensure_login_shift(user, branch)
+    # Manager → auto-shift + admin dashboard
+    if user.groups.filter(name='Manager').exists():
+        _ensure_login_shift(user)
         return redirect('admin-dashboard')
     # Supervisors → auto-shift + POS
     if user.groups.filter(name='Supervisor').exists():
-        _ensure_login_shift(user, branch)
+        _ensure_login_shift(user)
         return redirect('pos')
     # Marketing → auto-shift + POS
     if user.groups.filter(name='Marketing').exists():
-        _ensure_login_shift(user, branch)
+        _ensure_login_shift(user)
         return redirect('pos')
-    # Display group → station display (no shift needed)
-    if user.groups.filter(name='Display').exists():
-        return redirect('station-display')
     # Front Service / Cashiers / others → shift or POS
     if Shift.objects.filter(waiter=user, is_active=True).exists():
         return redirect('pos')
@@ -164,18 +136,10 @@ def my_login(request):
                 if user.groups.filter(name='Attendant').exists():
                     messages.error(request, 'Attendants are not allowed to login. Please contact your manager.')
                     return render(request, 'accounts/my-login.html', {'form': LoginForm()})
-                # Block login if employee has a pending branch transfer
-                from hr.models import TransferRequest
-                from core.auth import has_full_access
-                if not has_full_access(user) and TransferRequest.objects.filter(
-                    employee__user=user, status='pending',
-                ).exists():
-                    messages.error(request, 'Your account is locked pending a branch transfer approval. Please contact your manager.')
-                    return render(request, 'accounts/my-login.html', {'form': LoginForm()})
 
                 auth.login(request, user)
                 # Prompt to create login code if they don't have one
-                if not has_full_access(user) and not hasattr(user, 'waiter_code'):
+                if not user.is_superuser and not hasattr(user, 'waiter_code'):
                     return redirect('setup-login-code')
                 return _get_post_login_redirect(request)
 
@@ -207,16 +171,9 @@ def waiter_login(request):
                     error = 'This account is not active.'
                 else:
                     user = waiter_code.user
-                    # Block login if employee has a pending branch transfer
-                    from hr.models import TransferRequest
-                    if TransferRequest.objects.filter(
-                        employee__user=user, status='pending',
-                    ).exists():
-                        error = 'Your account is locked pending a branch transfer approval. Please contact your manager.'
-                    else:
-                        waiter_code.reset_failed_attempts()
-                        auth.login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-                        return _get_post_login_redirect(request)
+                    waiter_code.reset_failed_attempts()
+                    auth.login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                    return _get_post_login_redirect(request)
             except WaiterCode.DoesNotExist:
                 auth_logger.warning('Failed waiter login attempt with invalid code from IP=%s', request.META.get('REMOTE_ADDR'))
                 error = 'Invalid code. Please try again.'
@@ -272,7 +229,7 @@ def dashboard(request):
 
     is_staff_user = not (
         user.is_superuser
-        or user.groups.filter(name__in=['Owner', 'Branch Manager', 'Overall Manager', 'Supervisor']).exists()
+        or user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
     )
 
     context = {
@@ -321,7 +278,7 @@ def profile_management(request):
     waiter_code = getattr(request.user, 'waiter_code', None)
     is_staff_user = not (
         request.user.is_superuser
-        or request.user.groups.filter(name__in=['Owner', 'Branch Manager', 'Overall Manager', 'Supervisor']).exists()
+        or request.user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
     )
 
     if request.method == 'POST':
@@ -359,7 +316,6 @@ def delete_account(request):
     if request.method == 'POST':
         password = request.POST.get('password', '')
         if not request.user.check_password(password):
-            from django.contrib import messages
             messages.error(request, 'Incorrect password. Account was not deactivated.')
             return render(request, 'accounts/delete-account.html', {})
         user = request.user
