@@ -15,7 +15,6 @@ from .views import (
     _must_select_attendant, _is_supervisor, _is_marketing,
     _is_auto_shift_user, _ensure_shift, _is_manager_or_above,
 )
-from .services import place_order as service_place_order, update_order_status as service_update_order_status, InvalidTransition
 from .models import _InsufficientStock
 
 logger = logging.getLogger(__name__)
@@ -133,15 +132,27 @@ def api_place_order(request):
         })
 
     try:
-        order = service_place_order(
-            cart_items=cart_items,
-            table=table,
-            waiter=order_waiter,
-            created_by=order_created_by,
-            shift=active_shift,
-            notes=notes,
-            branch=getattr(request, 'branch', None),
-        )
+        with transaction.atomic():
+            order = Order.objects.create(
+                table=table,
+                waiter=order_waiter,
+                created_by=order_created_by,
+                shift=active_shift,
+                notes=notes,
+                status='active',
+            )
+            for cart_item in cart_items:
+                product = cart_item['product']
+                qty = cart_item['qty']
+                OrderItem.objects.create(
+                    order=order,
+                    menu_item=product,
+                    quantity=qty,
+                    unit_price=cart_item['price'],
+                )
+                product.deduct_stock(qty)
+            table.status = 'occupied'
+            table.save()
     except _InsufficientStock as e:
         # Distinct 409 so the offline-sync client can surface "out of stock"
         # rather than retrying as a generic failure. _InsufficientStock is
@@ -199,16 +210,38 @@ def api_update_order_status(request, order_id):
                 except Debtor.DoesNotExist:
                     return JsonResponse({'error': 'Debtor not found'}, status=400)
 
-    try:
-        service_update_order_status(
-            order, new_status,
-            payment_method=payment_method,
-            mpesa_code=mpesa_code,
-            debtor=debtor,
-            user=request.user,
-        )
-    except InvalidTransition as e:
-        return JsonResponse({'error': str(e)}, status=400)
+    with transaction.atomic():
+        if new_status == 'paid':
+            order.payment_method = payment_method
+            if payment_method == 'mpesa':
+                order.mpesa_code = mpesa_code
+            if payment_method == 'credit':
+                order.debtor = debtor
+        if new_status == 'cancelled' and order.status == 'active':
+            for oi in order.items.select_related('menu_item').all():
+                try:
+                    oi.menu_item.restore_stock(oi.quantity)
+                except Exception:
+                    logger.warning("Stock restore failed for %s", oi.menu_item.title)
+        order.status = new_status
+        order.save()
+        if new_status == 'paid':
+            if order.payment_method == 'credit':
+                from debtor.models import DebtorTransaction
+                DebtorTransaction.objects.create(
+                    debtor=order.debtor,
+                    transaction_type='debit',
+                    amount=order.get_total(),
+                    description=f'Order #{order.id} — Space {order.table.number if order.table else "N/A"}',
+                    reference=str(order.id),
+                    created_by=request.user,
+                )
+            else:
+                from administration.models import record_order_payment
+                record_order_payment(order, created_by=request.user)
+        if new_status in ['paid', 'cancelled'] and order.table:
+            order.table.status = 'available'
+            order.table.save()
 
     return JsonResponse({'success': True, 'order_id': order.id})
 
