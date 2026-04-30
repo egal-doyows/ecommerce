@@ -1,0 +1,112 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Tax Settings{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Tax Settings</h1>
+        <div class="breadcrumb-text">Configure tax rates and calculation method</div>
+    </div>
+</div>
+
+<div style="max-width:600px;">
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- Enable/Disable -->
+        <div class="adm-card" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="font-weight:700;font-size:15px;">Enable Tax</div>
+                    <div style="font-size:12px;color:var(--adm-muted);margin-top:2px;">
+                        When enabled, tax will be calculated and displayed on all orders
+                    </div>
+                </div>
+                <label style="position:relative;display:inline-block;width:50px;height:26px;cursor:pointer;">
+                    <input type="checkbox" name="is_enabled" {% if form.instance.is_enabled %}checked{% endif %}
+                           style="opacity:0;width:0;height:0;" id="taxToggle">
+                    <span style="position:absolute;top:0;left:0;right:0;bottom:0;background:var(--adm-border);border-radius:26px;transition:.3s;" id="toggleTrack"></span>
+                    <span style="position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2);" id="toggleThumb"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="adm-card" style="margin-bottom:20px;" id="taxFields">
+            <div class="adm-form-group">
+                <label class="adm-form-label">Tax Name</label>
+                {{ form.tax_name }}
+                <div style="font-size:11px;color:var(--adm-muted);margin-top:4px;">Displayed on receipts and invoices (e.g. VAT, GST, Sales Tax)</div>
+            </div>
+
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <div class="adm-form-group" style="flex:1;min-width:150px;">
+                    <label class="adm-form-label">Tax Rate (%)</label>
+                    {{ form.tax_rate }}
+                </div>
+                <div class="adm-form-group" style="flex:1;min-width:200px;">
+                    <label class="adm-form-label">Tax Type</label>
+                    {{ form.tax_type }}
+                </div>
+            </div>
+
+            <div style="padding:10px 14px;background:rgba(124,131,255,.05);border:1px solid rgba(124,131,255,.15);border-radius:8px;font-size:12px;color:var(--adm-muted);margin-top:8px;">
+                <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:4px;"></i>
+                <strong>Exclusive:</strong> Tax is added on top of item prices. A {{ form.instance.tax_rate }}% tax on a 1,000 item = 1,000 + {{ form.instance.tax_rate }}% = total with tax added.<br>
+                <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:4px;margin-top:4px;"></i>
+                <strong>Inclusive:</strong> Item prices already include tax. The tax portion is extracted and shown separately on receipts.
+            </div>
+
+            <div class="adm-form-group" style="margin-top:16px;">
+                <label class="adm-form-label">Tax Registration Number (optional)</label>
+                {{ form.tax_number }}
+                <div style="font-size:11px;color:var(--adm-muted);margin-top:4px;">Your tax/VAT registration or PIN number</div>
+            </div>
+        </div>
+
+        <!-- Current status -->
+        <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+            <div style="font-size:13px;">
+                <strong>Current status:</strong>
+                {% if tax.is_enabled %}
+                <span style="color:var(--adm-success);font-weight:700;">
+                    <i class="fa-solid fa-check-circle"></i> {{ tax.tax_name }} at {{ tax.tax_rate }}% ({{ tax.get_tax_type_display }})
+                </span>
+                {% else %}
+                <span style="color:var(--adm-muted);font-weight:700;">
+                    <i class="fa-solid fa-xmark-circle"></i> Tax disabled
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <button type="submit" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-save"></i> Save Tax Settings
+        </button>
+    </form>
+</div>
+
+<script>
+const toggle = document.getElementById('taxToggle');
+const track = document.getElementById('toggleTrack');
+const thumb = document.getElementById('toggleThumb');
+const fields = document.getElementById('taxFields');
+
+function updateToggle() {
+    if (toggle.checked) {
+        track.style.background = 'var(--adm-success)';
+        thumb.style.left = '27px';
+        fields.style.opacity = '1';
+        fields.style.pointerEvents = 'auto';
+    } else {
+        track.style.background = 'var(--adm-border)';
+        thumb.style.left = '3px';
+        fields.style.opacity = '0.5';
+        fields.style.pointerEvents = 'none';
+    }
+}
+toggle.addEventListener('change', updateToggle);
+updateToggle();
+</script>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1b1f3b">
+    <title>Select Branch | {{ restaurant.name|default:"RestoPOS" }}</title>
+    <link rel="stylesheet" href="/static/vendor/css/bootstrap-flatly.min.css">
+    <link rel="stylesheet" href="/static/vendor/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/static/vendor/css/inter-font.css">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .select-container {
+            width: 100%;
+            max-width: 720px;
+        }
+        .select-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .select-header .logo {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: rgba(124,131,255,.15);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .select-header .logo i { font-size: 26px; color: #7c83ff; }
+        .select-header h1 {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0 0 6px;
+        }
+        .select-header p {
+            color: rgba(255,255,255,.5);
+            font-size: 14px;
+            margin: 0;
+        }
+        .branch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .branch-card {
+            background: rgba(255,255,255,.06);
+            border: 2px solid rgba(255,255,255,.1);
+            border-radius: 14px;
+            padding: 24px 20px;
+            cursor: pointer;
+            transition: all .2s;
+            text-align: center;
+            color: #fff;
+            width: 100%;
+        }
+        .branch-card:hover {
+            background: rgba(124,131,255,.12);
+            border-color: rgba(124,131,255,.5);
+            transform: translateY(-2px);
+        }
+        .branch-card .icon {
+            width: 48px; height: 48px;
+            border-radius: 12px;
+            background: rgba(124,131,255,.15);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            font-size: 18px;
+            color: #7c83ff;
+        }
+        .branch-card .name {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .branch-card .addr {
+            font-size: 12px;
+            color: rgba(255,255,255,.4);
+        }
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: rgba(255,255,255,.3);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,.1);
+        }
+        .divider::before { margin-right: 14px; }
+        .divider::after { margin-left: 14px; }
+        .overview-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #7c83ff, #6366f1);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .2s;
+            text-align: center;
+            text-decoration: none;
+        }
+        .overview-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(124,131,255,.4);
+            color: #fff;
+        }
+        .overview-btn i { margin-right: 8px; }
+        .logout-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255,255,255,.35);
+            font-size: 13px;
+            text-decoration: none;
+        }
+        .logout-link:hover { color: rgba(255,255,255,.6); }
+    </style>
+</head>
+<body>
+    <div class="select-container">
+        <div class="select-header">
+            <div class="logo">
+                <i class="fa-solid fa-utensils"></i>
+            </div>
+            <h1>Welcome, {{ user.get_full_name|default:user.username|capfirst }}</h1>
+            <p>Select a branch to manage or view the cross-branch overview</p>
+        </div>
+
+        <div class="branch-grid">
+            {% for b in branches %}
+            <form method="POST" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="branch_id" value="{{ b.pk }}">
+                <button type="submit" class="branch-card">
+                    <div class="icon"><i class="fa-solid fa-store"></i></div>
+                    <div class="name">{{ b.name }}</div>
+                    {% if b.address %}<div class="addr">{{ b.address|truncatechars:40 }}</div>{% endif %}
+                </button>
+            </form>
+            {% endfor %}
+        </div>
+
+        <div class="divider">or</div>
+
+        <form method="POST">
+            {% csrf_token %}
+            <!-- No branch_id → redirects to overall-dashboard -->
+            <button type="submit" class="overview-btn">
+                <i class="fa-solid fa-chart-pie"></i>
+                Cross-Branch Dashboard
+            </button>
+        </form>
+
+        <a href="{% url 'user-logout' %}" class="logout-link">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign out
+        </a>
+    </div>
+</body>
+</html>

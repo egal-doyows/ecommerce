@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <link rel="icon" type="image/png" href="/static/icons/sanityicon.png">
     <title>{% block title %}Admin{% endblock %} | {{ restaurant.name }}</title>
     <script src="/static/vendor/js/tailwind.js"></script>
     <script>
@@ -118,7 +119,7 @@
             position: fixed;
             top: 56px;
             left: 0;
-            bottom: 0;
+            bottom: 48px;
             width: var(--adm-sidebar);
             background: #fff;
             border-right: 1px solid var(--adm-border);
@@ -126,7 +127,13 @@
             z-index: 90;
             padding: 20px 0;
         }
-        .adm-nav-group { margin-bottom: 24px; }
+        .adm-sidebar-inner {
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+        }
+        .adm-sidebar-nav { flex: 1; }
+        .adm-nav-group { margin-bottom: 8px; }
         .adm-nav-label {
             padding: 0 20px;
             margin-bottom: 6px;
@@ -135,6 +142,27 @@
             text-transform: uppercase;
             letter-spacing: 1.2px;
             color: var(--adm-muted);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+        .adm-nav-label .adm-collapse-icon {
+            font-size: 9px;
+            transition: transform .2s;
+            padding-right: 8px;
+        }
+        .adm-nav-group.collapsed .adm-collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .adm-nav-items {
+            overflow: hidden;
+            max-height: 500px;
+            transition: max-height .25s ease;
+        }
+        .adm-nav-group.collapsed .adm-nav-items {
+            max-height: 0;
         }
         .adm-nav-link {
             display: flex;
@@ -179,7 +207,7 @@
         .adm-main {
             margin-left: var(--adm-sidebar);
             margin-top: 56px;
-            padding: 28px 32px;
+            padding: 28px 32px 70px;
             min-height: calc(100vh - 56px);
         }
 
@@ -444,7 +472,7 @@
         @media (max-width: 768px) {
             .adm-sidebar { display: none; }
             .adm-sidebar.open { display: block; width: 100%; z-index: 95; }
-            .adm-main { margin-left: 0; padding: 20px 16px; }
+            .adm-main { margin-left: 0; padding: 20px 16px 70px; }
             .adm-menu-toggle { display: block; }
         }
 
@@ -454,6 +482,228 @@
             85% { transform: rotate(12deg); }
             90% { transform: rotate(-12deg); }
             95% { transform: rotate(6deg); }
+        }
+
+        /* ── Approval Bell ──────────────────────────────────── */
+        .adm-approval-bell { position: relative; margin-right: 10px; }
+        .adm-bell-toggle {
+            position: relative;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 4px;
+        }
+        .adm-bell-count {
+            position: absolute;
+            top: -5px; right: -10px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 18px; height: 18px;
+            line-height: 18px;
+            text-align: center;
+            border-radius: 50%;
+            padding: 0 4px;
+            box-shadow: 0 0 0 2px var(--adm-dark);
+        }
+        .adm-bell-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 260px;
+            background: #fff;
+            color: #1f2937;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 8px 30px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+            padding: 6px;
+            z-index: 200;
+        }
+        .adm-approval-bell.open .adm-bell-dropdown {
+            display: block;
+            animation: branchDropIn .15s ease-out;
+        }
+        .adm-bell-header {
+            padding: 8px 12px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6b7280;
+        }
+        .adm-bell-item,
+        .adm-bell-item span,
+        .adm-bell-item i {
+            color: #1f2937 !important;
+        }
+        .adm-bell-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: background .15s;
+        }
+        .adm-bell-item:hover,
+        .adm-bell-item:hover span,
+        .adm-bell-item:hover i {
+            background: #f3f4f6;
+            color: #4338ca !important;
+        }
+        .adm-bell-item i {
+            width: 18px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .adm-bell-item-count {
+            margin-left: auto;
+            background: rgba(239,68,68,.1);
+            color: #ef4444 !important;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* ── Branch Switcher ────────────────────────────────── */
+        .adm-branch-switcher {
+            position: relative;
+        }
+        .adm-branch-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            white-space: nowrap;
+        }
+        .adm-branch-toggle:hover {
+            background: rgba(255,255,255,.14);
+            border-color: rgba(255,255,255,.2);
+        }
+        .adm-branch-toggle i:first-child {
+            font-size: 12px;
+            opacity: .7;
+        }
+        .adm-branch-chevron {
+            font-size: 9px !important;
+            opacity: .5 !important;
+            transition: transform .2s;
+        }
+        .adm-branch-switcher.open .adm-branch-chevron {
+            transform: rotate(180deg);
+        }
+        .adm-branch-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 220px;
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid var(--adm-border);
+            box-shadow: 0 8px 30px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+            padding: 6px;
+            z-index: 200;
+        }
+        .adm-branch-switcher.open .adm-branch-dropdown {
+            display: block;
+            animation: branchDropIn .15s ease-out;
+        }
+        @keyframes branchDropIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .adm-branch-dropdown-label {
+            padding: 6px 10px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--adm-muted);
+        }
+        .adm-branch-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 10px;
+            border: none;
+            background: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--adm-text);
+            cursor: pointer;
+            text-decoration: none;
+            transition: background .15s;
+        }
+        .adm-branch-option:hover {
+            background: rgba(124,131,255,.06);
+            color: var(--adm-accent);
+        }
+        .adm-branch-option.active {
+            background: rgba(124,131,255,.08);
+            color: var(--adm-accent);
+            font-weight: 600;
+        }
+        .adm-branch-option i:first-child {
+            font-size: 12px;
+            opacity: .6;
+            width: 16px;
+            text-align: center;
+        }
+
+        /* ── Main Footer ────────────────────────────────────── */
+        .adm-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 14px 32px;
+            border-top: 1px solid var(--adm-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--adm-muted);
+            background: #fff;
+            z-index: 95;
+        }
+        .adm-footer-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .adm-footer-logo {
+            height: 32px;
+            width: auto;
+            border-radius: 5px;
+            opacity: .9;
+        }
+        .adm-footer-brand {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--adm-text);
+        }
+        @media (max-width: 768px) {
+            .adm-footer { margin-left: 0; padding: 16px; flex-direction: column; gap: 10px; text-align: center; }
         }
     </style>
 </head>
@@ -471,13 +721,66 @@
         </a>
     </div>
     <div class="adm-topbar-right">
-        {% if pending_po_count %}
-        <a href="{% url 'po-list' %}?status=pending" style="position:relative;text-decoration:none;font-size:20px;margin-right:10px;color:#fff;display:flex;align-items:center;" title="{{ pending_po_count }} PO{{ pending_po_count|pluralize }} awaiting approval">
-            <i class="fa-solid fa-bell" style="animation:bellShake 2s ease-in-out infinite;"></i>
-            <span style="position:absolute;top:-5px;right:-10px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;line-height:18px;text-align:center;border-radius:50%;padding:0 4px;box-shadow:0 0 0 2px var(--adm-dark);">{{ pending_po_count }}</span>
-        </a>
+        {% if current_branch and user_branches|length > 1 or user.is_superuser or is_overall_manager %}
+        <!-- Branch Switcher Dropdown -->
+        <div class="adm-branch-switcher" id="branchSwitcher">
+            <button class="adm-branch-toggle" onclick="document.getElementById('branchSwitcher').classList.toggle('open')" type="button">
+                <i class="fa-solid fa-building"></i>
+                <span>{{ current_branch.name|default:"Select Branch" }}</span>
+                <i class="fa-solid fa-chevron-down adm-branch-chevron"></i>
+            </button>
+            <div class="adm-branch-dropdown">
+                <div class="adm-branch-dropdown-label">Switch Branch</div>
+                {% for b in user_branches %}
+                <form method="post" action="{% url 'switch-branch' %}" style="margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="branch_id" value="{{ b.pk }}">
+                    <input type="hidden" name="next" value="{% url 'admin-dashboard' %}">
+                    <button type="submit" class="adm-branch-option {% if b.pk == current_branch.pk %}active{% endif %}">
+                        <i class="fa-solid fa-building"></i>
+                        <span>{{ b.name }}</span>
+                        {% if b.pk == current_branch.pk %}<i class="fa-solid fa-check" style="margin-left:auto;font-size:11px;"></i>{% endif %}
+                    </button>
+                </form>
+                {% endfor %}
+                {% if is_overall_manager %}
+                <div style="border-top:1px solid var(--adm-border);margin:4px 0;"></div>
+                <a href="{% url 'overall-dashboard' %}" class="adm-branch-option" style="color:var(--adm-accent);">
+                    <i class="fa-solid fa-globe"></i>
+                    <span>All Branches</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% elif current_branch %}
+        <div style="display:flex;align-items:center;gap:6px;color:rgba(255,255,255,.6);font-size:13px;">
+            <i class="fa-solid fa-building" style="font-size:11px;"></i>
+            <span>{{ current_branch.name }}</span>
+        </div>
         {% endif %}
-        <a href="{% url 'pos' %}"><i class="fa-solid fa-arrow-left"></i> Back to POS</a>
+
+        {% if pending_approval_total %}
+        <div class="adm-approval-bell" id="approvalBell">
+            <button class="adm-bell-toggle" onclick="document.getElementById('approvalBell').classList.toggle('open')" type="button"
+                    title="{{ pending_approval_total }} pending approval{{ pending_approval_total|pluralize }}">
+                <i class="fa-solid fa-bell" style="animation:bellShake 2s ease-in-out infinite;"></i>
+                <span class="adm-bell-count">{{ pending_approval_total }}</span>
+            </button>
+            <div class="adm-bell-dropdown">
+                <div class="adm-bell-header">Pending Approvals</div>
+                {% for item in pending_approvals %}
+                <a href="{{ item.url }}" class="adm-bell-item">
+                    <i class="{{ item.icon }}"></i>
+                    <span>{{ item.label }}</span>
+                    <span class="adm-bell-item-count">{{ item.count }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if not is_overall_manager or user.is_superuser %}
+        <a href="{% url 'pos' %}"><i class="fa-solid fa-arrow-left"></i> POS</a>
+        {% endif %}
         <div class="adm-topbar-user">
             <div class="avatar">{{ user.username|first|upper }}</div>
             <span>{{ user.username|capfirst }}</span>
@@ -488,8 +791,13 @@
 
 <!-- Sidebar -->
 <nav class="adm-sidebar" id="admSidebar">
+  <div class="adm-sidebar-inner">
+    <div class="adm-sidebar-nav">
+
+    <!-- Main (not collapsible) -->
     <div class="adm-nav-group">
-        <div class="adm-nav-label">Main</div>
+        <div class="adm-nav-label" style="cursor:default;">Main</div>
+        <div class="adm-nav-items">
         <a href="{% url 'admin-dashboard' %}" class="adm-nav-link {% active_nav 'admin-dashboard' %}">
             <i class="fa-solid fa-chart-pie"></i> Dashboard
         </a>
@@ -501,12 +809,21 @@
             <i class="fa-solid fa-landmark"></i> Accounts
         </a>
         {% endif %}
+        </div>
     </div>
 
-    <div class="adm-nav-group">
-        <div class="adm-nav-label">Restaurant</div>
+    <!-- Restaurant (collapsible) -->
+    <div class="adm-nav-group collapsed" data-collapse="restaurant">
+        <div class="adm-nav-label" onclick="toggleNavGroup(this)">
+            Restaurant
+            <i class="fa-solid fa-chevron-down adm-collapse-icon"></i>
+        </div>
+        <div class="adm-nav-items">
         <a href="{% url 'admin-menu-list' %}" class="adm-nav-link {% active_nav 'admin-menu-list' %}">
             <i class="fa-solid fa-utensils"></i> Menu Items
+        </a>
+        <a href="{% url 'admin-branch-menu' %}" class="adm-nav-link {% active_nav 'admin-branch-menu' %}">
+            <i class="fa-solid fa-toggle-on"></i> Menu Availability
         </a>
         <a href="{% url 'admin-category-list' %}" class="adm-nav-link {% active_nav 'admin-category-list' %}">
             <i class="fa-solid fa-tags"></i> Categories
@@ -514,6 +831,16 @@
         <a href="{% url 'admin-inventory-list' %}" class="adm-nav-link {% active_nav 'admin-inventory-list' %}">
             <i class="fa-solid fa-boxes-stacked"></i> Inventory
         </a>
+        {% if is_manager %}
+        <a href="{% url 'stock-movement-list' %}" class="adm-nav-link {% active_nav 'stock-movement-list' 'stock-adjustment-list' 'stock-adjustment-create' 'stock-adjustment-detail' %}">
+            <i class="fa-solid fa-arrows-rotate"></i> Stock
+        </a>
+        {% endif %}
+        {% if is_manager %}
+        <a href="{% url 'asset-list' %}" class="adm-nav-link {% active_nav 'asset-list' 'asset-create' 'asset-edit' 'asset-category-list' 'asset-category-create' 'asset-category-edit' %}">
+            <i class="fa-solid fa-warehouse"></i> Assets
+        </a>
+        {% endif %}
         {% if is_manager %}
         <a href="{% url 'supplier-list' %}" class="adm-nav-link {% active_nav 'supplier-list' 'supplier-detail' 'supplier-create' 'supplier-edit' 'supplier-transaction-create' %}">
             <i class="fa-solid fa-truck-field"></i> Suppliers
@@ -529,8 +856,23 @@
             <i class="fa-solid fa-truck-ramp-box"></i> Receiving
         </a>
         {% endif %}
-        <a href="{% url 'waste-list' %}" class="adm-nav-link {% active_nav 'waste-list' 'waste-detail' 'waste-create' 'waste-summary' %}">
-            <i class="fa-solid fa-trash-can"></i> Waste
+        </div>
+    </div>
+
+    <!-- Finance (collapsible) -->
+    <div class="adm-nav-group collapsed" data-collapse="finance">
+        <div class="adm-nav-label" onclick="toggleNavGroup(this)">
+            Finance
+            <i class="fa-solid fa-chevron-down adm-collapse-icon"></i>
+        </div>
+        <div class="adm-nav-items">
+        {% if is_overall_manager or is_admin_role or user.is_superuser %}
+        <a href="{% url 'finance-dashboard' %}" class="adm-nav-link {% active_nav 'finance-dashboard' 'finance-profit-loss' 'finance-cash-flow' 'finance-expense-report' 'finance-wastage-report' 'finance-payroll-report' 'finance-receivables' 'finance-payables' %}">
+            <i class="fa-solid fa-chart-line"></i> Financial Reports
+        </a>
+        {% endif %}
+        <a href="{% url 'wastage-list' %}" class="adm-nav-link {% active_nav 'wastage-list' 'wastage-detail' 'wastage-create' 'wastage-summary' %}">
+            <i class="fa-solid fa-trash-can"></i> Wastage
         </a>
         <a href="{% url 'expense-list' %}" class="adm-nav-link {% active_nav 'expense-list' 'expense-detail' 'expense-create' 'expense-edit' 'expense-summary' 'expense-category-list' 'expense-category-create' 'expense-category-edit' %}">
             <i class="fa-solid fa-file-invoice-dollar"></i> Expenses
@@ -538,14 +880,17 @@
         <a href="{% url 'debtor-list' %}" class="adm-nav-link {% active_nav 'debtor-list' 'debtor-detail' 'debtor-create' 'debtor-edit' 'debtor-transaction-create' 'debtor-receive-payment' %}">
             <i class="fa-solid fa-hand-holding-dollar"></i> Debtors
         </a>
-        <a href="{% url 'admin-table-list' %}" class="adm-nav-link {% active_nav 'admin-table-list' %}">
-            <i class="fa-solid fa-chair"></i> Spaces
-        </a>
+        </div>
     </div>
 
-    <div class="adm-nav-group">
-        <div class="adm-nav-label">Operations</div>
-        {% if is_manager %}
+    <!-- Operations (collapsible) -->
+    <div class="adm-nav-group collapsed" data-collapse="operations">
+        <div class="adm-nav-label" onclick="toggleNavGroup(this)">
+            Operations
+            <i class="fa-solid fa-chevron-down adm-collapse-icon"></i>
+        </div>
+        <div class="adm-nav-items">
+        {% if is_manager and not is_overall_manager %}
         <a href="{% url 'pos' %}" class="adm-nav-link">
             <i class="fa-solid fa-cash-register"></i> POS / New Order
         </a>
@@ -556,10 +901,19 @@
         <a href="{% url 'admin-shift-list' %}" class="adm-nav-link {% active_nav 'admin-shift-list' %}">
             <i class="fa-solid fa-clock"></i> Shifts
         </a>
+        <a href="{% url 'admin-table-list' %}" class="adm-nav-link {% active_nav 'admin-table-list' %}">
+            <i class="fa-solid fa-chair"></i> Tables
+        </a>
+        </div>
     </div>
 
-    <div class="adm-nav-group">
-        <div class="adm-nav-label">People</div>
+    <!-- People (collapsible) -->
+    <div class="adm-nav-group collapsed" data-collapse="people">
+        <div class="adm-nav-label" onclick="toggleNavGroup(this)">
+            People
+            <i class="fa-solid fa-chevron-down adm-collapse-icon"></i>
+        </div>
+        <div class="adm-nav-items">
         <a href="{% url 'admin-staff-list' %}" class="adm-nav-link {% active_nav 'admin-staff-list' %}">
             <i class="fa-solid fa-users"></i> Staff
         </a>
@@ -567,20 +921,47 @@
         <a href="{% url 'compensation-overview' %}" class="adm-nav-link">
             <i class="fa-solid fa-coins"></i> Compensation
         </a>
+        <a href="{% url 'payroll-list' %}" class="adm-nav-link">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Payroll
+        </a>
         {% endif %}
+        <a href="{% url 'advance-list' %}" class="adm-nav-link">
+            <i class="fa-solid fa-money-bill-transfer"></i> Advances
+        </a>
         <a href="{% url 'hr-dashboard' %}" class="adm-nav-link {% active_nav 'hr-dashboard' 'hr-employee-list' 'hr-employee-detail' 'hr-employee-create' 'hr-employee-edit' 'hr-department-list' 'hr-position-list' 'hr-leave-list' 'hr-leave-detail' 'hr-leave-request' 'hr-leave-type-list' %}">
             <i class="fa-solid fa-id-card-clip"></i> HR
         </a>
+        {% if is_overall_manager %}
+        <a href="{% url 'hr-transfer-list' %}" class="adm-nav-link {% active_nav 'hr-transfer-list' %}">
+            <i class="fa-solid fa-people-arrows"></i> Transfers
+            {% for item in pending_approvals %}{% if item.label == "Transfer Requests" %}<span class="adm-nav-badge">{{ item.count }}</span>{% endif %}{% endfor %}
+        </a>
+        {% endif %}
+        </div>
     </div>
 
     {% if is_manager %}
+    <!-- System (not collapsible) -->
     <div class="adm-nav-group">
-        <div class="adm-nav-label">System</div>
+        <div class="adm-nav-label" style="cursor:default;">System</div>
+        <div class="adm-nav-items">
+        {% if user.is_superuser %}
+        <a href="{% url 'branch-list' %}" class="adm-nav-link {% active_nav 'branch-list' 'branch-create' 'branch-edit' %}">
+            <i class="fa-solid fa-building"></i> Branches
+        </a>
+        {% endif %}
+        <a href="{% url 'tax-settings' %}" class="adm-nav-link {% active_nav 'tax-settings' %}">
+            <i class="fa-solid fa-percent"></i> Tax Settings
+        </a>
         <a href="{% url 'admin-settings' %}" class="adm-nav-link {% active_nav 'admin-settings' %}">
             <i class="fa-solid fa-gear"></i> Settings
         </a>
+        </div>
     </div>
     {% endif %}
+
+    </div><!-- /adm-sidebar-nav -->
+  </div><!-- /adm-sidebar-inner -->
 </nav>
 
 <!-- Main content -->
@@ -597,6 +978,46 @@
     {% block content %}{% endblock %}
 </main>
 
+<!-- Footer -->
+<footer class="adm-footer">
+    <div>&copy; {% now "Y" %} {{ restaurant.name|default:"Restaurant" }}</div>
+    <div class="adm-footer-center">
+        <img src="{% static 'icons/sanitypos.png' %}" alt="SanityPOS" class="adm-footer-logo">
+        <span class="adm-footer-brand">SanityPOS</span>
+    </div>
+    <div>All rights reserved</div>
+</footer>
+
+<script>
+// Close dropdowns on outside click
+document.addEventListener('click', function(e) {
+    var sw = document.getElementById('branchSwitcher');
+    if (sw && !sw.contains(e.target)) sw.classList.remove('open');
+    var bell = document.getElementById('approvalBell');
+    if (bell && !bell.contains(e.target)) bell.classList.remove('open');
+});
+
+// Collapsible sidebar nav groups with localStorage persistence
+function toggleNavGroup(label) {
+    var group = label.parentElement;
+    group.classList.toggle('collapsed');
+    var key = group.getAttribute('data-collapse');
+    if (key) {
+        localStorage.setItem('nav_' + key, group.classList.contains('collapsed') ? '1' : '0');
+    }
+}
+// Restore collapsed state on load — collapsed by default, expand if active link or user opened it
+document.querySelectorAll('.adm-nav-group[data-collapse]').forEach(function(g) {
+    var key = g.getAttribute('data-collapse');
+    var hasActive = g.querySelector('.adm-nav-link.active');
+    var saved = localStorage.getItem('nav_' + key);
+    if (hasActive || saved === '0') {
+        g.classList.remove('collapsed');
+    } else {
+        g.classList.add('collapsed');
+    }
+});
+</script>
 <script src="/static/js/pwa.js"></script>
 </body>
 </html>

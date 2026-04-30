@@ -1,0 +1,223 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Log Waste{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Log Waste</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'wastage-list' %}" style="color:var(--adm-accent);text-decoration:none;">Waste</a> / New Entry
+        </div>
+    </div>
+</div>
+
+<form method="POST" id="wasteForm">
+    {% csrf_token %}
+    {% include "administration/_branch_field.html" %}
+
+    <!-- Reason & date -->
+    <div class="adm-card" style="margin-bottom:20px;">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Reason for Waste <span style="color:var(--adm-danger);">*</span></label>
+                <select name="reason" class="adm-input" required>
+                    <option value="">Select reason...</option>
+                    {% for code, label in reason_choices %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="adm-form-group" style="flex:1;min-width:200px;">
+                <label class="adm-form-label">Date</label>
+                <input type="date" name="date" value="{{ today }}" class="adm-input">
+            </div>
+        </div>
+    </div>
+
+    <!-- Items -->
+    <h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-list" style="color:var(--adm-danger);"></i>
+        Waste Items
+    </h3>
+
+    <div class="adm-card" style="padding:0;margin-bottom:20px;">
+        <table class="adm-table" id="itemsTable">
+            <thead>
+                <tr>
+                    <th style="width:30%;">Item</th>
+                    <th>Unit</th>
+                    <th style="text-align:right;">In Stock</th>
+                    <th style="text-align:right;">Unit Cost</th>
+                    <th style="text-align:center;width:120px;">Waste Qty</th>
+                    <th style="text-align:right;">Cost</th>
+                    <th>Notes</th>
+                    <th style="width:40px;"></th>
+                </tr>
+            </thead>
+            <tbody id="itemRows">
+                <tr id="row_0" class="item-row">
+                    <td>
+                        <select name="item_0" class="adm-input item-select" data-idx="0" style="font-size:12px;padding:5px 8px;" required>
+                            <option value="">Select item...</option>
+                            {% for item in all_items %}
+                            <option value="{{ item.pk }}" data-unit="{{ item.get_unit_display }}" data-stock="{{ item.stock_quantity }}" data-cost="{{ item.buying_price }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="unit-cell" style="color:var(--adm-muted);font-size:12px;">—</td>
+                    <td class="stock-cell" style="text-align:right;font-size:12px;">—</td>
+                    <td class="cost-cell" style="text-align:right;font-size:12px;">—</td>
+                    <td style="text-align:center;">
+                        <input type="number" name="item_qty_0" class="adm-input qty-input" data-idx="0"
+                               style="width:100px;text-align:center;font-size:12px;padding:5px 8px;" step="0.01" min="0.01" value="" placeholder="0.00">
+                    </td>
+                    <td class="line-cost" style="text-align:right;font-weight:600;font-size:12px;">{{ currency_symbol }} 0.00</td>
+                    <td>
+                        <input type="text" name="item_notes_0" class="adm-input" style="width:120px;font-size:11px;padding:4px 8px;" placeholder="Optional...">
+                    </td>
+                    <td style="text-align:center;">
+                        <button type="button" class="remove-row" onclick="removeRow(0)" style="background:none;border:none;color:var(--adm-danger);cursor:pointer;font-size:14px;padding:4px;" title="Remove">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr style="border-top:2px solid var(--adm-border);">
+                    <td colspan="5" style="text-align:right;font-weight:700;">Total Waste Cost</td>
+                    <td style="text-align:right;font-weight:800;font-size:15px;color:var(--adm-danger);" id="totalCost">{{ currency_symbol }} 0.00</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div style="padding:10px 20px;border-top:1px solid var(--adm-border);">
+            <button type="button" onclick="addRow()" class="adm-btn adm-btn-sm adm-btn-outline" style="font-size:12px;">
+                <i class="fa-solid fa-plus" style="font-size:10px;"></i> Add Item
+            </button>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="adm-card" style="margin-bottom:20px;max-width:700px;">
+        <div class="adm-form-group" style="margin-bottom:0;">
+            <label class="adm-form-label">General Notes (optional)</label>
+            <textarea name="notes" class="adm-input" rows="2" placeholder="Describe the circumstances of the waste..."></textarea>
+        </div>
+    </div>
+
+    <div style="padding:12px 16px;background:rgba(220,53,69,.05);border:1px solid rgba(220,53,69,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);max-width:700px;">
+        <i class="fa-solid fa-info-circle" style="color:var(--adm-danger);margin-right:6px;"></i>
+        Stock will be automatically deducted for each wasted item. This action cannot be undone.
+    </div>
+
+    <div style="display:flex;gap:10px;">
+        <button type="submit" class="adm-btn adm-btn-primary" style="background:var(--adm-danger);">
+            <i class="fa-solid fa-trash-can"></i> Record Waste
+        </button>
+        <a href="{% url 'wastage-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+    </div>
+</form>
+
+<script>
+const currencySymbol = '{{ currency_symbol|escapejs }}';
+let rowIndex = 1;
+
+function fmt(n) {
+    return currencySymbol + ' ' + n.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function addRow() {
+    const idx = rowIndex++;
+    const tbody = document.getElementById('itemRows');
+    const tr = document.createElement('tr');
+    tr.id = 'row_' + idx;
+    tr.className = 'item-row';
+    tr.innerHTML = `
+        <td>
+            <select name="item_${idx}" class="adm-input item-select" data-idx="${idx}" style="font-size:12px;padding:5px 8px;" required>
+                <option value="">Select item...</option>
+                {% for item in all_items %}
+                <option value="{{ item.pk }}" data-unit="{{ item.get_unit_display }}" data-stock="{{ item.stock_quantity }}" data-cost="{{ item.buying_price }}">{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td class="unit-cell" style="color:var(--adm-muted);font-size:12px;">—</td>
+        <td class="stock-cell" style="text-align:right;font-size:12px;">—</td>
+        <td class="cost-cell" style="text-align:right;font-size:12px;">—</td>
+        <td style="text-align:center;">
+            <input type="number" name="item_qty_${idx}" class="adm-input qty-input" data-idx="${idx}"
+                   style="width:100px;text-align:center;font-size:12px;padding:5px 8px;" step="0.01" min="0.01" value="" placeholder="0.00">
+        </td>
+        <td class="line-cost" style="text-align:right;font-weight:600;font-size:12px;">${currencySymbol} 0.00</td>
+        <td>
+            <input type="text" name="item_notes_${idx}" class="adm-input" style="width:120px;font-size:11px;padding:4px 8px;" placeholder="Optional...">
+        </td>
+        <td style="text-align:center;">
+            <button type="button" class="remove-row" onclick="removeRow(${idx})" style="background:none;border:none;color:var(--adm-danger);cursor:pointer;font-size:14px;padding:4px;" title="Remove">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    bindEvents(tr);
+}
+
+function removeRow(idx) {
+    const row = document.getElementById('row_' + idx);
+    if (row && document.querySelectorAll('.item-row').length > 1) {
+        row.remove();
+        updateTotal();
+    }
+}
+
+function bindEvents(row) {
+    var sel = row.querySelector('.item-select');
+    var qty = row.querySelector('.qty-input');
+    sel.addEventListener('change', function() { onItemChange(row); });
+    qty.addEventListener('input', function() { onQtyChange(row); });
+}
+
+function onItemChange(row) {
+    var sel = row.querySelector('.item-select');
+    var opt = sel.options[sel.selectedIndex];
+    var unit = opt.dataset.unit || '—';
+    var stock = opt.dataset.stock || '—';
+    var cost = opt.dataset.cost || '—';
+    row.querySelector('.unit-cell').textContent = unit;
+    row.querySelector('.stock-cell').textContent = stock !== '—' ? parseFloat(stock).toFixed(2) : '—';
+    row.querySelector('.cost-cell').textContent = cost !== '—' ? fmt(parseFloat(cost)) : '—';
+    var qtyInput = row.querySelector('.qty-input');
+    if (cost !== '—') {
+        qtyInput.max = stock;
+    }
+    onQtyChange(row);
+}
+
+function onQtyChange(row) {
+    var sel = row.querySelector('.item-select');
+    var opt = sel.options[sel.selectedIndex];
+    var cost = parseFloat(opt.dataset.cost) || 0;
+    var qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    row.querySelector('.line-cost').textContent = fmt(qty * cost);
+    updateTotal();
+}
+
+function updateTotal() {
+    var total = 0;
+    document.querySelectorAll('.item-row').forEach(function(row) {
+        var sel = row.querySelector('.item-select');
+        var opt = sel.options[sel.selectedIndex];
+        var cost = parseFloat(opt.dataset.cost) || 0;
+        var qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+        total += qty * cost;
+    });
+    document.getElementById('totalCost').textContent = fmt(total);
+}
+
+// Bind events on initial row
+document.querySelectorAll('.item-row').forEach(bindEvents);
+</script>
+{% endblock %}

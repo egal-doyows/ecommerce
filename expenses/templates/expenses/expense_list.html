@@ -26,7 +26,7 @@
 
 <!-- Pending approvals banner for managers -->
 {% if is_manager and pending_count > 0 %}
-<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;justify-content:space-between;">
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;">
     <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:34px;height:34px;border-radius:8px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <i class="fa-solid fa-clock" style="color:#d97706;font-size:14px;"></i>
@@ -36,15 +36,20 @@
             <div style="font-size:11px;color:var(--adm-muted);">Expense requests awaiting your review</div>
         </div>
     </div>
-    <a href="?status=pending" class="adm-btn adm-btn-sm" style="background:#d97706;color:#fff;padding:4px 14px;">
-        <i class="fa-solid fa-eye" style="font-size:10px;"></i> Review
-    </a>
 </div>
 {% endif %}
 
 <!-- Filters -->
 <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
     <form method="get" action="{% url 'expense-list' %}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        {% if is_overall %}
+        <select name="branch" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Branches</option>
+            {% for b in branches %}
+            <option value="{{ b.pk }}" {% if branch_filter == b.pk|stringformat:"d" %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
         <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">From</label>
         <input type="date" name="date_from" value="{{ date_from }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
         <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">To</label>
@@ -69,7 +74,7 @@
         </select>
         <input type="text" name="q" value="{{ search }}" placeholder="Search..." class="adm-input" style="width:140px;padding:5px 10px;font-size:12px;">
         <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Filter</button>
-        {% if date_from or date_to or category_filter or payment_filter or status_filter or search %}
+        {% if date_from or date_to or category_filter or payment_filter or status_filter or search or branch_filter %}
         <a href="{% url 'expense-list' %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;"><i class="fa-solid fa-xmark"></i> Clear</a>
         {% endif %}
     </form>
@@ -77,11 +82,12 @@
 
 <!-- Expenses table -->
 {% if expenses %}
-<div class="adm-card" style="padding:0;">
+<div class="adm-card" style="padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <table class="adm-table">
         <thead>
             <tr>
                 <th>Ref #</th>
+                {% if is_overall %}<th>Branch</th>{% endif %}
                 <th>Date</th>
                 <th>Status</th>
                 <th>Category</th>
@@ -93,12 +99,16 @@
         </thead>
         <tbody>
             {% for exp in expenses %}
-            <tr{% if exp.status == 'rejected' %} style="opacity:0.6;"{% endif %}>
-                <td>
-                    <a href="{% url 'expense-detail' exp.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:700;">
-                        {{ exp.expense_number }}
-                    </a>
+            {% ifchanged exp.branch.name %}{% if is_overall and not branch_filter %}
+            <tr>
+                <td colspan="9" style="background:var(--adm-bg);padding:10px 16px;font-weight:700;font-size:13px;color:var(--adm-accent);border-bottom:2px solid var(--adm-accent);">
+                    <i class="fa-solid fa-store" style="margin-right:6px;font-size:11px;"></i> {{ exp.branch.name|default:"No Branch" }}
                 </td>
+            </tr>
+            {% endif %}{% endifchanged %}
+            <tr onclick="window.location='{% url 'expense-detail' exp.pk %}'" style="cursor:pointer;{% if exp.status == 'rejected' %}opacity:0.6;{% endif %}" class="adm-row-hover">
+                <td style="font-weight:700;color:var(--adm-accent);">{{ exp.expense_number }}</td>
+                {% if is_overall %}<td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ exp.branch.name|default:"—" }}</td>{% endif %}
                 <td style="color:var(--adm-muted);font-size:12px;white-space:nowrap;">{{ exp.date|date:"d M Y" }}</td>
                 <td>
                     {% if exp.status == 'approved' %}
@@ -134,23 +144,23 @@
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
         {% if page_obj.has_previous %}
-        <a href="?page=1{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon" title="First"><i class="fa-solid fa-angles-left" style="font-size:11px;"></i></a>
-        <a href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon" title="Previous"><i class="fa-solid fa-chevron-left" style="font-size:11px;"></i></a>
+        <a href="?page=1{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="First"><i class="fa-solid fa-angles-left" style="font-size:11px;"></i></a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="Previous"><i class="fa-solid fa-chevron-left" style="font-size:11px;"></i></a>
         {% endif %}
 
         {% for num in page_obj.paginator.page_range %}
             {% if page_obj.number == num %}
                 <span class="adm-btn-icon" style="background:var(--adm-accent);color:#fff;border-color:var(--adm-accent);font-size:12px;font-weight:700;">{{ num }}</span>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-                <a href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon" style="font-size:12px;">{{ num }}</a>
+                <a href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" style="font-size:12px;">{{ num }}</a>
             {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
                 <span style="color:var(--adm-muted);font-size:12px;padding:0 4px;">...</span>
             {% endif %}
         {% endfor %}
 
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon" title="Next"><i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
-        <a href="?page={{ page_obj.paginator.num_pages }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}" class="adm-btn-icon" title="Last"><i class="fa-solid fa-angles-right" style="font-size:11px;"></i></a>
+        <a href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="Next"><i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="Last"><i class="fa-solid fa-angles-right" style="font-size:11px;"></i></a>
         {% endif %}
     </div>
 </div>

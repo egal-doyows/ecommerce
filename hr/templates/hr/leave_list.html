@@ -1,9 +1,12 @@
-{% extends "administration/base.html" %}
+{% extends base_template|default:"administration/base.html" %}
 {% load humanize %}
 
 {% block title %}Leave Management{% endblock %}
 
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
 {% block content %}
+<div style="max-width:960px;margin:24px auto;padding:0 20px;">
 <div class="adm-page-header">
     <div>
         <h1>Leave Management</h1>
@@ -25,7 +28,7 @@
 
 <!-- Pending banner -->
 {% if is_manager and pending_count > 0 %}
-<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;justify-content:space-between;">
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;">
     <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:34px;height:34px;border-radius:8px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <i class="fa-solid fa-clock" style="color:#d97706;font-size:14px;"></i>
@@ -35,9 +38,6 @@
             <div style="font-size:11px;color:var(--adm-muted);">Leave requests awaiting your review</div>
         </div>
     </div>
-    <a href="?status=pending" class="adm-btn adm-btn-sm" style="background:#d97706;color:#fff;padding:4px 14px;">
-        <i class="fa-solid fa-eye" style="font-size:10px;"></i> Review
-    </a>
 </div>
 {% endif %}
 
@@ -83,12 +83,8 @@
         </thead>
         <tbody>
             {% for lr in leaves %}
-            <tr{% if lr.status == 'cancelled' or lr.status == 'rejected' %} style="opacity:0.6;"{% endif %}>
-                <td>
-                    <a href="{% url 'hr-leave-detail' lr.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:700;">
-                        {{ lr.employee.full_name }}
-                    </a>
-                </td>
+            <tr onclick="window.location='{% url 'hr-leave-detail' lr.pk %}'" style="cursor:pointer;{% if lr.status == 'cancelled' or lr.status == 'rejected' %}opacity:0.6;{% endif %}" class="adm-row-hover">
+                <td style="font-weight:700;color:var(--adm-accent);">{{ lr.employee.full_name }}</td>
                 <td><span class="adm-badge adm-badge-info">{{ lr.leave_type.name }}</span></td>
                 <td style="font-size:12px;white-space:nowrap;">{{ lr.start_date|date:"d M Y" }}</td>
                 <td style="font-size:12px;white-space:nowrap;">{{ lr.end_date|date:"d M Y" }}</td>
@@ -104,7 +100,7 @@
                     <span class="adm-badge adm-badge-muted">Cancelled</span>
                     {% endif %}
                 </td>
-                <td style="font-size:12px;color:var(--adm-muted);">{{ lr.reviewed_by.get_full_name|default:lr.reviewed_by.username|default:"—" }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{% if lr.reviewed_by %}{{ lr.reviewed_by.get_full_name|default:lr.reviewed_by.username }}{% else %}—{% endif %}</td>
                 <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ lr.created_at|date:"d M Y" }}</td>
             </tr>
             {% endfor %}
@@ -135,4 +131,5 @@
     <p>No leave requests{% if status_filter or type_filter or search %} matching your filters{% endif %}.</p>
 </div>
 {% endif %}
+</div>
 {% endblock %}

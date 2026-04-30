@@ -5,7 +5,7 @@
 {% block content %}
 <div class="adm-page-header">
     <div>
-        <h1>Dashboard</h1>
+        <h1>{% if current_branch %}{{ current_branch.display_name }}{% else %}Dashboard{% endif %}</h1>
         <div class="breadcrumb-text">Overview of today's activity</div>
     </div>
 </div>
@@ -63,7 +63,7 @@
         </div>
         <div>
             <div class="adm-stat-value">{{ table_stats.available }} / {{ table_stats.total }}</div>
-            <div class="adm-stat-label">Spaces Available</div>
+            <div class="adm-stat-label">Tables Available</div>
         </div>
     </div>
 </div>
@@ -77,11 +77,11 @@
         </div>
         {% if recent_orders %}
         <table class="adm-table">
-            <thead><tr><th>#</th><th>Waiter</th><th>Space</th><th>Status</th></tr></thead>
+            <thead><tr><th>#</th><th>Waiter</th><th>Table</th><th>Status</th></tr></thead>
             <tbody>
             {% for order in recent_orders %}
             <tr>
-                <td style="font-weight:600;">#{{ order.pk }}</td>
+                <td style="font-weight:600;">{{ order.order_number }}</td>
                 <td>{{ order.waiter.username|default:"—" }}</td>
                 <td>{% if order.table %}S{{ order.table.number }}{% else %}—{% endif %}</td>
                 <td>
@@ -137,7 +137,7 @@
                 {% for shift in active_shifts %}
                 <tr>
                     <td style="font-weight:600;">{{ shift.waiter.username }}</td>
-                    <td style="color:var(--adm-muted);font-size:12px;">{{ shift.start_time|date:"M d, H:i" }}</td>
+                    <td style="color:var(--adm-muted);font-size:12px;">{{ shift.started_at|date:"H:i" }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -155,7 +155,7 @@
     <a href="{% url 'admin-staff-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-user-plus"></i> Add Staff</a>
     <a href="{% url 'admin-menu-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-plus"></i> Add Menu Item</a>
     <a href="{% url 'admin-inventory-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-box"></i> Add Inventory</a>
-    <a href="{% url 'admin-table-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-chair"></i> Add Space</a>
+    <a href="{% url 'admin-table-create' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-chair"></i> Add Table</a>
     {% endif %}
     <a href="{% url 'admin-order-list' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-receipt"></i> View Orders</a>
     <a href="{% url 'admin-shift-list' %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-clock"></i> View Shifts</a>

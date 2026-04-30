@@ -12,6 +12,7 @@
     <div class="adm-card">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
+            {% include "administration/_branch_field.html" %}
             {% for field in form %}
             <div class="adm-form-group">
                 <label class="adm-form-label">{{ field.label }}</label>

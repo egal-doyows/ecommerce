@@ -1,0 +1,11 @@
+{% if is_overall_manager %}
+<div class="adm-form-group">
+    <label class="adm-form-label"><i class="fa-solid fa-building" style="margin-right:4px;"></i> Branch</label>
+    <select name="target_branch" class="adm-input" required>
+        {% for b in user_branches %}
+        <option value="{{ b.pk }}" {% if b.pk == current_branch.pk %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+    </select>
+    <div class="adm-help-text">This record will be created under the selected branch.</div>
+</div>
+{% endif %}

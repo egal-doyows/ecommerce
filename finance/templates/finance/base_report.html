@@ -1,0 +1,92 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    .fin-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .fin-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+    .fin-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+    .fin-grid-5 { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+    .fin-section { margin-bottom:22px; }
+    .fin-title {
+        font-size:15px; font-weight:700; margin:0 0 14px;
+        display:flex; align-items:center; gap:8px;
+    }
+    .fin-title i { font-size:14px; }
+    .fin-pills { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .fin-nav { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; }
+    .fin-nav a {
+        padding:6px 14px; border-radius:6px; font-size:12px; font-weight:600;
+        text-decoration:none; color:var(--adm-text); background:var(--adm-card);
+        border:1px solid var(--adm-border); transition:all .2s;
+    }
+    .fin-nav a:hover { border-color:var(--adm-accent); color:var(--adm-accent); }
+    .fin-nav a.active { background:var(--adm-accent); color:#fff; border-color:var(--adm-accent); }
+    .fin-pos { color:var(--adm-success); }
+    .fin-neg { color:var(--adm-danger); }
+    .fin-bar-track { height:8px; border-radius:4px; background:var(--adm-bg); overflow:hidden; margin-top:4px; }
+    .fin-bar-fill { height:100%; border-radius:4px; transition:width .3s; }
+    .fin-aging-table td:first-child { font-weight:600; }
+
+    @media (max-width:768px) {
+        .fin-grid-2, .fin-grid-3, .fin-grid-4, .fin-grid-5 { grid-template-columns:1fr; }
+    }
+</style>
+
+<!-- Report Navigation -->
+<div class="fin-nav">
+    <a href="{% url 'finance-dashboard' %}{% if date_from %}?date_from={{ date_from }}&date_to={{ date_to }}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-dashboard' %}active{% endif %}">
+        <i class="fa-solid fa-chart-line"></i> Overview
+    </a>
+    <a href="{% url 'finance-profit-loss' %}{% if date_from %}?date_from={{ date_from }}&date_to={{ date_to }}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-profit-loss' %}active{% endif %}">
+        <i class="fa-solid fa-scale-balanced"></i> Profit &amp; Loss
+    </a>
+    <a href="{% url 'finance-cash-flow' %}{% if date_from %}?date_from={{ date_from }}&date_to={{ date_to }}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-cash-flow' %}active{% endif %}">
+        <i class="fa-solid fa-money-bill-transfer"></i> Cash Flow
+    </a>
+    <a href="{% url 'finance-expense-report' %}{% if date_from %}?date_from={{ date_from }}&date_to={{ date_to }}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-expense-report' %}active{% endif %}">
+        <i class="fa-solid fa-file-invoice-dollar"></i> Expenses
+    </a>
+    <a href="{% url 'finance-wastage-report' %}{% if date_from %}?date_from={{ date_from }}&date_to={{ date_to }}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-wastage-report' %}active{% endif %}">
+        <i class="fa-solid fa-trash-can"></i> Wastage
+    </a>
+    <a href="{% url 'finance-payroll-report' %}{% if date_from %}?date_from={{ date_from }}&date_to={{ date_to }}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-payroll-report' %}active{% endif %}">
+        <i class="fa-solid fa-users"></i> Payroll
+    </a>
+    <a href="{% url 'finance-receivables' %}{% if branch_filter %}?branch={{ branch_filter }}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-receivables' %}active{% endif %}">
+        <i class="fa-solid fa-hand-holding-dollar"></i> Receivables
+    </a>
+    <a href="{% url 'finance-payables' %}{% if branch_filter %}?branch={{ branch_filter }}{% endif %}"
+       class="{% if request.resolver_match.url_name == 'finance-payables' %}active{% endif %}">
+        <i class="fa-solid fa-file-invoice"></i> Payables
+    </a>
+</div>
+
+<!-- Date & Branch Filters -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        {% if is_overall %}
+        <select name="branch" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Branches (Combined)</option>
+            {% for b in branches %}
+            <option value="{{ b.pk }}" {% if branch_filter == b.pk|stringformat:"d" %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+        <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+        <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Apply</button>
+    </form>
+</div>
+
+{% block report_content %}{% endblock %}
+{% endblock %}

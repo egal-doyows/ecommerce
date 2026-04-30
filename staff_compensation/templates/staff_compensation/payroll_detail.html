@@ -1,0 +1,122 @@
+{% extends base_template|default:"administration/base.html" %}
+{% load humanize %}
+{% block title %}{{ payroll.month_label }} Payroll{% endblock %}
+
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:24px auto;padding:0 20px;">
+
+<div class="adm-page-header">
+    <div>
+        <h1>{{ payroll.month_label }} Payroll</h1>
+        <div class="breadcrumb-text">
+            {{ payroll.branch.name|default:"All Branches" }} · {{ payroll.employee_count }} employee{{ payroll.employee_count|pluralize }}
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        {% if is_manager %}
+        <a href="{% url 'payroll-pdf' payroll.pk %}" class="adm-btn adm-btn-primary adm-btn-sm">
+            <i class="fa-solid fa-file-pdf"></i> Download Full Payroll
+        </a>
+        {% endif %}
+        <a href="{% url 'payroll-list' %}" class="adm-btn adm-btn-outline adm-btn-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<!-- Summary cards -->
+{% if is_manager %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px;">
+    <div class="adm-card" style="padding:16px 20px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--adm-muted);font-weight:700;">Employees</div>
+        <div style="font-size:22px;font-weight:800;color:var(--adm-text);margin-top:4px;">{{ payroll.employee_count }}</div>
+    </div>
+    <div class="adm-card" style="padding:16px 20px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--adm-muted);font-weight:700;">Total Gross</div>
+        <div style="font-size:22px;font-weight:800;color:var(--adm-text);margin-top:4px;">{{ currency }} {{ payroll.total_gross|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="adm-card" style="padding:16px 20px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--adm-danger,#dc2626);font-weight:700;">Advance Deductions</div>
+        <div style="font-size:22px;font-weight:800;color:var(--adm-danger,#dc2626);margin-top:4px;">{{ currency }} {{ payroll.total_advances|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="adm-card" style="padding:16px 20px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--adm-success,#16a34a);font-weight:700;">Total Net Pay</div>
+        <div style="font-size:22px;font-weight:800;color:var(--adm-success,#16a34a);margin-top:4px;">{{ currency }} {{ payroll.total_net|floatformat:2|intcomma }}</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Employee lines table -->
+<div class="adm-card" style="padding:0;">
+    <div style="overflow-x:auto;">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Employee</th>
+                    {% if is_manager %}<th>Branch</th>{% endif %}
+                    <th style="text-align:right;">Basic Salary</th>
+                    <th style="text-align:right;">Commission</th>
+                    <th style="text-align:right;">Gross Pay</th>
+                    <th style="text-align:right;">Advances</th>
+                    <th style="text-align:right;">Net Pay</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in lines %}
+                <tr>
+                    <td style="color:var(--adm-muted);font-size:12px;">{{ forloop.counter }}</td>
+                    <td style="font-weight:600;">{{ line.employee.get_full_name|default:line.employee.username|capfirst }}</td>
+                    {% if is_manager %}<td style="font-size:12px;color:var(--adm-muted);">{{ line.branch.name|default:"—" }}</td>{% endif %}
+                    <td style="text-align:right;">{{ currency }} {{ line.basic_salary|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;">
+                        {% if line.commission > 0 %}
+                        {{ currency }} {{ line.commission|floatformat:2|intcomma }}
+                        {% else %}
+                        <span style="color:var(--adm-muted);">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right;font-weight:600;">{{ currency }} {{ line.gross_pay|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;{% if line.advance_deductions > 0 %}color:var(--adm-danger);font-weight:600;{% else %}color:var(--adm-muted);{% endif %}">
+                        {% if line.advance_deductions > 0 %}
+                        -{{ currency }} {{ line.advance_deductions|floatformat:2|intcomma }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="text-align:right;font-weight:800;font-size:14px;">{{ currency }} {{ line.net_pay|floatformat:2|intcomma }}</td>
+                    <td>
+                        <a href="{% url 'payslip-pdf' line.pk %}" class="adm-btn adm-btn-sm adm-btn-outline" style="padding:4px 10px;" title="Download Payslip">
+                            <i class="fa-solid fa-file-pdf" style="font-size:10px;"></i> Payslip
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background:var(--adm-bg,#f9fafb);font-weight:700;">
+                    <td colspan="{% if is_manager %}3{% else %}2{% endif %}">Totals ({{ payroll.employee_count }} employees)</td>
+                    <td style="text-align:right;">{{ currency }} {{ payroll.total_basic|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;">{{ currency }} {{ payroll.total_commission|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;">{{ currency }} {{ payroll.total_gross|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;color:var(--adm-danger,#dc2626);">
+                        {% if payroll.total_advances > 0 %}-{{ currency }} {{ payroll.total_advances|floatformat:2|intcomma }}{% else %}—{% endif %}
+                    </td>
+                    <td style="text-align:right;font-size:14px;">{{ currency }} {{ payroll.total_net|floatformat:2|intcomma }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- Meta info -->
+<div style="margin-top:16px;font-size:12px;color:var(--adm-muted);">
+    Generated on {{ payroll.generated_at|date:"d M Y, H:i" }}
+    {% if payroll.generated_by %} by {{ payroll.generated_by.get_full_name|default:payroll.generated_by.username|capfirst }}{% endif %}
+    · Ref: PR-{{ payroll.pk|stringformat:"04d" }}
+</div>
+
+</div>
+{% endblock %}

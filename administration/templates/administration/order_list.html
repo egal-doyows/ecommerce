@@ -27,12 +27,12 @@
     {% if orders %}
     <table class="adm-table">
         <thead>
-            <tr><th>Order #</th><th>Served By</th><th>Space</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th></tr>
+            <tr><th>Order #</th><th>Served By</th><th>Table</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th></tr>
         </thead>
         <tbody>
         {% for order in orders %}
         <tr>
-            <td style="font-weight:600;">#{{ order.pk }}</td>
+            <td style="font-weight:600;">{{ order.order_number }}</td>
             <td>{{ order.waiter.username|default:"—" }}</td>
             <td>{% if order.table %}S{{ order.table.number }}{% else %}—{% endif %}</td>
             <td>{{ order.items.count }}</td>

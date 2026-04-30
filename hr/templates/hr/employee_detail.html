@@ -34,6 +34,7 @@
         <div style="font-size:20px;font-weight:800;">{{ emp.full_name }}</div>
         <div style="font-size:13px;color:var(--adm-muted);margin-top:2px;">
             {{ emp.position.title|default:"No position" }} {% if emp.department %}in {{ emp.department.name }}{% endif %}
+            {% if emp.branch %}<span style="margin-left:4px;color:var(--adm-muted);">@ {{ emp.branch.name }}</span>{% endif %}
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
             <span class="adm-badge adm-badge-info">{{ emp.employee_id }}</span>
@@ -165,6 +166,10 @@
             <div>
                 <span style="color:var(--adm-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Username</span>
                 <div style="margin-top:2px;">{{ emp.user.username }}</div>
+            </div>
+            <div>
+                <span style="color:var(--adm-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Branch</span>
+                <div style="margin-top:2px;">{{ emp.branch.name|default:"—" }}</div>
             </div>
             <div>
                 <span style="color:var(--adm-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Department</span>
@@ -453,11 +458,21 @@
         <div style="padding:10px 14px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.12);border-radius:8px;margin-bottom:16px;font-size:12px;">
             <strong>{{ emp.full_name }}</strong>
             <span style="color:var(--adm-muted);margin:0 4px;">|</span>
-            Current: <strong>{{ emp.department.name|default:"No department" }}</strong>
+            Current: <strong>{{ emp.branch.name|default:"No branch" }}</strong> /
+            <strong>{{ emp.department.name|default:"No department" }}</strong>
             {% if emp.position %} — {{ emp.position.title }}{% endif %}
         </div>
         <form method="POST" action="{% url 'hr-employee-transfer' emp.pk %}">
             {% csrf_token %}
+            <div class="adm-form-group">
+                <label class="adm-form-label">Branch</label>
+                <select name="branch" class="adm-input">
+                    <option value="">— No branch —</option>
+                    {% for b in branches %}
+                    <option value="{{ b.pk }}" {% if emp.branch_id == b.pk %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="adm-form-group">
                 <label class="adm-form-label">New Department</label>
                 <select name="department" class="adm-input">

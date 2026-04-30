@@ -2,6 +2,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from core.models import validate_file_size, validate_file_extension
+
 
 # ---------------------------------------------------------------------------
 # Department
@@ -85,6 +87,7 @@ class Employee(models.Model):
         related_name='hr_profile',
     )
     employee_id = models.CharField(max_length=20, unique=True, blank=True)
+    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='employees')
     department = models.ForeignKey(
         Department, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='employees',
@@ -247,7 +250,10 @@ class Document(models.Model):
     )
     title = models.CharField(max_length=150)
     category = models.CharField(max_length=15, choices=CATEGORY_CHOICES, default='other')
-    file = models.FileField(upload_to='hr/documents/%Y/%m/')
+    file = models.FileField(
+        upload_to='hr/documents/%Y/%m/',
+        validators=[validate_file_size, validate_file_extension],
+    )
     notes = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -260,3 +266,52 @@ class Document(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# ---------------------------------------------------------------------------
+# Transfer Request
+# ---------------------------------------------------------------------------
+
+class TransferRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name='transfer_requests',
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, related_name='initiated_transfers',
+    )
+    from_branch = models.ForeignKey(
+        'branches.Branch', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='transfers_out',
+    )
+    to_branch = models.ForeignKey(
+        'branches.Branch', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='transfers_in',
+    )
+    new_department = models.ForeignKey(
+        Department, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    new_position = models.ForeignKey(
+        Position, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    note = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='reviewed_transfers',
+    )
+    review_note = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.employee.full_name}: {self.from_branch} → {self.to_branch} ({self.status})'

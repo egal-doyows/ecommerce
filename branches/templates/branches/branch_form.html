@@ -1,0 +1,156 @@
+{% extends "administration/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'branch-list' %}" style="color:var(--adm-accent);text-decoration:none;">Branches</a> / {{ title }}
+        </div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:{% if assigned_staff %}1fr 1fr{% else %}1fr{% endif %};gap:20px;">
+    <form method="POST" style="max-width:550px;">
+        {% csrf_token %}
+        <div class="adm-card" style="margin-bottom:20px;">
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+                <div class="adm-form-group" style="flex:2;min-width:200px;margin-bottom:0;">
+                    <label class="adm-form-label">Location Name <span style="color:var(--adm-danger);">*</span></label>
+                    <input type="text" name="name" class="adm-input" required
+                           value="{% if branch %}{{ branch.name }}{% endif %}" placeholder="e.g. Karen, Lavington, Westlands">
+                    <div class="adm-help-text">Will display as "{{ restaurant.name }} - Location Name"</div>
+                </div>
+                <div class="adm-form-group" style="flex:1;min-width:120px;margin-bottom:0;">
+                    <label class="adm-form-label">Code <span style="color:var(--adm-danger);">*</span></label>
+                    <input type="text" name="code" class="adm-input" required
+                           value="{% if branch %}{{ branch.code }}{% endif %}" placeholder="e.g. downtown">
+                </div>
+            </div>
+            <div class="adm-form-group">
+                <label class="adm-form-label">Address</label>
+                <textarea name="address" class="adm-input" rows="2">{% if branch %}{{ branch.address }}{% endif %}</textarea>
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+                <div class="adm-form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+                    <label class="adm-form-label">Phone</label>
+                    <input type="text" name="phone" class="adm-input"
+                           value="{% if branch %}{{ branch.phone }}{% endif %}">
+                </div>
+                <div class="adm-form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+                    <label class="adm-form-label">Email</label>
+                    <input type="email" name="email" class="adm-input"
+                           value="{% if branch %}{{ branch.email }}{% endif %}">
+                </div>
+            </div>
+            <div class="adm-form-group">
+                <label class="adm-form-label">Branch Manager</label>
+                <select name="manager" class="adm-input">
+                    <option value="">— None —</option>
+                    {% for m in managers %}
+                    <option value="{{ m.pk }}" {% if branch and branch.manager_id == m.pk %}selected{% endif %}>
+                        {{ m.get_full_name|default:m.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if branch %}
+            <div class="adm-form-group" style="margin-bottom:0;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                    <input type="checkbox" name="is_active" {% if branch.is_active %}checked{% endif %}>
+                    Active
+                </label>
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button type="submit" class="adm-btn adm-btn-primary">
+                <i class="fa-solid fa-check"></i> {{ action }}
+            </button>
+            <a href="{% url 'branch-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+        </div>
+    </form>
+
+    {% if assigned_staff %}
+    <div>
+        <!-- Assigned Staff -->
+        <div class="adm-card" style="padding:0;margin-bottom:20px;">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--adm-border);display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="font-size:15px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-users" style="color:var(--adm-accent);font-size:13px;"></i> Assigned Staff
+                </h3>
+                <button type="button" onclick="document.getElementById('assignModal').style.display='flex'" class="adm-btn adm-btn-sm adm-btn-primary">
+                    <i class="fa-solid fa-plus" style="font-size:10px;"></i> Assign
+                </button>
+            </div>
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th>Staff</th>
+                        <th>Primary</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ub in assigned_staff %}
+                    <tr>
+                        <td style="font-weight:600;">{{ ub.user.get_full_name|default:ub.user.username }}</td>
+                        <td>
+                            {% if ub.is_primary %}
+                            <span class="adm-badge adm-badge-success">Primary</span>
+                            {% else %}
+                            <span class="adm-badge adm-badge-muted">Secondary</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:right;">
+                            <form method="POST" action="{% url 'branch-remove-staff' branch.pk ub.user.pk %}" style="display:inline;"
+                                  onsubmit="return confirm('Remove {{ ub.user.username }} from this branch?');">
+                                {% csrf_token %}
+                                <button type="submit" class="adm-btn-icon" style="color:var(--adm-danger);border-color:var(--adm-danger);" title="Remove">
+                                    <i class="fa-solid fa-xmark" style="font-size:11px;"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Assign Staff Modal -->
+        <div id="assignModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+            <div class="adm-card" style="max-width:400px;width:90%;margin:0;">
+                <h3 style="font-size:16px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+                    <i class="fa-solid fa-user-plus" style="color:var(--adm-accent);"></i> Assign Staff
+                </h3>
+                <form method="POST" action="{% url 'branch-assign-staff' branch.pk %}">
+                    {% csrf_token %}
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Staff Member</label>
+                        <select name="user" class="adm-input" required>
+                            <option value="">— Select —</option>
+                            {% for m in managers %}
+                            <option value="{{ m.pk }}">{{ m.get_full_name|default:m.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="adm-form-group">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                            <input type="checkbox" name="is_primary">
+                            Set as primary branch
+                        </label>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;">
+                        <button type="button" onclick="document.getElementById('assignModal').style.display='none'" class="adm-btn adm-btn-outline adm-btn-sm">Cancel</button>
+                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm">Assign</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

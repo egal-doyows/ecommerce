@@ -1,0 +1,63 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+
+{% block title %}Stock Adjustments{% endblock %}
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:24px auto;padding:0 20px;">
+<div class="adm-page-header">
+    <div>
+        <h1>Stock Adjustments</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'stock-movement-list' %}" style="color:var(--adm-accent);text-decoration:none;">Stock</a> / Adjustments
+        </div>
+    </div>
+    {% if is_owner %}
+    <a href="{% url 'stock-adjustment-create' %}" class="adm-btn adm-btn-primary">
+        <i class="fa-solid fa-plus"></i> New Adjustment
+    </a>
+    {% endif %}
+</div>
+
+{% if adjustments %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Reason</th>
+                <th>Items</th>
+                <th>By</th>
+                <th>Notes</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for adj in adjustments %}
+            <tr>
+                <td style="font-weight:700;">{{ adj.pk }}</td>
+                <td style="font-size:12px;white-space:nowrap;">{{ adj.created_at|date:"d M Y H:i" }}</td>
+                <td>
+                    <span class="adm-badge adm-badge-info">{{ adj.get_reason_display }}</span>
+                </td>
+                <td>{{ adj.lines.count }} item{{ adj.lines.count|pluralize }}</td>
+                <td style="font-size:12px;">{{ adj.created_by.username|capfirst }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ adj.notes|default:"—" }}</td>
+                <td>
+                    <a href="{% url 'stock-adjustment-detail' adj.pk %}" class="adm-btn-icon" title="View"><i class="fa-solid fa-eye"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-sliders"></i>
+    <p>No adjustments yet.</p>
+</div>
+{% endif %}
+</div>
+{% endblock %}

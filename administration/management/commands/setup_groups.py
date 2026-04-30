@@ -1,12 +1,14 @@
 """
 Create staff groups with standard permissions.
 
-Manager       — Full CRUD on everything. Auto-shift (no starting cash).
-Supervisor    — Day-to-day ops, orders, shifts, stock. Auto-shift (no starting cash).
-Front Service — Waiters: take orders, manage own shifts, view menu/tables.
-Cashier       — Handle payments, manage cash drawer (starting cash required).
-Attendant     — Cannot login. Earns commission when assigned to orders by Supervisors.
-Marketing     — Creates orders on behalf of attendants. Earns commission on orders they create.
+Admin           — Full access to everything (like superuser) but cannot access Django admin portal.
+Branch Manager  — Full CRUD on everything within their branch. Auto-shift (no starting cash).
+Overall Manager — Same permissions as Branch Manager, plus cross-branch analytics access.
+Supervisor      — Day-to-day ops, orders, shifts, stock. Auto-shift (no starting cash).
+Front Service   — Waiters: take orders, manage own shifts, view menu/tables.
+Cashier         — Handle payments, manage cash drawer (starting cash required).
+Attendant       — Cannot login. Earns commission when assigned to orders by Supervisors.
+Marketing       — Creates orders on behalf of attendants. Earns commission on orders they create.
 
 Run:  python manage.py setup_groups
 """
@@ -106,18 +108,31 @@ MARKETING_PERMS = [
     ('menu', 'inventoryitem',   ['view']),
 ]
 
+DISPLAY_PERMS = [
+    # Orders & items — view and update preparation status
+    ('menu', 'order',           ['view']),
+    ('menu', 'orderitem',       ['change', 'view']),
+    ('menu', 'stationrequest',  ['add', 'view']),
+    # Menu — read only (to see item names)
+    ('menu', 'menuitem',        ['view']),
+    ('menu', 'category',        ['view']),
+]
+
 GROUPS = [
-    ('Manager',       MANAGER_PERMS),
-    ('Supervisor',    SUPERVISOR_PERMS),
-    ('Front Service', FRONT_SERVICE_PERMS),
-    ('Cashier',       CASHIER_PERMS),
-    ('Attendant',     ATTENDANT_PERMS),
-    ('Marketing',     MARKETING_PERMS),
+    ('Owner',           'all'),  # gets ALL permissions
+    ('Branch Manager',  MANAGER_PERMS),
+    ('Overall Manager', MANAGER_PERMS),
+    ('Supervisor',      SUPERVISOR_PERMS),
+    ('Front Service',   FRONT_SERVICE_PERMS),
+    ('Cashier',         CASHIER_PERMS),
+    ('Attendant',       ATTENDANT_PERMS),
+    ('Marketing',       MARKETING_PERMS),
+    ('Display',         DISPLAY_PERMS),
 ]
 
 
 class Command(BaseCommand):
-    help = 'Create Manager, Supervisor, Front Service, Cashier, Attendant, and Marketing groups'
+    help = 'Create Admin, Branch Manager, Overall Manager, Supervisor, Front Service, Cashier, Attendant, Marketing, and Display groups'
 
     def _resolve_perms(self, perm_map):
         perm_objects = []
@@ -137,11 +152,17 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         for group_name, perm_map in GROUPS:
             group, created = Group.objects.get_or_create(name=group_name)
-            perms = self._resolve_perms(perm_map)
-            group.permissions.set(perms)
+            if perm_map == 'all':
+                perms = Permission.objects.all()
+                group.permissions.set(perms)
+                perm_count = perms.count()
+            else:
+                perms = self._resolve_perms(perm_map)
+                group.permissions.set(perms)
+                perm_count = len(perms)
             status = 'Created' if created else 'Updated'
             self.stdout.write(self.style.SUCCESS(
-                f'{status} "{group_name}" — {len(perms)} permissions'
+                f'{status} "{group_name}" — {perm_count} permissions'
             ))
 
         self.stdout.write('')

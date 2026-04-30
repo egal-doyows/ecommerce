@@ -68,9 +68,20 @@
         </button>
     </div>
     {% elif is_manager and expense.recorded_by == request.user %}
-    <div style="font-size:12px;color:var(--adm-muted);font-style:italic;">
-        <i class="fa-solid fa-info-circle" style="margin-right:4px;"></i> Awaiting approval from another manager
+    <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-size:12px;color:var(--adm-muted);font-style:italic;">
+            <i class="fa-solid fa-info-circle" style="margin-right:4px;"></i> Awaiting approval from another manager
+        </div>
+        <form method="POST" action="{% url 'expense-cancel' expense.pk %}" style="display:inline;" onsubmit="return confirm('Cancel this expense request?');">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn adm-btn-sm adm-btn-outline" style="padding:6px 16px;">Cancel Request</button>
+        </form>
     </div>
+    {% elif expense.recorded_by == request.user %}
+    <form method="POST" action="{% url 'expense-cancel' expense.pk %}" style="display:inline;" onsubmit="return confirm('Cancel this expense request?');">
+        {% csrf_token %}
+        <button type="submit" class="adm-btn adm-btn-sm adm-btn-outline" style="padding:6px 16px;">Cancel Request</button>
+    </form>
     {% endif %}
 </div>
 {% elif expense.status == 'rejected' %}

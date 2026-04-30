@@ -90,7 +90,7 @@
 </form>
 
 <script>
-    const currencySymbol = '{{ currency_symbol }}';
+    const currencySymbol = '{{ currency_symbol|escapejs }}';
     const inputs = document.querySelectorAll('.received-input');
 
     function updateTotals() {

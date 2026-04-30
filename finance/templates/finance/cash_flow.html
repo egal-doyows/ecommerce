@@ -1,0 +1,157 @@
+{% extends "finance/base_report.html" %}
+{% load humanize %}
+
+{% block title %}Cash Flow{% endblock %}
+
+{% block report_content %}
+<div class="adm-page-header" style="margin-bottom:20px;">
+    <div>
+        <h1>Cash Flow Report</h1>
+        <div class="breadcrumb-text">
+            {% if selected_branch %}{{ selected_branch.name }}{% elif is_overall %}All Branches (Combined){% endif %}
+            &mdash; {{ d_from|date:"d M Y" }} to {{ d_to|date:"d M Y" }}
+        </div>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="fin-grid-3 fin-section">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);"><i class="fa-solid fa-arrow-down"></i></div>
+        <div>
+            <div class="adm-stat-value">{{ currency_symbol }} {{ total_inflow|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Inflow</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(220,53,69,.1);color:var(--adm-danger);"><i class="fa-solid fa-arrow-up"></i></div>
+        <div>
+            <div class="adm-stat-value">{{ currency_symbol }} {{ total_outflow|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Outflow</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);"><i class="fa-solid fa-money-bill-transfer"></i></div>
+        <div>
+            <div class="adm-stat-value {% if net_flow >= 0 %}fin-pos{% else %}fin-neg{% endif %}">{{ currency_symbol }} {{ net_flow|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Net Cash Flow</div>
+        </div>
+    </div>
+</div>
+
+<!-- Tax collected notice -->
+{% if total_tax_collected %}
+<div class="adm-card fin-section" style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:8px;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;">
+            <i class="fa-solid fa-percent" style="color:#6366f1;font-size:14px;"></i>
+        </div>
+        <div>
+            <div style="font-weight:700;font-size:15px;">{{ tax_config.tax_name }} Included in Sales Inflows</div>
+            <div style="font-size:12px;color:var(--adm-muted);">{{ tax_config.tax_rate }}% {{ tax_config.get_tax_type_display }} &mdash; this amount is a liability, not revenue</div>
+        </div>
+    </div>
+    <div style="font-weight:800;font-size:18px;color:#6366f1;">{{ currency_symbol }} {{ total_tax_collected|floatformat:2|intcomma }}</div>
+</div>
+{% endif %}
+
+<!-- Account flows -->
+<div class="fin-section">
+    <div class="fin-title"><i class="fa-solid fa-building-columns" style="color:var(--adm-accent);"></i> Cash Flow by Account</div>
+    <div class="adm-card" style="padding:0;overflow-x:auto;">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Account</th>
+                    <th style="text-align:right;">Inflow</th>
+                    <th style="text-align:right;">Outflow</th>
+                    <th style="text-align:right;">Net</th>
+                    <th style="text-align:right;">Current Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for acc in account_flows %}
+                <tr>
+                    <td style="font-weight:700;">{{ acc.name }} <span style="font-size:11px;color:var(--adm-muted);">({{ acc.type }})</span></td>
+                    <td style="text-align:right;color:var(--adm-success);">{{ currency_symbol }} {{ acc.inflow|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;color:var(--adm-danger);">{{ currency_symbol }} {{ acc.outflow|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;font-weight:700;{% if acc.net >= 0 %}color:var(--adm-success);{% else %}color:var(--adm-danger);{% endif %}">{{ currency_symbol }} {{ acc.net|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ acc.balance|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align:center;color:var(--adm-muted);">No account data</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Inflow / Outflow sources -->
+<div class="fin-grid-2 fin-section">
+    <div>
+        <div class="fin-title"><i class="fa-solid fa-arrow-right-to-bracket" style="color:var(--adm-success);"></i> Inflow Sources</div>
+        <div class="adm-card" style="padding:0;">
+            <table class="adm-table">
+                <tbody>
+                    {% for name, amount in inflow_sources %}
+                    <tr>
+                        <td>{{ name }}</td>
+                        <td style="text-align:right;font-weight:700;color:var(--adm-success);">{{ currency_symbol }} {{ amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td style="text-align:center;color:var(--adm-muted);">No inflows recorded</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div>
+        <div class="fin-title"><i class="fa-solid fa-arrow-right-from-bracket" style="color:var(--adm-danger);"></i> Outflow Sources</div>
+        <div class="adm-card" style="padding:0;">
+            <table class="adm-table">
+                <tbody>
+                    {% for name, amount in outflow_sources %}
+                    <tr>
+                        <td>{{ name }}</td>
+                        <td style="text-align:right;font-weight:700;color:var(--adm-danger);">{{ currency_symbol }} {{ amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td style="text-align:center;color:var(--adm-muted);">No outflows recorded</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Daily trend -->
+{% if daily_flow %}
+<div class="fin-section">
+    <div class="fin-title"><i class="fa-solid fa-chart-line" style="color:var(--adm-accent);"></i> Daily Cash Flow</div>
+    <div class="adm-card" style="padding:0;overflow-x:auto;">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th style="text-align:right;">Inflow</th>
+                    <th style="text-align:right;">Outflow</th>
+                    <th style="text-align:right;">Net</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for day in daily_flow %}
+                {% if day.inflow or day.outflow %}
+                <tr>
+                    <td style="font-weight:600;">{{ day.label }}</td>
+                    <td style="text-align:right;color:var(--adm-success);">{{ currency_symbol }} {{ day.inflow|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;color:var(--adm-danger);">{{ currency_symbol }} {{ day.outflow|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;font-weight:700;{% if day.net >= 0 %}color:var(--adm-success);{% else %}color:var(--adm-danger);{% endif %}">{{ currency_symbol }} {{ day.net|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -210,14 +210,27 @@
     <!-- Compensation Banner -->
     <div class="sc-comp-banner {{ compensation.compensation_type }}">
         <div class="sc-comp-icon">
-            {% if compensation.compensation_type == 'commission' %}
+            {% if compensation.earns_commission %}
             <i class="fa-solid fa-percent"></i>
             {% else %}
             <i class="fa-solid fa-money-bill-wave"></i>
             {% endif %}
         </div>
         <div class="sc-comp-info">
-            {% if compensation.compensation_type == 'commission' %}
+            {% if compensation.compensation_type == 'both' %}
+            <h4>Salary + Commission — {{ compensation.get_commission_scope_display }}</h4>
+            <p>
+                {{ restaurant.currency_symbol }} {{ compensation.salary_amount|floatformat:2|intcomma }} / {{ compensation.get_payment_frequency_display|lower }}
+                +
+                {% if compensation.commission_scope == 'regular' %}
+                    {{ compensation.commission_rate_regular }}% on regular items
+                {% elif compensation.commission_scope == 'premium' %}
+                    {{ compensation.commission_rate_premium }}% on premium items
+                {% else %}
+                    {{ compensation.commission_rate_regular }}% regular / {{ compensation.commission_rate_premium }}% premium
+                {% endif %}
+            </p>
+            {% elif compensation.earns_commission %}
             <h4>Commission-Based — {{ compensation.get_commission_scope_display }}</h4>
             <p>
                 {% if compensation.commission_scope == 'regular' %}
@@ -250,7 +263,7 @@
             <div class="sc-stat-label">Orders Closed</div>
             <div class="sc-stat-value">{{ current_month_orders }}</div>
         </div>
-        {% if compensation.compensation_type == 'commission' %}
+        {% if compensation.earns_commission %}
         <div class="sc-stat-card">
             <div class="sc-stat-label">Eligible Sales</div>
             <div class="sc-stat-value">{{ restaurant.currency_symbol }} {{ current_month_eligible_sales|floatformat:2|intcomma }}</div>
@@ -259,7 +272,8 @@
             <div class="sc-stat-label">Commission Earned</div>
             <div class="sc-stat-value green">{{ restaurant.currency_symbol }} {{ current_month_commission|floatformat:2|intcomma }}</div>
         </div>
-        {% else %}
+        {% endif %}
+        {% if compensation.earns_salary %}
         <div class="sc-stat-card">
             <div class="sc-stat-label">{{ compensation.get_payment_frequency_display }} Salary</div>
             <div class="sc-stat-value green">{{ restaurant.currency_symbol }} {{ compensation.salary_amount|floatformat:2|intcomma }}</div>
@@ -291,7 +305,7 @@
         </div>
         {% endfor %}
     </div>
-    {% elif compensation and compensation.compensation_type == 'commission' %}
+    {% elif compensation and compensation.earns_commission %}
     <h3 class="sc-section-title"><i class="fa-solid fa-calendar-days"></i> Daily Commission Breakdown</h3>
     <div class="sc-history">
         <div class="sc-empty-history">No commission data yet. Daily records will appear here as orders are completed.</div>

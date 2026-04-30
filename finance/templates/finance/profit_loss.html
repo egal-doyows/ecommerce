@@ -1,0 +1,127 @@
+{% extends "finance/base_report.html" %}
+{% load humanize %}
+
+{% block title %}Profit &amp; Loss{% endblock %}
+
+{% block report_content %}
+<div class="adm-page-header" style="margin-bottom:20px;">
+    <div>
+        <h1>Profit &amp; Loss Statement</h1>
+        <div class="breadcrumb-text">
+            {% if selected_branch %}{{ selected_branch.name }}{% elif is_overall %}All Branches (Combined){% endif %}
+            &mdash; {{ d_from|date:"d M Y" }} to {{ d_to|date:"d M Y" }}
+        </div>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="fin-grid-3 fin-section">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);"><i class="fa-solid fa-money-bill-trend-up"></i></div>
+        <div>
+            <div class="adm-stat-value">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Revenue</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);"><i class="fa-solid fa-percent"></i></div>
+        <div>
+            <div class="adm-stat-value">{{ gross_margin }}%</div>
+            <div class="adm-stat-label">Gross Margin</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:{% if net_profit >= 0 %}rgba(40,167,69,.1){% else %}rgba(220,53,69,.1){% endif %};color:{% if net_profit >= 0 %}var(--adm-success){% else %}var(--adm-danger){% endif %};">
+            <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value {% if net_profit >= 0 %}fin-pos{% else %}fin-neg{% endif %}">{{ currency_symbol }} {{ net_profit|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Net Profit ({{ net_margin }}% margin)</div>
+        </div>
+    </div>
+</div>
+
+<!-- P&L Statement -->
+<div class="adm-card fin-section" style="padding:0;">
+    <table class="adm-table">
+        <!-- REVENUE -->
+        <thead>
+            <tr style="background:rgba(40,167,69,.05);">
+                <th colspan="2" style="color:var(--adm-success);font-size:14px;"><i class="fa-solid fa-arrow-up" style="font-size:11px;margin-right:4px;"></i> REVENUE</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat_name, cat_total in revenue_by_category %}
+            <tr>
+                <td style="padding-left:30px;">{{ cat_name }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ cat_total|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+            {% if total_revenue_gross %}
+            <tr style="border-top:1px solid var(--adm-border);">
+                <td style="padding-left:30px;font-weight:600;">Gross Sales</td>
+                <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ total_revenue_gross|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endif %}
+            {% if total_tax_collected %}
+            <tr>
+                <td style="padding-left:30px;color:#6366f1;">Less: {{ tax_config.tax_name }} Collected ({{ tax_config.tax_rate }}%)</td>
+                <td style="text-align:right;color:#6366f1;">({{ currency_symbol }} {{ total_tax_collected|floatformat:2|intcomma }})</td>
+            </tr>
+            {% endif %}
+            <tr style="border-top:2px solid var(--adm-border);background:rgba(40,167,69,.03);">
+                <td style="font-weight:800;">Net Revenue</td>
+                <td style="text-align:right;font-weight:800;font-size:15px;color:var(--adm-success);">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</td>
+            </tr>
+        </tbody>
+
+        <!-- COGS -->
+        <thead>
+            <tr style="background:rgba(245,158,11,.05);">
+                <th colspan="2" style="color:var(--adm-warning);font-size:14px;"><i class="fa-solid fa-arrow-down" style="font-size:11px;margin-right:4px;"></i> COST OF GOODS (Wastage)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding-left:30px;">Inventory Wastage</td>
+                <td style="text-align:right;color:var(--adm-danger);">{{ currency_symbol }} {{ total_cogs|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr style="border-top:2px solid var(--adm-border);background:rgba(124,131,255,.03);">
+                <td style="font-weight:800;">Gross Profit</td>
+                <td style="text-align:right;font-weight:800;font-size:15px;{% if gross_profit >= 0 %}color:var(--adm-success);{% else %}color:var(--adm-danger);{% endif %}">{{ currency_symbol }} {{ gross_profit|floatformat:2|intcomma }}</td>
+            </tr>
+        </tbody>
+
+        <!-- OPERATING EXPENSES -->
+        <thead>
+            <tr style="background:rgba(220,53,69,.05);">
+                <th colspan="2" style="color:var(--adm-danger);font-size:14px;"><i class="fa-solid fa-arrow-down" style="font-size:11px;margin-right:4px;"></i> OPERATING EXPENSES</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat_name, cat_total in expense_categories %}
+            <tr>
+                <td style="padding-left:30px;">{{ cat_name }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ cat_total|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td style="padding-left:30px;">Staff Payroll</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ total_payroll|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr style="border-top:1px solid var(--adm-border);">
+                <td style="font-weight:700;padding-left:30px;">Total Operating Expenses</td>
+                <td style="text-align:right;font-weight:700;color:var(--adm-danger);">{{ currency_symbol }} {{ total_operating|floatformat:2|intcomma }}</td>
+            </tr>
+        </tbody>
+
+        <!-- NET -->
+        <tbody>
+            <tr style="border-top:3px double var(--adm-text);background:{% if net_profit >= 0 %}rgba(40,167,69,.05){% else %}rgba(220,53,69,.05){% endif %};">
+                <td style="font-weight:800;font-size:16px;">NET PROFIT</td>
+                <td style="text-align:right;font-weight:800;font-size:18px;{% if net_profit >= 0 %}color:var(--adm-success);{% else %}color:var(--adm-danger);{% endif %}">{{ currency_symbol }} {{ net_profit|floatformat:2|intcomma }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

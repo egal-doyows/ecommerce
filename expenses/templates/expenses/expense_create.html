@@ -16,6 +16,8 @@
 <form method="POST" style="max-width:700px;">
     {% csrf_token %}
 
+    {% include "administration/_branch_field.html" %}
+
     <div class="adm-card" style="margin-bottom:20px;">
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
             <div class="adm-form-group" style="flex:1;min-width:200px;">
@@ -101,7 +103,7 @@
 
 <script>
 (function(){
-    const balances = {{ account_balances_json|safe }};
+    const balances = JSON.parse('{{ account_balances_json|escapejs }}');
     const form = document.querySelector('form');
     form.addEventListener('submit', function(e){
         const method = form.querySelector('[name="payment_method"]').value;
@@ -111,7 +113,7 @@
             const methodLabel = form.querySelector('[name="payment_method"] option:checked').textContent;
             const fmtBal = bal.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
             const fmtAmt = amount.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
-            if (!confirm('Warning: The ' + methodLabel + ' account balance ({{ currency_symbol }} ' + fmtBal + ') is less than this expense ({{ currency_symbol }} ' + fmtAmt + '). Proceed anyway?')) {
+            if (!confirm('Warning: The ' + methodLabel + ' account balance ({{ currency_symbol|escapejs }} ' + fmtBal + ') is less than this expense ({{ currency_symbol|escapejs }} ' + fmtAmt + '). Proceed anyway?')) {
                 e.preventDefault();
             }
         }

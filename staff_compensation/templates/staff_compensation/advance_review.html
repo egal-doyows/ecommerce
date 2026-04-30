@@ -1,0 +1,77 @@
+{% extends base_template|default:"administration/base.html" %}
+{% load humanize %}
+{% block title %}Review Advance Request{% endblock %}
+
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:960px;margin:24px auto;padding:0 20px;">
+<div class="adm-page-header">
+    <div>
+        <h1>Review Advance Request</h1>
+        <div class="breadcrumb-text">Approve or reject this request</div>
+    </div>
+</div>
+
+<div style="max-width:540px;">
+    <!-- Request details -->
+    <div class="adm-card" style="margin-bottom:20px;">
+        <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;">Request Details</h3>
+        <table class="adm-table">
+            <tr>
+                <td style="font-weight:600;width:140px;">Employee</td>
+                <td>{{ advance.employee.username|capfirst }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600;">Requested By</td>
+                <td>
+                    {{ advance.requested_by.username|capfirst }}
+                    {% if advance.requested_by != advance.employee %}
+                    <span style="font-size:11px;color:var(--adm-muted);">(on behalf)</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td style="font-weight:600;">Amount</td>
+                <td style="font-weight:700;font-size:16px;color:var(--adm-accent);">{{ currency }} {{ advance.amount|floatformat:2|intcomma }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600;">Reason</td>
+                <td>{{ advance.reason }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight:600;">Submitted</td>
+                <td style="color:var(--adm-muted);">{{ advance.created_at|date:"d M Y, H:i" }}</td>
+            </tr>
+            {% if advance.branch %}
+            <tr>
+                <td style="font-weight:600;">Branch</td>
+                <td>{{ advance.branch.name }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <!-- Review form -->
+    <div class="adm-card">
+        <form method="post">
+            {% csrf_token %}
+            <div class="adm-form-group">
+                <label class="adm-form-label">Notes (optional)</label>
+                {{ form.review_notes }}
+            </div>
+            {{ form.action.as_hidden }}
+            <div style="display:flex;gap:10px;margin-top:24px;">
+                <button type="submit" name="action" value="approved" class="adm-btn adm-btn-primary" onclick="this.form.querySelector('[name=action]').value='approved'">
+                    <i class="fa-solid fa-check"></i> Approve
+                </button>
+                <button type="submit" name="action" value="rejected" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);" onclick="this.form.querySelector('[name=action]').value='rejected'">
+                    <i class="fa-solid fa-times"></i> Reject
+                </button>
+                <a href="{% url 'advance-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}

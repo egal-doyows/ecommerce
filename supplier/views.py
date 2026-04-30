@@ -1,40 +1,15 @@
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
 
+from core.permissions import (
+    manager_required,
+    full_access_required as superuser_only,
+)
 from .models import Supplier, SupplierTransaction, SupplierPaymentAllocation
 from .forms import SupplierForm, SupplierTransactionForm
-
-
-def _is_manager(user):
-    return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Manager').exists())
-
-
-def manager_required(view_func):
-    @login_required(login_url='my-login')
-    def wrapper(request, *args, **kwargs):
-        if not _is_manager(request.user):
-            messages.error(request, 'You do not have permission to access this page.')
-            return redirect('admin-dashboard')
-        return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
-    wrapper.__doc__ = view_func.__doc__
-    return wrapper
-
-
-def superuser_only(view_func):
-    @login_required(login_url='my-login')
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_superuser:
-            messages.error(request, 'Only the administrator can perform this action.')
-            return redirect('admin-dashboard')
-        return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
-    wrapper.__doc__ = view_func.__doc__
-    return wrapper
 
 
 # ── Supplier list ────────────────────────────────────────────────────
@@ -145,6 +120,8 @@ def make_payment(request, pk):
     unpaid_invoices = [inv for inv in all_invoices if inv.remaining > Decimal('0')]
 
     if request.method == 'POST':
+        from branches.utils import resolve_branch
+        target_branch = resolve_branch(request)
         payment_amount = request.POST.get('payment_amount', '0')
         payment_note = request.POST.get('payment_note', '').strip()
         try:
@@ -165,6 +142,7 @@ def make_payment(request, pk):
                 amount=payment_amount,
                 description=payment_note or f'Payment to {supplier.name}',
                 created_by=request.user,
+                branch=target_branch,
             )
 
             # Allocate payment against invoices (oldest first)
@@ -185,7 +163,7 @@ def make_payment(request, pk):
 
             # Debit the cash account
             from administration.models import Account, Transaction as AcctTransaction
-            cash_account = Account.get_by_type('cash')
+            cash_account = Account.get_by_type('cash', branch=target_branch)
             AcctTransaction.objects.create(
                 account=cash_account,
                 transaction_type='debit',
@@ -194,6 +172,7 @@ def make_payment(request, pk):
                 reference_type='supplier_payment',
                 reference_id=payment_txn.id,
                 created_by=request.user,
+                branch=target_branch,
             )
 
         from menu.models import RestaurantSettings

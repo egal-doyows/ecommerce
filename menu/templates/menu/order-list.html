@@ -189,6 +189,20 @@
         text-overflow: ellipsis;
         max-width: 400px;
     }
+
+    /* Prep status badges on order cards */
+    .ol-badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .ol-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 10px; font-weight: 700;
+        padding: 3px 8px; border-radius: 6px;
+    }
+    .ol-badge-ready { background: #d1fae5; color: #059669; }
+    .ol-badge-request { background: #fee2e2; color: #dc2626; animation: ol-pulse 2s infinite; }
+    @keyframes ol-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .6; }
+    }
 </style>
 
 <div class="ol-page">
@@ -221,7 +235,7 @@
     {% for order in unpaid_orders %}
     <a href="{% url 'order-detail' order.id %}" class="ol-card ol-card-active">
         <div class="ol-card-body">
-            <div class="ol-card-id">#{{ order.id }}</div>
+            <div class="ol-card-id">{{ order.order_number }}</div>
             <div class="ol-card-info">
                 <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{{ order.table }}</div>
                 <div class="ol-card-info-row">
@@ -229,7 +243,17 @@
                     <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
                     <span>{{ order.get_item_count }} items</span>
                 </div>
-                <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if item.variant %} ({{ item.variant.name }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                {% if order.ready_count or order.pending_request_count %}
+                <div class="ol-badges">
+                    {% if order.ready_count %}
+                    <span class="ol-badge ol-badge-ready"><i class="fa-solid fa-check"></i> {{ order.ready_count }} ready</span>
+                    {% endif %}
+                    {% if order.pending_request_count %}
+                    <span class="ol-badge ol-badge-request"><i class="fa-solid fa-triangle-exclamation"></i> {{ order.pending_request_count }} request{{ order.pending_request_count|pluralize }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             <span class="status-badge status-active">Unpaid</span>
             <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
@@ -252,7 +276,7 @@
     {% for order in paid_orders %}
     <a href="{% url 'order-detail' order.id %}" class="ol-card ol-card-paid">
         <div class="ol-card-body">
-            <div class="ol-card-id">#{{ order.id }}</div>
+            <div class="ol-card-id">{{ order.order_number }}</div>
             <div class="ol-card-info">
                 <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{{ order.table }}</div>
                 <div class="ol-card-info-row">

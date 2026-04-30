@@ -92,7 +92,7 @@
 </div>
 
 <script>
-    const currencySymbol = '{{ restaurant.currency_symbol }}';
+    const currencySymbol = '{{ restaurant.currency_symbol|escapejs }}';
     const amountInput = document.getElementById('transferAmount');
     const btnLabel = document.getElementById('btnLabel');
 

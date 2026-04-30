@@ -1,4 +1,5 @@
 import io
+import json
 from datetime import datetime
 from decimal import Decimal
 
@@ -19,48 +20,12 @@ from .models import Expense, ExpenseCategory
 MANAGER_AUTO_APPROVE_LIMIT = Decimal('20000')
 
 
-# ---------------------------------------------------------------------------
-# Auth helpers
-# ---------------------------------------------------------------------------
-
-def _is_admin_user(user):
-    return user.is_authenticated and (
-        user.is_superuser
-        or user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
-    )
-
-
-def _is_manager(user):
-    return user.is_authenticated and (
-        user.is_superuser
-        or user.groups.filter(name='Manager').exists()
-    )
-
-
-def staff_required(view_func):
-    """Managers and Supervisors can access expenses."""
-    @login_required(login_url='my-login')
-    def wrapper(request, *args, **kwargs):
-        if not _is_admin_user(request.user):
-            messages.error(request, 'You do not have permission to access expenses.')
-            return redirect('dashboard')
-        return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
-    wrapper.__doc__ = view_func.__doc__
-    return wrapper
-
-
-def manager_only(view_func):
-    """Only managers can approve / reject / delete expenses."""
-    @login_required(login_url='my-login')
-    def wrapper(request, *args, **kwargs):
-        if not _is_manager(request.user):
-            messages.error(request, 'Only managers can perform this action.')
-            return redirect('expense-list')
-        return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
-    wrapper.__doc__ = view_func.__doc__
-    return wrapper
+from core.permissions import (
+    is_admin_user, is_manager, is_overall_manager,
+    admin_required as staff_required,
+    manager_required as manager_only,
+)
+from core.utils import parse_date, parse_date_range, branch_filter_kwargs
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +44,7 @@ def _record_expense_transaction(expense, user=None):
     account_type = PAYMENT_TO_ACCOUNT.get(expense.payment_method)
     if not account_type:
         return None
-    account = Account.get_by_type(account_type)
+    account = Account.get_by_type(account_type, branch=expense.branch)
     return Transaction.objects.create(
         account=account,
         transaction_type='debit',
@@ -88,6 +53,7 @@ def _record_expense_transaction(expense, user=None):
         reference_type='expense',
         reference_id=expense.pk,
         created_by=user,
+        branch=expense.branch,
     )
 
 
@@ -105,7 +71,7 @@ def _reverse_expense_transaction(expense):
 
 @staff_required
 def expense_list(request):
-    qs = Expense.objects.select_related('category', 'recorded_by', 'approved_by')
+    qs = Expense.objects.filter(branch=request.branch).select_related('category', 'recorded_by', 'approved_by', 'branch')
 
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
@@ -114,16 +80,12 @@ def expense_list(request):
     status_filter = request.GET.get('status', '')
     search = request.GET.get('q', '')
 
-    if date_from:
-        try:
-            qs = qs.filter(date__gte=datetime.strptime(date_from, '%Y-%m-%d').date())
-        except ValueError:
-            pass
-    if date_to:
-        try:
-            qs = qs.filter(date__lte=datetime.strptime(date_to, '%Y-%m-%d').date())
-        except ValueError:
-            pass
+    parsed_from = parse_date(date_from)
+    if parsed_from:
+        qs = qs.filter(date__gte=parsed_from)
+    parsed_to = parse_date(date_to)
+    if parsed_to:
+        qs = qs.filter(date__lte=parsed_to)
     if category_filter:
         qs = qs.filter(category_id=category_filter)
     if payment_filter:
@@ -138,7 +100,7 @@ def expense_list(request):
         )
 
     # Count pending for the badge
-    pending_count = Expense.objects.filter(status='pending').count()
+    pending_count = Expense.objects.filter(status='pending', branch=request.branch).count()
 
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
@@ -160,6 +122,9 @@ def expense_list(request):
         'status_choices': Expense.STATUS_CHOICES,
         'pending_count': pending_count,
         'restaurant': restaurant,
+        'is_overall': False,
+        'branches': [],
+        'branch_filter': '',
     })
 
 
@@ -169,9 +134,10 @@ def expense_list(request):
 
 @staff_required
 def expense_create(request):
+    from branches.utils import resolve_branch
     restaurant = RestaurantSettings.load()
     categories = ExpenseCategory.objects.filter(is_active=True)
-    user_is_manager = _is_manager(request.user)
+    user_is_manager = is_manager(request.user)
 
     if request.method == 'POST':
         category_pk = request.POST.get('category', '')
@@ -197,10 +163,7 @@ def expense_create(request):
             messages.error(request, 'Amount must be greater than zero.')
             return redirect('expense-create')
 
-        try:
-            expense_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except (ValueError, TypeError):
-            expense_date = tz.now().date()
+        expense_date = parse_date(date_str, default=tz.now().date())
 
         category = None
         if category_pk:
@@ -230,6 +193,7 @@ def expense_create(request):
             status=status,
             recorded_by=request.user,
             approved_by=approved_by,
+            branch=resolve_branch(request),
         )
 
         if status == 'approved':
@@ -243,7 +207,7 @@ def expense_create(request):
     # Account balances for JS validation
     account_balances = {}
     for pm_code, acct_type in PAYMENT_TO_ACCOUNT.items():
-        acct = Account.get_by_type(acct_type)
+        acct = Account.get_by_type(acct_type, branch=request.branch)
         account_balances[pm_code] = str(acct.balance)
 
     return render(request, 'expenses/expense_create.html', {
@@ -255,7 +219,7 @@ def expense_create(request):
         'currency_symbol': restaurant.currency_symbol,
         'user_is_manager': user_is_manager,
         'auto_approve_limit': MANAGER_AUTO_APPROVE_LIMIT,
-        'account_balances_json': account_balances,
+        'account_balances_json': json.dumps(account_balances),
     })
 
 
@@ -265,9 +229,11 @@ def expense_create(request):
 
 @staff_required
 def expense_detail(request, pk):
+    is_overall = is_overall_manager(request.user)
+    filter_kwargs = branch_filter_kwargs(pk, request, is_overall)
     expense = get_object_or_404(
         Expense.objects.select_related('category', 'recorded_by', 'approved_by'),
-        pk=pk,
+        **filter_kwargs,
     )
     restaurant = RestaurantSettings.load()
 
@@ -276,15 +242,33 @@ def expense_detail(request, pk):
     if expense.status == 'pending':
         acct_type = PAYMENT_TO_ACCOUNT.get(expense.payment_method)
         if acct_type:
-            account_balance = Account.get_by_type(acct_type).balance
+            account_balance = Account.get_by_type(acct_type, branch=expense.branch).balance
 
     return render(request, 'expenses/expense_detail.html', {
         'expense': expense,
         'account_balance': account_balance,
-        'is_manager': _is_manager(request.user),
+        'is_manager': is_manager(request.user),
         'restaurant': restaurant,
         'currency_symbol': restaurant.currency_symbol,
     })
+
+
+# ---------------------------------------------------------------------------
+# Cancel (only the person who submitted, while still pending)
+# ---------------------------------------------------------------------------
+
+@login_required(login_url='my-login')
+def expense_cancel(request, pk):
+    expense = get_object_or_404(Expense, pk=pk)
+    is_own = expense.recorded_by == request.user
+    if not is_own:
+        messages.error(request, 'Only the person who submitted this expense can cancel it.')
+        return redirect('expense-detail', pk=pk)
+    if request.method == 'POST' and expense.status == 'pending':
+        expense.status = 'cancelled'
+        expense.save()
+        messages.success(request, 'Expense request cancelled.')
+    return redirect('expense-list')
 
 
 # ---------------------------------------------------------------------------
@@ -293,10 +277,12 @@ def expense_detail(request, pk):
 
 @staff_required
 def expense_edit(request, pk):
-    expense = get_object_or_404(Expense, pk=pk)
+    is_overall = is_overall_manager(request.user)
+    filter_kwargs = branch_filter_kwargs(pk, request, is_overall)
+    expense = get_object_or_404(Expense, **filter_kwargs)
     restaurant = RestaurantSettings.load()
     categories = ExpenseCategory.objects.filter(is_active=True)
-    user_is_manager = _is_manager(request.user)
+    user_is_manager = is_manager(request.user)
 
     # Supervisors can only edit their own pending expenses
     if not user_is_manager:
@@ -322,10 +308,9 @@ def expense_edit(request, pk):
             return redirect('expense-edit', pk=pk)
 
         date_str = request.POST.get('date', '')
-        try:
-            expense.date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except (ValueError, TypeError):
-            pass
+        parsed = parse_date(date_str)
+        if parsed:
+            expense.date = parsed
 
         expense.payment_method = request.POST.get('payment_method', expense.payment_method)
         expense.receipt_number = request.POST.get('receipt_number', '').strip()
@@ -367,7 +352,9 @@ def expense_edit(request, pk):
 
 @manager_only
 def expense_approve(request, pk):
-    expense = get_object_or_404(Expense, pk=pk)
+    is_overall = is_overall_manager(request.user)
+    filter_kwargs = branch_filter_kwargs(pk, request, is_overall)
+    expense = get_object_or_404(Expense, **filter_kwargs)
     if request.method == 'POST' and expense.status == 'pending':
         if expense.recorded_by == request.user:
             messages.error(request, 'You cannot approve your own expense request.')
@@ -390,7 +377,9 @@ def expense_approve(request, pk):
 
 @manager_only
 def expense_reject(request, pk):
-    expense = get_object_or_404(Expense, pk=pk)
+    is_overall = is_overall_manager(request.user)
+    filter_kwargs = branch_filter_kwargs(pk, request, is_overall)
+    expense = get_object_or_404(Expense, **filter_kwargs)
     if request.method == 'POST' and expense.status == 'pending':
         if expense.recorded_by == request.user:
             messages.error(request, 'You cannot reject your own expense request.')
@@ -412,7 +401,9 @@ def expense_reject(request, pk):
 
 @manager_only
 def expense_delete(request, pk):
-    expense = get_object_or_404(Expense, pk=pk)
+    is_overall = is_overall_manager(request.user)
+    filter_kwargs = branch_filter_kwargs(pk, request, is_overall)
+    expense = get_object_or_404(Expense, **filter_kwargs)
     if request.method == 'POST':
         ref = expense.expense_number
         if expense.status == 'approved':
@@ -431,21 +422,10 @@ def expense_delete(request, pk):
 def expense_summary(request):
     restaurant = RestaurantSettings.load()
 
-    today = tz.now().date()
-    date_from = request.GET.get('date_from', today.replace(day=1).isoformat())
-    date_to = request.GET.get('date_to', today.isoformat())
-
-    try:
-        d_from = datetime.strptime(date_from, '%Y-%m-%d').date()
-    except ValueError:
-        d_from = today.replace(day=1)
-    try:
-        d_to = datetime.strptime(date_to, '%Y-%m-%d').date()
-    except ValueError:
-        d_to = today
+    d_from, d_to, date_from, date_to = parse_date_range(request)
 
     qs = Expense.objects.filter(
-        date__gte=d_from, date__lte=d_to, status='approved',
+        date__gte=d_from, date__lte=d_to, status='approved', branch=request.branch,
     ).select_related('category')
 
     total_amount = qs.aggregate(t=models.Sum('amount'))['t'] or Decimal('0')
@@ -453,7 +433,7 @@ def expense_summary(request):
 
     # Pending stats
     pending_qs = Expense.objects.filter(
-        date__gte=d_from, date__lte=d_to, status='pending',
+        date__gte=d_from, date__lte=d_to, status='pending', branch=request.branch,
     )
     pending_count = pending_qs.count()
     pending_amount = pending_qs.aggregate(t=models.Sum('amount'))['t'] or Decimal('0')
@@ -537,9 +517,11 @@ def expense_pdf(request, pk):
     )
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
+    is_overall = is_overall_manager(request.user)
+    filter_kwargs = branch_filter_kwargs(pk, request, is_overall)
     expense = get_object_or_404(
         Expense.objects.select_related('category', 'recorded_by', 'approved_by'),
-        pk=pk,
+        **filter_kwargs,
     )
     restaurant = RestaurantSettings.load()
     cs = restaurant.currency_symbol

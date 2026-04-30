@@ -40,9 +40,15 @@ urlpatterns = [
     path('leave/<int:pk>/approve/', views.leave_approve, name='hr-leave-approve'),
     path('leave/<int:pk>/reject/', views.leave_reject, name='hr-leave-reject'),
     path('leave/<int:pk>/cancel/', views.leave_cancel, name='hr-leave-cancel'),
+    path('leave/<int:pk>/pdf/', views.leave_pdf, name='hr-leave-pdf'),
 
     # Leave types (manager)
     path('leave-types/', views.leave_type_list, name='hr-leave-type-list'),
     path('leave-types/add/', views.leave_type_create, name='hr-leave-type-create'),
     path('leave-types/<int:pk>/edit/', views.leave_type_edit, name='hr-leave-type-edit'),
+
+    # Transfer requests (approval workflow)
+    path('transfers/', views.transfer_request_list, name='hr-transfer-list'),
+    path('transfers/<int:pk>/approve/', views.transfer_request_approve, name='hr-transfer-approve'),
+    path('transfers/<int:pk>/reject/', views.transfer_request_reject, name='hr-transfer-reject'),
 ]

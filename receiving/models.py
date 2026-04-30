@@ -13,6 +13,7 @@ class GoodsReceipt(models.Model):
     Supports partial receiving — a PO can have multiple receipts.
     """
 
+    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='goods_receipts')
     purchase_order = models.ForeignKey(
         PurchaseOrder, on_delete=models.CASCADE, related_name='receipts',
     )

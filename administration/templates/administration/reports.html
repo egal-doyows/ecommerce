@@ -1,107 +1,294 @@
 {% extends 'administration/base.html' %}
-{% block title %}Reports{% endblock %}
+{% load humanize %}
+{% block title %}Reports — {{ scope_label }}{% endblock %}
 
 {% block content %}
+<style>
+    .rpt-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .rpt-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+    .rpt-section { margin-bottom:22px; }
+    .rpt-title {
+        font-size:15px; font-weight:700; margin:0 0 14px;
+        display:flex; align-items:center; gap:8px;
+    }
+    .rpt-title i { font-size:14px; }
+    .rpt-title .rpt-sub { font-size:11px; color:var(--adm-muted); font-weight:500; margin-left:auto; }
+    .rpt-bar-row { display:flex; align-items:flex-end; gap:3px; height:100px; }
+    .rpt-bar {
+        flex:1; min-width:0; border-radius:3px 3px 0 0;
+        background:var(--adm-accent); transition:height .3s;
+        position:relative; cursor:default;
+    }
+    .rpt-bar:hover { opacity:.85; }
+    .rpt-bar-labels { display:flex; gap:3px; margin-top:4px; }
+    .rpt-bar-labels span {
+        flex:1; text-align:center; font-size:9px; color:var(--adm-muted);
+        font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .rpt-cat-bar { height:8px; border-radius:4px; background:var(--adm-bg); overflow:hidden; margin-top:4px; }
+    .rpt-cat-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--adm-accent),#6366f1); }
+    .rpt-pills { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+
+    @media (max-width:768px) {
+        .rpt-grid-2 { grid-template-columns:1fr; }
+        .rpt-grid-3 { grid-template-columns:1fr; }
+        .rpt-bar-row { height:70px; }
+    }
+</style>
+
+<!-- Header -->
 <div class="adm-page-header">
     <div>
-        <h1>Reports</h1>
-        <div class="breadcrumb-text">Sales analytics and performance</div>
+        <h1>{{ scope_label }}</h1>
+        <div class="breadcrumb-text">Sales analytics, trends, and performance</div>
     </div>
 </div>
 
-<!-- Sales overview -->
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px;">
+<!-- Branch pills for overall managers -->
+{% if is_overall and branches %}
+<div class="rpt-pills rpt-section">
+    <a href="{% url 'admin-reports' %}" class="adm-filter-btn {% if view_all %}active{% endif %}" style="display:inline-flex;align-items:center;gap:4px;">
+        <i class="fa-solid fa-globe" style="font-size:10px;"></i> All Branches
+    </a>
+    {% for b in branches %}
+    <a href="{% url 'admin-reports' %}?branch={{ b.pk }}" class="adm-filter-btn {% if selected_branch and selected_branch.pk == b.pk %}active{% endif %}">
+        {{ b.name }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ══════ SALES OVERVIEW ══════ -->
+<div class="rpt-grid-3 rpt-section">
     <div class="adm-stat">
         <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);"><i class="fa-solid fa-money-bill-trend-up"></i></div>
         <div>
-            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ today.total|floatformat:2 }}</div>
-            <div class="adm-stat-label">Today ({{ today.count }} orders)</div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ today.total|floatformat:0|intcomma }}</div>
+            <div class="adm-stat-label">Today ({{ today.count }} order{{ today.count|pluralize }})</div>
         </div>
     </div>
     <div class="adm-stat">
         <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);"><i class="fa-solid fa-calendar-week"></i></div>
         <div>
-            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ this_week.total|floatformat:2 }}</div>
-            <div class="adm-stat-label">This Week ({{ this_week.count }} orders)</div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ this_week.total|floatformat:0|intcomma }}</div>
+            <div class="adm-stat-label">This Week ({{ this_week.count }} order{{ this_week.count|pluralize }})</div>
         </div>
     </div>
     <div class="adm-stat">
         <div class="adm-stat-icon" style="background:rgba(245,158,11,.1);color:var(--adm-warning);"><i class="fa-solid fa-calendar"></i></div>
         <div>
-            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ this_month.total|floatformat:2 }}</div>
-            <div class="adm-stat-label">This Month ({{ this_month.count }} orders)</div>
+            <div class="adm-stat-value">{{ restaurant.currency_symbol }} {{ this_month.total|floatformat:0|intcomma }}</div>
+            <div class="adm-stat-label">This Month ({{ this_month.count }} order{{ this_month.count|pluralize }})</div>
         </div>
     </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-    <!-- Staff performance -->
-    <div class="adm-card">
-        <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;">Staff Performance (This Month)</h3>
-        {% if staff_performance %}
+<!-- ══════ BRANCH COMPARISON (overall managers, all branches) ══════ -->
+{% if branch_sales %}
+<div class="adm-card rpt-section">
+    <h3 class="rpt-title">
+        <i class="fa-solid fa-chart-bar" style="color:var(--adm-accent);"></i> Sales by Branch
+        <span class="rpt-sub">This Month</span>
+    </h3>
+    <div style="overflow-x:auto;">
         <table class="adm-table">
-            <thead><tr><th>#</th><th>Staff</th><th>Orders</th><th>Sales</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Branch</th>
+                    <th style="text-align:right;">Today</th>
+                    <th style="text-align:center;">Orders</th>
+                    <th style="text-align:right;">This Month</th>
+                    <th style="text-align:center;">Orders</th>
+                    <th></th>
+                </tr>
+            </thead>
             <tbody>
-            {% for s in staff_performance %}
-            <tr>
-                <td style="color:var(--adm-muted);font-weight:700;">{{ forloop.counter }}</td>
-                <td style="font-weight:600;">{{ s.user.username }}</td>
-                <td>{{ s.order_count }}</td>
-                <td style="font-weight:600;color:var(--adm-success);">{{ restaurant.currency_symbol }} {{ s.total_sales|floatformat:2 }}</td>
-            </tr>
-            {% endfor %}
+                {% for bs in branch_sales %}
+                <tr>
+                    <td style="font-weight:700;">{{ bs.branch.name }}</td>
+                    <td style="text-align:right;font-weight:600;">{{ restaurant.currency_symbol }} {{ bs.today_sales|floatformat:0|intcomma }}</td>
+                    <td style="text-align:center;color:var(--adm-muted);">{{ bs.today_count }}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--adm-accent);">{{ restaurant.currency_symbol }} {{ bs.month_sales|floatformat:0|intcomma }}</td>
+                    <td style="text-align:center;color:var(--adm-muted);">{{ bs.month_count }}</td>
+                    <td><a href="{% url 'admin-reports' %}?branch={{ bs.branch.pk }}" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-arrow-right" style="font-size:10px;"></i></a></td>
+                </tr>
+                {% endfor %}
             </tbody>
+            <tfoot>
+                <tr style="border-top:2px solid var(--adm-border);font-weight:700;">
+                    <td>Combined</td>
+                    <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ today.total|floatformat:0|intcomma }}</td>
+                    <td style="text-align:center;">{{ today.count }}</td>
+                    <td style="text-align:right;color:var(--adm-accent);">{{ restaurant.currency_symbol }} {{ this_month.total|floatformat:0|intcomma }}</td>
+                    <td style="text-align:center;">{{ this_month.count }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
         </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ══════ DAILY SALES TREND (7 days) ══════ -->
+<div class="adm-card rpt-section">
+    <h3 class="rpt-title">
+        <i class="fa-solid fa-chart-bar" style="color:var(--adm-success);"></i> Daily Sales Trend — Last 7 Days
+    </h3>
+    <div class="rpt-bar-row" style="height:140px;align-items:flex-end;">
+        {% for d in daily_sales %}
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;">
+            <span style="font-size:10px;font-weight:700;color:var(--adm-muted);margin-bottom:3px;white-space:nowrap;">{{ d.total|floatformat:0|intcomma }}</span>
+            <div class="rpt-bar" style="flex:none;width:100%;height:{% widthratio d.total max_daily 100 %}%;min-height:2px;{% if forloop.last %}background:var(--adm-success);{% endif %}"
+                 title="{{ d.label }}: {{ restaurant.currency_symbol }} {{ d.total|floatformat:0|intcomma }} ({{ d.count }} orders)">
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="rpt-bar-labels">
+        {% for d in daily_sales %}
+        <span style="font-size:10px;line-height:1.3;">{{ d.label }}</span>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ══════ HOURLY DISTRIBUTION (today) ══════ -->
+<div class="adm-card rpt-section">
+    <h3 class="rpt-title">
+        <i class="fa-solid fa-clock" style="color:#6366f1;"></i> Today's Hourly Sales
+        <span class="rpt-sub">{{ restaurant.currency_symbol }} {{ today.total|floatformat:0|intcomma }} total</span>
+    </h3>
+    <div class="rpt-bar-row" style="height:70px;">
+        {% for h in hourly_sales %}
+        <div class="rpt-bar" style="height:{% widthratio h.total max_hourly 100 %}%;background:{% if h.count > 0 %}#6366f1{% else %}var(--adm-border){% endif %};"
+             title="{{ h.hour }}:00 — {{ restaurant.currency_symbol }} {{ h.total|floatformat:0|intcomma }} ({{ h.count }} orders)">
+        </div>
+        {% endfor %}
+    </div>
+    <div class="rpt-bar-labels">
+        {% for h in hourly_sales %}
+        <span>{% if h.hour == 0 or h.hour == 6 or h.hour == 12 or h.hour == 18 or h.hour == 23 %}{{ h.hour }}{% endif %}</span>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ══════ CATEGORY SALES + PAYMENT METHODS ══════ -->
+<div class="rpt-grid-2 rpt-section">
+    <!-- Sales by Category -->
+    <div class="adm-card">
+        <h3 class="rpt-title">
+            <i class="fa-solid fa-tags" style="color:#8b5cf6;"></i> Sales by Category
+            <span class="rpt-sub">This Month</span>
+        </h3>
+        {% if category_sales %}
+        {% for cat in category_sales %}
+        <div style="padding:8px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:600;font-size:13px;">{{ cat.menu_item__category__name|default:"Uncategorized" }}</span>
+                <div style="text-align:right;">
+                    <span style="font-weight:700;font-size:13px;">{{ restaurant.currency_symbol }} {{ cat.total_revenue|floatformat:0|intcomma }}</span>
+                    <span style="font-size:11px;color:var(--adm-muted);margin-left:6px;">{{ cat.total_qty }} sold</span>
+                </div>
+            </div>
+            {% if this_month.total %}
+            <div class="rpt-cat-bar">
+                <div class="rpt-cat-fill" style="width:{% widthratio cat.total_revenue this_month.total 100 %}%;"></div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
         {% else %}
-        <div class="adm-empty" style="padding:24px;"><p>No data yet</p></div>
+        <div style="text-align:center;padding:20px;color:var(--adm-muted);font-size:12px;">No sales data yet</div>
         {% endif %}
     </div>
 
-    <!-- Payment methods -->
+    <!-- Payment Methods -->
     <div class="adm-card">
-        <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;">Payment Methods (This Month)</h3>
+        <h3 class="rpt-title">
+            <i class="fa-solid fa-credit-card" style="color:var(--adm-accent);"></i> Payment Methods
+            <span class="rpt-sub">This Month</span>
+        </h3>
         {% if payment_methods %}
-        <table class="adm-table">
-            <thead><tr><th>Method</th><th>Count</th><th>Total</th></tr></thead>
-            <tbody>
-            {% for method, data in payment_methods.items %}
-            <tr>
-                <td style="font-weight:600;">{{ method }}</td>
-                <td>{{ data.count }}</td>
-                <td style="font-weight:600;">{{ restaurant.currency_symbol }} {{ data.total|floatformat:2 }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        {% for method, data in payment_methods.items %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+            <div>
+                <div style="font-weight:600;font-size:13px;">{{ method }}</div>
+                <div style="font-size:11px;color:var(--adm-muted);">{{ data.count }} payment{{ data.count|pluralize }}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:700;font-size:14px;">{{ restaurant.currency_symbol }} {{ data.total|floatformat:0|intcomma }}</div>
+                {% if this_month.total %}
+                <div style="font-size:11px;color:var(--adm-muted);">{% widthratio data.total this_month.total 100 %}%</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
         {% else %}
-        <div class="adm-empty" style="padding:24px;"><p>No data yet</p></div>
+        <div style="text-align:center;padding:20px;color:var(--adm-muted);font-size:12px;">No payments yet</div>
         {% endif %}
     </div>
 </div>
 
-<!-- Top selling items -->
-<div class="adm-card">
-    <h3 style="font-size:15px;font-weight:700;margin:0 0 16px;">Top Selling Items (This Month)</h3>
-    {% if top_items %}
-    <table class="adm-table">
-        <thead><tr><th>#</th><th>Item</th><th>Tier</th><th>Quantity Sold</th></tr></thead>
-        <tbody>
-        {% for item in top_items %}
-        <tr>
-            <td style="color:var(--adm-muted);font-weight:700;">{{ forloop.counter }}</td>
-            <td style="font-weight:600;">{{ item.menu_item__title }}</td>
-            <td>
-                <span class="adm-badge {% if item.menu_item__item_tier == 'premium' %}adm-badge-premium{% else %}adm-badge-regular{% endif %}">
-                    {{ item.menu_item__item_tier|capfirst }}
-                </span>
-            </td>
-            <td style="font-weight:600;">{{ item.qty }}</td>
-        </tr>
+<!-- ══════ STAFF PERFORMANCE + TOP ITEMS ══════ -->
+<div class="rpt-grid-2 rpt-section">
+    <!-- Staff Performance -->
+    <div class="adm-card">
+        <h3 class="rpt-title">
+            <i class="fa-solid fa-trophy" style="color:#f59e0b;"></i> Staff Performance
+            <span class="rpt-sub">This Month</span>
+        </h3>
+        {% if staff_performance %}
+        <table class="adm-table">
+            <thead>
+                <tr><th style="width:30px;">#</th><th>Staff</th><th style="text-align:center;">Orders</th><th style="text-align:right;">Sales</th></tr>
+            </thead>
+            <tbody>
+            {% for s in staff_performance %}
+            <tr>
+                <td style="font-weight:700;{% if forloop.counter == 1 %}color:#f59e0b;{% else %}color:var(--adm-muted);{% endif %}">
+                    {% if forloop.counter == 1 %}&#9733;{% else %}{{ forloop.counter }}{% endif %}
+                </td>
+                <td style="font-weight:600;">{{ s.user.username|capfirst }}</td>
+                <td style="text-align:center;color:var(--adm-muted);">{{ s.order_count }}</td>
+                <td style="text-align:right;font-weight:700;color:var(--adm-success);">{{ restaurant.currency_symbol }} {{ s.total_sales|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center;padding:20px;color:var(--adm-muted);font-size:12px;">No sales data yet</div>
+        {% endif %}
+    </div>
+
+    <!-- Top Items -->
+    <div class="adm-card">
+        <h3 class="rpt-title">
+            <i class="fa-solid fa-fire-flame-curved" style="color:#ef4444;"></i> Top Selling Items
+            <span class="rpt-sub">This Month</span>
+        </h3>
+        {% if top_items %}
+        {% for tier, items in top_items.items %}
+        <div style="{% if not forloop.first %}margin-top:16px;padding-top:12px;border-top:1px solid var(--adm-border);{% endif %}">
+            <div style="font-size:12px;font-weight:700;color:{% if tier == 'Premium' %}#f59e0b{% else %}var(--adm-accent){% endif %};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">{{ tier }}</div>
+            <table class="adm-table">
+                <thead>
+                    <tr><th style="width:30px;">#</th><th>Name</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Total</th></tr>
+                </thead>
+                <tbody>
+                {% for item in items %}
+                <tr>
+                    <td style="color:var(--adm-muted);font-weight:700;">{{ forloop.counter }}</td>
+                    <td style="font-weight:600;">{{ item.menu_item__title }}</td>
+                    <td style="text-align:right;font-weight:700;">{{ item.qty }}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--adm-success);">{{ restaurant.currency_symbol }} {{ item.total|floatformat:0|intcomma }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <div class="adm-empty" style="padding:24px;"><p>No sales data yet</p></div>
-    {% endif %}
+        {% else %}
+        <div style="text-align:center;padding:20px;color:var(--adm-muted);font-size:12px;">No sales data yet</div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

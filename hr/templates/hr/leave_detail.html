@@ -1,9 +1,12 @@
-{% extends "administration/base.html" %}
+{% extends base_template|default:"administration/base.html" %}
 {% load humanize %}
 
 {% block title %}Leave Request — {{ lr.employee.full_name }}{% endblock %}
 
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
 {% block content %}
+<div style="max-width:960px;margin:24px auto;padding:0 20px;">
 <div class="adm-page-header">
     <div>
         <h1>Leave Request</h1>
@@ -39,6 +42,7 @@
             <i class="fa-solid fa-xmark" style="font-size:10px;"></i> Reject
         </button>
         {% endif %}
+        {% if lr.employee.user == user %}
         <form method="POST" action="{% url 'hr-leave-cancel' lr.pk %}" style="display:inline;"
               onsubmit="return confirm('Cancel this leave request?');">
             {% csrf_token %}
@@ -46,10 +50,11 @@
                 Cancel Request
             </button>
         </form>
+        {% endif %}
     </div>
 </div>
 {% elif lr.status == 'approved' %}
-<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-success);">
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-success);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
     <div style="display:flex;align-items:center;gap:10px;">
         <div style="width:34px;height:34px;border-radius:8px;background:rgba(40,167,69,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <i class="fa-solid fa-check-circle" style="color:var(--adm-success);font-size:14px;"></i>
@@ -62,6 +67,9 @@
             </div>
         </div>
     </div>
+    <a href="{% url 'hr-leave-pdf' lr.pk %}" class="adm-btn adm-btn-sm" style="background:var(--adm-success);color:#fff;padding:6px 16px;">
+        <i class="fa-solid fa-file-pdf" style="font-size:12px;"></i> Download PDF
+    </a>
 </div>
 {% elif lr.status == 'rejected' %}
 <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-danger);">
@@ -180,4 +188,5 @@
     </div>
 </div>
 {% endif %}
+</div>
 {% endblock %}

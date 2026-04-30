@@ -108,11 +108,21 @@
         color: #2b8a3e;
         background: #d3f9d8;
     }
+
+    /* Table status badges */
+    .table-status { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+    .table-status-available { background:#d3f9d8; color:#2b8a3e; }
+    .table-status-occupied { background:#dbeafe; color:#1d4ed8; }
+    .table-status-reserved { background:#fef3c7; color:#92400e; }
+
+    .tb-card.table-available { border-color: var(--pos-success); }
+    .tb-card.table-occupied { border-color: var(--pos-accent); }
+    .tb-card.table-reserved { border-color: var(--pos-warning); }
 </style>
 
 <div class="tb-page">
     <div class="tb-header">
-        <h2><i class="fa fa-th-large"></i> &nbsp; Spaces</h2>
+        <h2><i class="fa fa-th-large"></i> &nbsp; Tables</h2>
         <div class="tb-legend">
             <span><span class="tb-legend-dot" style="background:var(--pos-success);"></span> Available <span class="tb-legend-count">{{ available_count }}</span></span>
             <span><span class="tb-legend-dot" style="background:var(--pos-accent);"></span> Occupied <span class="tb-legend-count">{{ occupied_count }}</span></span>
@@ -125,25 +135,25 @@
         <div class="tb-card table-{{ table.status }}">
             <div class="tb-card-number">{{ table.number }}</div>
             <div class="tb-card-info"><i class="fa fa-users"></i> {{ table.capacity }} seats</div>
-            <span class="status-badge status-{% if table.status == 'available' %}paid{% elif table.status == 'occupied' %}cancelled{% else %}preparing{% endif %}">
+            <span class="table-status table-status-{{ table.status }}">
                 {{ table.get_status_display }}
             </span>
             {% if table.status == 'available' %}
-            <form method="POST" action="{% url 'table-toggle-reserve' table.id %}" style="margin:0;">
+            <form method="POST" action="{% url 'table-toggle-reserve' table.id %}" style="margin:0;" onsubmit="this.querySelector('button').disabled=true;">
                 {% csrf_token %}
-                <button type="submit" class="tb-reserve-btn"><i class="fa fa-bookmark"></i> Reserve</button>
+                <button type="submit" class="tb-reserve-btn" aria-label="Reserve table {{ table.number }}"><i class="fa fa-bookmark"></i> Reserve</button>
             </form>
             {% elif table.status == 'reserved' %}
-            <form method="POST" action="{% url 'table-toggle-reserve' table.id %}" style="margin:0;">
+            <form method="POST" action="{% url 'table-toggle-reserve' table.id %}" style="margin:0;" onsubmit="return confirm('Unreserve table {{ table.number }}?') && (this.querySelector('button').disabled=true, true);">
                 {% csrf_token %}
-                <button type="submit" class="tb-unreserve-btn"><i class="fa fa-unlock"></i> Unreserve</button>
+                <button type="submit" class="tb-unreserve-btn" aria-label="Unreserve table {{ table.number }}"><i class="fa fa-unlock"></i> Unreserve</button>
             </form>
             {% endif %}
         </div>
         {% empty %}
         <div style="grid-column:1/-1; text-align:center; padding:60px; color:var(--pos-muted);">
             <i class="fa fa-th-large" style="font-size:40px; color:#ddd;"></i>
-            <p style="margin-top:12px;">No spaces configured. Add spaces from the admin panel.</p>
+            <p style="margin-top:12px;">No tables configured. Add tables from the admin panel.</p>
         </div>
         {% endfor %}
     </div>

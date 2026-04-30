@@ -62,6 +62,7 @@ class SupplierTransaction(models.Model):
         ('credit', 'Payment'),
     ]
 
+    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='supplier_transactions')
     supplier = models.ForeignKey(
         Supplier, on_delete=models.CASCADE, related_name='transactions',
     )

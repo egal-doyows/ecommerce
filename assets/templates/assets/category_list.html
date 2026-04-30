@@ -1,0 +1,54 @@
+{% extends 'administration/base.html' %}
+
+{% block title %}Asset Categories{% endblock %}
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;margin:24px auto;padding:0 20px;">
+<div class="adm-page-header">
+    <div>
+        <h1>Asset Categories</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'asset-list' %}" style="color:var(--adm-accent);text-decoration:none;">Assets</a> / Categories
+        </div>
+    </div>
+    <a href="{% url 'asset-category-create' %}" class="adm-btn adm-btn-primary">
+        <i class="fa-solid fa-plus"></i> Add Category
+    </a>
+</div>
+
+{% if categories %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Icon</th>
+                <th>Name</th>
+                <th>Assets</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr>
+                <td style="text-align:center;width:50px;">
+                    <i class="fa-solid {{ cat.icon|default:'fa-box' }}" style="font-size:16px;color:var(--adm-accent);"></i>
+                </td>
+                <td style="font-weight:600;">{{ cat.name }}</td>
+                <td style="color:var(--adm-muted);">{{ cat.assets.count }}</td>
+                <td>
+                    <a href="{% url 'asset-category-edit' cat.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-tags"></i>
+    <p>No categories yet.</p>
+</div>
+{% endif %}
+</div>
+{% endblock %}

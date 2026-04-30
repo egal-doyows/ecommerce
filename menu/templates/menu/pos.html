@@ -7,7 +7,7 @@
 <style>
     .pos-container {
         display: flex;
-        height: calc(100vh - 56px);
+        height: calc(100vh - 56px - 48px);
         overflow: hidden;
     }
 
@@ -97,7 +97,9 @@
     /* ---- Items Grid ---- */
     .pos-items-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        grid-auto-rows: min-content;
+        align-content: start;
         gap: 16px;
         padding: 4px 24px 24px;
         overflow-y: auto;
@@ -106,13 +108,12 @@
 
     .pos-item-card {
         background: #fff;
-        border-radius: 14px;
+        border-radius: 12px;
         overflow: hidden;
         cursor: pointer;
         transition: all 0.2s ease;
         border: 2px solid transparent;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-        position: relative;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
 
     .pos-item-card:hover {
@@ -136,7 +137,8 @@
     .pos-item-img-wrap {
         position: relative;
         width: 100%;
-        height: 110px;
+        height: 120px;
+        flex-shrink: 0;
         background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
         overflow: hidden;
     }
@@ -173,38 +175,20 @@
         backdrop-filter: blur(6px);
     }
 
-    .pos-item-info { padding: 12px 14px; }
+    .pos-item-info { padding: 12px; }
 
     .pos-item-name {
-        font-size: 13px;
-        font-weight: 700;
+        font-size: 14px;
+        font-weight: 600;
         color: var(--pos-text);
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         line-height: 1.3;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    .pos-item-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
     }
 
     .pos-item-price {
-        font-size: 15px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 700;
         color: #6366f1;
-    }
-
-    .pos-item-time {
-        font-size: 11px;
-        color: var(--pos-muted);
-        display: flex;
-        align-items: center;
-        gap: 3px;
     }
 
     .pos-empty-state {
@@ -638,6 +622,17 @@
     }
 </style>
 
+{% if messages %}
+<div id="pos-messages" style="position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:9999;width:90%;max-width:500px;">
+    {% for message in messages %}
+    <div style="background:{% if message.tags == 'error' %}#ef4444{% else %}#22c55e{% endif %};color:#fff;padding:12px 20px;border-radius:10px;margin-bottom:8px;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.15);text-align:center;">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+<script>setTimeout(function(){var el=document.getElementById('pos-messages');if(el)el.style.display='none';},4000);</script>
+{% endif %}
+
 <div class="pos-container">
     <!-- Menu Panel -->
     <div class="pos-menu">
@@ -686,9 +681,7 @@
                 </div>
                 <div class="pos-item-info">
                     <div class="pos-item-name">{{ product.title|capfirst }}</div>
-                    <div class="pos-item-meta">
-                        <span class="pos-item-price">{{ restaurant.currency_symbol }}{{ product.price|floatformat:2|intcomma }}</span>
-                    </div>
+                    <div class="pos-item-price">{{ restaurant.currency_symbol }}{{ product.price|floatformat:2|intcomma }}</div>
                 </div>
             </div>
             {% empty %}
@@ -713,9 +706,9 @@
             {% with product=item.product %}
             <div class="pos-order-item" data-key="{{ item.key }}">
                 <div class="pos-qty-controls">
-                    <button class="pos-qty-btn qty-minus" data-key="{{ item.key }}">−</button>
+                    <button class="pos-qty-btn qty-minus" data-key="{{ item.key }}" aria-label="Decrease quantity of {{ product.title }}">−</button>
                     <span class="pos-qty-value">{{ item.qty }}</span>
-                    <button class="pos-qty-btn qty-plus" data-key="{{ item.key }}">+</button>
+                    <button class="pos-qty-btn qty-plus" data-key="{{ item.key }}" aria-label="Increase quantity of {{ product.title }}">+</button>
                 </div>
                 <div class="pos-order-item-details">
                     <div class="pos-order-item-name">{{ product.title|capfirst }}</div>
@@ -741,12 +734,12 @@
                 {% csrf_token %}
 
                 <div class="pos-table-select">
-                    <label><i class="fa fa-th-large"></i> Space</label>
+                    <label><i class="fa fa-th-large"></i> Table</label>
                     <select name="table_id" id="table-select" required>
-                        <option value="">Select space...</option>
+                        <option value="">Select table...</option>
                         {% for table in tables %}
                         <option value="{{ table.id }}">
-                            Space {{ table.number }} &middot; {{ table.capacity }} seats
+                            Table {{ table.number }} &middot; {{ table.capacity }} seats
                             {% if table.status != 'available' %}&mdash; {{ table.get_status_display }}{% endif %}
                         </option>
                         {% endfor %}
@@ -767,22 +760,34 @@
 
                 <textarea class="pos-notes-input" name="notes" rows="2" placeholder="Order notes (optional)..."></textarea>
 
+                {% load tax_tags %}
+                {% tax_breakdown cart.get_total as tax %}
                 <div class="pos-order-summary">
                     <div class="pos-summary-row">
                         <span class="pos-summary-label">Items</span>
                         <span class="pos-summary-value" id="summary-items">{{ cart|length }}</span>
                     </div>
+                    <div class="pos-summary-row">
+                        <span class="pos-summary-label">Subtotal</span>
+                        <span class="pos-summary-value" id="summary-subtotal">{{ restaurant.currency_symbol }}{{ tax.subtotal|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% if tax.is_enabled %}
+                    <div class="pos-summary-row">
+                        <span class="pos-summary-label">{{ tax.tax_name }} ({{ tax.tax_rate }}%)</span>
+                        <span class="pos-summary-value" id="summary-tax">{{ restaurant.currency_symbol }}{{ tax.tax_amount|floatformat:2|intcomma }}</span>
+                    </div>
+                    {% endif %}
                     <div class="pos-summary-row total">
                         <span class="pos-summary-label">Total</span>
-                        <span class="pos-summary-value" id="summary-total">{{ restaurant.currency_symbol }}{{ cart.get_total|floatformat:2|intcomma }}</span>
+                        <span class="pos-summary-value" id="summary-total">{{ restaurant.currency_symbol }}{{ tax.total|floatformat:2|intcomma }}</span>
                     </div>
                 </div>
 
                 <div class="pos-btn-group">
-                    <button type="submit" class="pos-place-btn" {% if cart|length == 0 %}disabled{% endif %}>
+                    <button type="submit" class="pos-place-btn" {% if cart|length == 0 %}disabled{% endif %} onclick="this.disabled=true;this.innerHTML='<i class=\'fa fa-spinner fa-spin\'></i> Placing...';this.closest('form').submit();">
                         <i class="fa fa-check-circle"></i> Place Order
                     </button>
-                    <button type="button" class="pos-clear-btn" id="clear-order-btn" title="Clear all items">
+                    <button type="button" class="pos-clear-btn" id="clear-order-btn" title="Clear all items" aria-label="Clear all items from order">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>

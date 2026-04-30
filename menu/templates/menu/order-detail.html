@@ -60,6 +60,54 @@
     .od-item-notes { font-size: 11px; color: var(--pos-muted); font-style: italic; }
     .od-item-price { font-size: 13px; font-weight: 700; color: var(--pos-text); }
 
+    /* Prep status badges */
+    .od-prep-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        padding: 2px 8px; border-radius: 5px; letter-spacing: .3px;
+    }
+    .od-prep-pending { background: #f3f4f6; color: #6b7280; }
+    .od-prep-preparing { background: #fef3c7; color: #d97706; }
+    .od-prep-ready { background: #d1fae5; color: #059669; }
+
+    /* Station request banner */
+    .od-station-requests {
+        border-top: 2px solid #fecaca;
+        background: #fef2f2;
+    }
+    .od-sr-title {
+        padding: 12px 24px 8px;
+        font-size: 13px; font-weight: 700; color: #dc2626;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .od-sr-item {
+        padding: 10px 24px;
+        border-bottom: 1px solid #fecaca;
+        display: flex; align-items: flex-start; gap: 12px;
+    }
+    .od-sr-item:last-child { border-bottom: none; }
+    .od-sr-icon {
+        width: 32px; height: 32px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; font-size: 13px;
+    }
+    .od-sr-icon.edit { background: #dbeafe; color: #2563eb; }
+    .od-sr-icon.cancel { background: #fee2e2; color: #dc2626; }
+    .od-sr-body { flex: 1; min-width: 0; }
+    .od-sr-label { font-size: 12px; font-weight: 700; color: #1f2937; }
+    .od-sr-msg { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .od-sr-from { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .od-sr-actions { display: flex; gap: 6px; flex-shrink: 0; align-self: center; }
+    .od-sr-btn {
+        border: none; cursor: pointer; padding: 6px 14px; border-radius: 8px;
+        font-size: 12px; font-weight: 600; font-family: inherit;
+        display: flex; align-items: center; gap: 4px;
+        transition: filter .15s;
+    }
+    .od-sr-btn:hover { filter: brightness(1.1); }
+    .od-sr-accept { background: #d1fae5; color: #059669; }
+    .od-sr-reject { background: #f3f4f6; color: #6b7280; }
+
     .od-footer {
         padding: 20px 24px;
         border-top: 2px solid var(--pos-border);
@@ -382,7 +430,7 @@
 
     <div class="od-card">
         <div class="od-header">
-            <h2>Order #{{ order.id }}</h2>
+            <h2>{{ order.order_number }}</h2>
             <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
         </div>
 
@@ -402,10 +450,52 @@
             <div style="flex:1;">
                 <div class="od-item-name">{{ item.menu_item.title|capfirst }}</div>
                 {% if item.notes %}<div class="od-item-notes">{{ item.notes }}</div>{% endif %}
+                {% if order.status == 'active' %}
+                <div style="margin-top:4px;">
+                    {% if item.preparation_status == 'ready' %}
+                    <span class="od-prep-badge od-prep-ready"><i class="fa-solid fa-check"></i> Ready</span>
+                    {% else %}
+                    <span class="od-prep-badge od-prep-preparing"><i class="fa-solid fa-fire"></i> Preparing</span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
             <div class="od-item-price">{{ restaurant.currency_symbol }}{{ item.get_subtotal|floatformat:2|intcomma }}</div>
         </div>
         {% endfor %}
+
+        {% if pending_requests %}
+        <div class="od-station-requests">
+            <div class="od-sr-title"><i class="fa-solid fa-triangle-exclamation"></i> Station Requests ({{ pending_requests|length }})</div>
+            {% for sr in pending_requests %}
+            <div class="od-sr-item">
+                <div class="od-sr-icon {% if sr.request_type == 'edit' %}edit{% else %}cancel{% endif %}">
+                    <i class="fa-solid {% if sr.request_type == 'edit' %}fa-pen{% else %}fa-xmark{% endif %}"></i>
+                </div>
+                <div class="od-sr-body">
+                    <div class="od-sr-label">
+                        {% if sr.request_type == 'edit' %}Edit{% else %}Cancel{% endif %} request
+                        &mdash; {{ sr.order_item.quantity }}x {{ sr.order_item.menu_item.title }}
+                    </div>
+                    <div class="od-sr-msg">{{ sr.message }}</div>
+                    <div class="od-sr-from">From {{ sr.requested_by.username|capfirst }} &middot; {{ sr.created_at|timesince }} ago</div>
+                </div>
+                <div class="od-sr-actions">
+                    <form method="POST" action="{% url 'respond-station-request' sr.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="accept">
+                        <button type="submit" class="od-sr-btn od-sr-accept"><i class="fa-solid fa-check"></i> Accept</button>
+                    </form>
+                    <form method="POST" action="{% url 'respond-station-request' sr.id %}" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject">
+                        <button type="submit" class="od-sr-btn od-sr-reject"><i class="fa-solid fa-xmark"></i> Reject</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         {% if order.status == 'active' %}
         <form method="POST" action="{% url 'order-edit-item' order.id %}" class="od-add-item">
@@ -429,6 +519,16 @@
         {% endif %}
 
         <div class="od-footer">
+            {% if order.tax_amount and order.tax_amount > 0 %}
+            <div style="display:flex;justify-content:space-between;padding:0 24px 6px;font-size:13px;color:var(--pos-muted);">
+                <span>Subtotal</span>
+                <span>{{ restaurant.currency_symbol }}{{ order.get_subtotal|floatformat:2|intcomma }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:0 24px 8px;font-size:13px;color:var(--pos-muted);">
+                <span>{{ order.tax_type|title }} Tax ({{ order.tax_rate }}%)</span>
+                <span>{{ restaurant.currency_symbol }}{{ order.tax_amount|floatformat:2|intcomma }}</span>
+            </div>
+            {% endif %}
             <div class="od-total">
                 <span class="od-total-label">Total</span>
                 <span class="od-total-amount">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</span>
@@ -555,7 +655,7 @@
     <hr class="receipt-divider">
 
     <div class="receipt-row">
-        <span>Order #{{ order.id }}</span>
+        <span>{{ order.order_number }}</span>
         <span>{{ order.created_at|date:"d/m/Y" }}</span>
     </div>
     <div class="receipt-row">
@@ -591,6 +691,17 @@
     {% endfor %}
 
     <hr class="receipt-divider">
+
+    {% if order.tax_amount and order.tax_amount > 0 %}
+    <div class="receipt-row">
+        <span>Subtotal</span>
+        <span>{{ restaurant.currency_symbol }}{{ order.get_subtotal|floatformat:2|intcomma }}</span>
+    </div>
+    <div class="receipt-row receipt-sm">
+        <span>{{ order.tax_type|title }} Tax ({{ order.tax_rate }}%)</span>
+        <span>{{ restaurant.currency_symbol }}{{ order.tax_amount|floatformat:2|intcomma }}</span>
+    </div>
+    {% endif %}
 
     <div class="receipt-total-row">
         <span>TOTAL</span>

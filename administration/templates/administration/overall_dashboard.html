@@ -1,0 +1,496 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+
+{% block title %}{% if selected_branch %}{{ selected_branch.display_name }}{% else %}All Branches{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+    .od-grid-2  { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .od-grid-3  { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+    .od-grid-stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
+    .od-grid-pay  { display:grid; grid-template-columns:1fr 2fr; gap:16px; }
+    .od-branch-pills { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .od-branch-card { display:none; }
+    .od-branch-table { display:block; }
+    .od-section { margin-bottom:20px; }
+
+    @media (max-width: 768px) {
+        .od-grid-2, .od-grid-pay { grid-template-columns:1fr; }
+        .od-grid-3  { grid-template-columns:1fr 1fr 1fr; gap:8px; }
+        .od-grid-stats { grid-template-columns:1fr 1fr; gap:10px; }
+        .od-branch-pills { gap:5px; }
+        .od-branch-pills .adm-filter-btn { padding:5px 10px; font-size:11px; }
+        .od-branch-table { display:none; }
+        .od-branch-card { display:block; }
+        .od-hide-mobile { display:none !important; }
+        .adm-page-header h1 { font-size:18px; }
+    }
+
+    @media (max-width: 480px) {
+        .od-grid-stats { grid-template-columns:1fr; }
+    }
+
+    .od-branch-card-item {
+        padding:14px; background:#fff; border:1px solid var(--adm-border);
+        border-radius:10px; margin-bottom:10px;
+    }
+    .od-branch-card-item:last-child { margin-bottom:0; }
+    .od-branch-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .od-branch-card-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .od-branch-card-stat { padding:8px 10px; background:var(--adm-bg); border-radius:8px; text-align:center; }
+    .od-branch-card-stat .val { font-size:16px; font-weight:800; }
+    .od-branch-card-stat .lbl { font-size:10px; color:var(--adm-muted); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+
+    .od-snap-card { text-align:center; padding:14px 10px; border-radius:10px; }
+    .od-snap-val { font-size:22px; font-weight:800; }
+    .od-snap-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+    .od-snap-sub { font-size:11px; color:var(--adm-muted); margin-top:2px; }
+
+    .od-section-title {
+        font-size:15px; font-weight:700; margin:0 0 14px;
+        display:flex; align-items:center; gap:8px;
+    }
+    .od-section-title i { font-size:14px; }
+
+    .od-account-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; }
+    .od-cat-bar { height:8px; border-radius:4px; background:var(--adm-bg); overflow:hidden; margin-top:4px; }
+    .od-cat-fill { height:100%; border-radius:4px; }
+
+    @media (min-width:769px) {
+        .od-snap-val { font-size:26px; }
+    }
+</style>
+
+<!-- ── Header + Branch Selector ── -->
+<div class="adm-page-header" style="flex-wrap:wrap;gap:12px;">
+    <div style="min-width:0;">
+        <h1 style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {% if selected_branch %}
+            <i class="fa-solid fa-store" style="color:var(--adm-accent);margin-right:4px;"></i>
+            {{ selected_branch.display_name }}
+            {% else %}
+            <i class="fa-solid fa-globe" style="color:var(--adm-accent);margin-right:4px;"></i>
+            All Branches Overview
+            {% endif %}
+        </h1>
+        <div class="breadcrumb-text">
+            {% if selected_branch %}Detailed view for {{ selected_branch.name }}{% else %}Combined analytics across {{ branch_count }} branch{{ branch_count|pluralize:"es" }}{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Branch pills -->
+<div class="od-branch-pills od-section">
+    <a href="{% url 'overall-dashboard' %}?branch=all" class="adm-filter-btn {% if not selected_branch %}active{% endif %}" style="display:inline-flex;align-items:center;gap:4px;">
+        <i class="fa-solid fa-globe" style="font-size:10px;"></i> All
+    </a>
+    {% for b in branches %}
+    <a href="{% url 'overall-dashboard' %}?branch={{ b.pk }}" class="adm-filter-btn {% if selected_branch and selected_branch.pk == b.pk %}active{% endif %}">
+        {{ b.name }}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- ══════ SALES SUMMARY ══════ -->
+<div class="adm-card od-section">
+    <div class="od-grid-3">
+        <div class="od-snap-card" style="background:rgba(40,167,69,.04);border:1px solid rgba(40,167,69,.1);">
+            <div class="od-snap-lbl" style="color:var(--adm-success);">Today's Sales</div>
+            <div class="od-snap-val">{{ restaurant.currency_symbol }} {{ today_sales|floatformat:0|intcomma }}</div>
+            <div class="od-snap-sub">{{ today_count }} order{{ today_count|pluralize }}</div>
+        </div>
+        <div class="od-snap-card" style="background:rgba(124,131,255,.04);border:1px solid rgba(124,131,255,.1);">
+            <div class="od-snap-lbl" style="color:var(--adm-accent);">This Week</div>
+            <div class="od-snap-val">{{ restaurant.currency_symbol }} {{ week_sales|floatformat:0|intcomma }}</div>
+            <div class="od-snap-sub">{% if selected_branch %}{{ selected_branch.name }}{% else %}all branches{% endif %}</div>
+        </div>
+        <div class="od-snap-card" style="background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.1);">
+            <div class="od-snap-lbl" style="color:var(--adm-warning);">This Month</div>
+            <div class="od-snap-val">{{ restaurant.currency_symbol }} {{ month_sales|floatformat:0|intcomma }}</div>
+            <div class="od-snap-sub">{{ month_count }} order{{ month_count|pluralize }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick stats row -->
+<div class="od-grid-stats od-section">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(245,158,11,.1);color:var(--adm-warning);width:38px;height:38px;min-width:38px;border-radius:10px;font-size:15px;">
+            <i class="fa-solid fa-fire"></i>
+        </div>
+        <div style="min-width:0;">
+            <div class="adm-stat-value" style="font-size:20px;">{{ active_orders }}</div>
+            <div class="adm-stat-label">Active Orders</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:#6366f1;width:38px;height:38px;min-width:38px;border-radius:10px;font-size:15px;">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <div style="min-width:0;">
+            <div class="adm-stat-value" style="font-size:20px;">{{ active_shifts }}</div>
+            <div class="adm-stat-label">Active Shifts</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(16,185,129,.1);color:#10b981;width:38px;height:38px;min-width:38px;border-radius:10px;font-size:15px;">
+            <i class="fa-solid fa-landmark"></i>
+        </div>
+        <div style="min-width:0;">
+            <div class="adm-stat-value" style="font-size:20px;">{{ restaurant.currency_symbol }} {{ total_balance|floatformat:0|intcomma }}</div>
+            <div class="adm-stat-label">Total Balance</div>
+        </div>
+    </div>
+</div>
+
+{% if not selected_branch %}
+<!-- ══════ BRANCH COMPARISON ══════ -->
+
+<!-- Desktop: table -->
+<div class="adm-card od-section od-branch-table">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <h2 class="od-section-title" style="margin:0;">
+            <i class="fa-solid fa-chart-bar" style="color:var(--adm-accent);"></i> Sales by Branch
+        </h2>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>#</th><th>Branch</th>
+                    <th style="text-align:right;">Today</th>
+                    <th style="text-align:right;">This Month</th>
+                    <th style="text-align:center;">Active</th>
+                    <th style="text-align:center;">Shifts</th>
+                    <th style="text-align:center;">Low Stock</th>
+                    <th style="text-align:right;">Balance</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bd in branch_data %}
+                <tr>
+                    <td style="color:var(--adm-muted);font-weight:600;">{{ forloop.counter }}</td>
+                    <td>
+                        <div style="font-weight:700;font-size:13px;">{{ bd.branch.name }}</div>
+                    </td>
+                    <td style="text-align:right;font-weight:700;">{{ restaurant.currency_symbol }} {{ bd.today_sales|floatformat:0|intcomma }}</td>
+                    <td style="text-align:right;font-weight:700;color:var(--adm-accent);">{{ restaurant.currency_symbol }} {{ bd.month_sales|floatformat:0|intcomma }}</td>
+                    <td style="text-align:center;">{% if bd.active_orders > 0 %}<span class="adm-badge adm-badge-warning">{{ bd.active_orders }}</span>{% else %}<span style="color:var(--adm-muted);">0</span>{% endif %}</td>
+                    <td style="text-align:center;">{% if bd.active_shifts > 0 %}<span class="adm-badge adm-badge-success">{{ bd.active_shifts }}</span>{% else %}<span style="color:var(--adm-muted);">0</span>{% endif %}</td>
+                    <td style="text-align:center;">{% if bd.low_stock > 0 %}<span class="adm-badge adm-badge-danger">{{ bd.low_stock }}</span>{% else %}<span style="color:var(--adm-muted);">0</span>{% endif %}</td>
+                    <td style="text-align:right;font-weight:600;">{{ restaurant.currency_symbol }} {{ bd.total_balance|floatformat:0|intcomma }}</td>
+                    <td><a href="{% url 'overall-dashboard' %}?branch={{ bd.branch.pk }}" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-arrow-right" style="font-size:11px;"></i></a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--adm-muted);">No active branches</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if branch_data %}
+            <tfoot>
+                <tr style="border-top:2px solid var(--adm-border);font-weight:700;">
+                    <td colspan="2" style="padding:12px 14px;">Combined</td>
+                    <td style="text-align:right;padding:12px 14px;">{{ restaurant.currency_symbol }} {{ today_sales|floatformat:0|intcomma }}</td>
+                    <td style="text-align:right;padding:12px 14px;color:var(--adm-accent);">{{ restaurant.currency_symbol }} {{ month_sales|floatformat:0|intcomma }}</td>
+                    <td style="text-align:center;padding:12px 14px;">{{ active_orders }}</td>
+                    <td style="text-align:center;padding:12px 14px;">{{ active_shifts }}</td>
+                    <td></td>
+                    <td style="text-align:right;padding:12px 14px;">{{ restaurant.currency_symbol }} {{ total_balance|floatformat:0|intcomma }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+<!-- Mobile: cards -->
+<div class="od-branch-card od-section">
+    <h2 class="od-section-title">
+        <i class="fa-solid fa-chart-bar" style="color:var(--adm-accent);"></i> Sales by Branch
+    </h2>
+    {% for bd in branch_data %}
+    <div class="od-branch-card-item">
+        <div class="od-branch-card-head">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--adm-accent),#6366f1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;">{{ bd.branch.name|first|upper }}</div>
+                <div style="font-weight:700;font-size:14px;">{{ bd.branch.name }}</div>
+            </div>
+            <a href="{% url 'overall-dashboard' %}?branch={{ bd.branch.pk }}" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-arrow-right" style="font-size:11px;"></i></a>
+        </div>
+        <div class="od-branch-card-stats">
+            <div class="od-branch-card-stat">
+                <div class="val">{{ restaurant.currency_symbol }} {{ bd.today_sales|floatformat:0|intcomma }}</div>
+                <div class="lbl">Today</div>
+            </div>
+            <div class="od-branch-card-stat">
+                <div class="val" style="color:var(--adm-accent);">{{ restaurant.currency_symbol }} {{ bd.month_sales|floatformat:0|intcomma }}</div>
+                <div class="lbl">Month</div>
+            </div>
+            <div class="od-branch-card-stat">
+                <div class="val">{{ bd.active_orders }}</div>
+                <div class="lbl">Active</div>
+            </div>
+            <div class="od-branch-card-stat">
+                <div class="val">{{ restaurant.currency_symbol }} {{ bd.total_balance|floatformat:0|intcomma }}</div>
+                <div class="lbl">Balance</div>
+            </div>
+        </div>
+        {% if bd.low_stock > 0 %}
+        <div style="margin-top:8px;"><span class="adm-badge adm-badge-danger">{{ bd.low_stock }} low stock</span></div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- ══════ ACCOUNT BALANCES PER BRANCH ══════ -->
+{% if branch_accounts %}
+<div class="od-section">
+    <h2 class="od-section-title">
+        <i class="fa-solid fa-landmark" style="color:#10b981;"></i> Account Balances by Branch
+    </h2>
+    <div class="od-account-grid">
+        {% for ba in branch_accounts %}
+        <div class="adm-card" style="padding:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                <div style="font-weight:700;font-size:14px;">{{ ba.branch.name }}</div>
+                <div style="font-weight:800;font-size:15px;{% if ba.total < 0 %}color:var(--adm-danger);{% else %}color:var(--adm-success);{% endif %}">
+                    {{ restaurant.currency_symbol }} {{ ba.total|floatformat:0|intcomma }}
+                </div>
+            </div>
+            {% for acct in ba.accounts %}
+            <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+                <span style="color:var(--adm-muted);">{{ acct.name }}</span>
+                <span style="font-weight:600;{% if acct.balance < 0 %}color:var(--adm-danger);{% endif %}">{{ restaurant.currency_symbol }} {{ acct.balance|floatformat:0|intcomma }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endif %}{# end not selected_branch #}
+
+{% if selected_branch %}
+<!-- ══════ BRANCH DETAIL: Tables + Low Stock ══════ -->
+<div class="od-grid-2 od-section">
+    <div class="adm-card">
+        <h2 class="od-section-title" style="margin-bottom:12px;">
+            <i class="fa-solid fa-chair" style="color:var(--adm-accent);"></i> Tables
+        </h2>
+        <div class="od-grid-3">
+            <div style="text-align:center;padding:10px 6px;background:var(--adm-bg);border-radius:8px;">
+                <div style="font-size:20px;font-weight:800;">{{ table_stats.total }}</div>
+                <div style="font-size:10px;color:var(--adm-muted);font-weight:600;">Total</div>
+            </div>
+            <div style="text-align:center;padding:10px 6px;background:rgba(40,167,69,.06);border-radius:8px;">
+                <div style="font-size:20px;font-weight:800;color:var(--adm-success);">{{ table_stats.available }}</div>
+                <div style="font-size:10px;color:var(--adm-muted);font-weight:600;">Free</div>
+            </div>
+            <div style="text-align:center;padding:10px 6px;background:rgba(245,158,11,.06);border-radius:8px;">
+                <div style="font-size:20px;font-weight:800;color:var(--adm-warning);">{{ table_stats.occupied }}</div>
+                <div style="font-size:10px;color:var(--adm-muted);font-weight:600;">Busy</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="adm-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h2 class="od-section-title" style="margin:0;">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--adm-warning);"></i> Low Stock
+            </h2>
+            {% if low_stock_count > 0 %}<span class="adm-badge adm-badge-danger">{{ low_stock_count }}</span>{% endif %}
+        </div>
+        {% if low_stock_items %}
+        {% for item in low_stock_items %}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+            <span style="font-weight:600;font-size:13px;">{{ item.name }}</span>
+            <span style="color:var(--adm-danger);font-weight:700;font-size:13px;">{{ item.stock_quantity }} {{ item.unit }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center;padding:16px;color:var(--adm-muted);font-size:12px;">
+            <i class="fa-solid fa-circle-check" style="color:var(--adm-success);margin-right:4px;"></i> Stock levels OK
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Accounts for selected branch -->
+{% if account_data %}
+<div class="adm-card od-section">
+    <h2 class="od-section-title" style="margin-bottom:12px;">
+        <i class="fa-solid fa-landmark" style="color:#10b981;"></i> Account Balances
+    </h2>
+    <div class="od-grid-stats">
+        {% for ad in account_data %}
+        <div style="padding:14px;background:var(--adm-bg);border-radius:10px;">
+            <div style="font-size:10px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">{{ ad.account.name }}</div>
+            <div style="font-size:20px;font-weight:800;{% if ad.balance < 0 %}color:var(--adm-danger);{% endif %}">{{ restaurant.currency_symbol }} {{ ad.balance|floatformat:0|intcomma }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endif %}{# end selected_branch #}
+
+<!-- ══════ SALES BY CATEGORY ══════ -->
+{% if category_sales %}
+<div class="od-grid-2 od-section">
+    <div class="adm-card">
+        <h2 class="od-section-title" style="margin-bottom:14px;">
+            <i class="fa-solid fa-tags" style="color:#8b5cf6;"></i> Sales by Category
+            <span style="font-size:11px;color:var(--adm-muted);font-weight:500;margin-left:auto;">This Month</span>
+        </h2>
+        {% for cat in category_sales %}
+        <div style="padding:8px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:600;font-size:13px;">{{ cat.menu_item__category__name|default:"Uncategorized" }}</span>
+                <div style="text-align:right;">
+                    <span style="font-weight:700;font-size:13px;">{{ restaurant.currency_symbol }} {{ cat.total_revenue|floatformat:0|intcomma }}</span>
+                    <span style="font-size:11px;color:var(--adm-muted);margin-left:6px;">{{ cat.total_qty }} sold</span>
+                </div>
+            </div>
+            {% if month_sales %}
+            <div class="od-cat-bar">
+                <div class="od-cat-fill" style="width:{% widthratio cat.total_revenue month_sales 100 %}%;background:linear-gradient(90deg,var(--adm-accent),#6366f1);"></div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Payment methods -->
+    <div class="adm-card">
+        <h2 class="od-section-title" style="margin-bottom:14px;">
+            <i class="fa-solid fa-credit-card" style="color:var(--adm-accent);"></i> Payment Methods
+            <span style="font-size:11px;color:var(--adm-muted);font-weight:500;margin-left:auto;">This Month</span>
+        </h2>
+        {% if payment_methods %}
+        {% for method, data in payment_methods.items %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+            <div>
+                <div style="font-weight:600;font-size:13px;">{{ method }}</div>
+                <div style="font-size:11px;color:var(--adm-muted);">{{ data.count }} payment{{ data.count|pluralize }}</div>
+            </div>
+            <div style="font-weight:700;font-size:13px;">{{ restaurant.currency_symbol }} {{ data.total|floatformat:0|intcomma }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center;padding:16px;color:var(--adm-muted);font-size:12px;">No payments this month</div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<!-- Payment methods standalone when no category sales -->
+<div class="adm-card od-section">
+    <h2 class="od-section-title" style="margin-bottom:14px;">
+        <i class="fa-solid fa-credit-card" style="color:var(--adm-accent);"></i> Payment Methods
+        <span style="font-size:11px;color:var(--adm-muted);font-weight:500;margin-left:auto;">This Month</span>
+    </h2>
+    {% if payment_methods %}
+    <div class="od-grid-stats">
+        {% for method, data in payment_methods.items %}
+        <div style="padding:14px;background:var(--adm-bg);border-radius:10px;text-align:center;">
+            <div style="font-size:10px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;margin-bottom:4px;">{{ method }}</div>
+            <div style="font-size:18px;font-weight:800;">{{ restaurant.currency_symbol }} {{ data.total|floatformat:0|intcomma }}</div>
+            <div style="font-size:11px;color:var(--adm-muted);">{{ data.count }} payment{{ data.count|pluralize }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:16px;color:var(--adm-muted);font-size:12px;">No payments this month</div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ══════ TOP STAFF + TOP ITEMS ══════ -->
+<div class="od-grid-2 od-section">
+    <div class="adm-card">
+        <h2 class="od-section-title" style="margin-bottom:12px;">
+            <i class="fa-solid fa-trophy" style="color:#f59e0b;"></i> Top Staff
+            <span style="font-size:11px;color:var(--adm-muted);font-weight:500;margin-left:auto;">This Month</span>
+        </h2>
+        {% for sp in staff_performance %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="width:20px;text-align:center;font-size:12px;{% if forloop.counter == 1 %}color:#f59e0b;font-weight:700;{% else %}color:var(--adm-muted);{% endif %}">{% if forloop.counter == 1 %}&#9733;{% else %}{{ forloop.counter }}{% endif %}</span>
+                <span style="font-weight:600;font-size:13px;">{{ sp.user.username|capfirst }}</span>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:700;font-size:13px;">{{ restaurant.currency_symbol }} {{ sp.total_sales|floatformat:0|intcomma }}</div>
+                <div style="font-size:10px;color:var(--adm-muted);">{{ sp.order_count }} orders</div>
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;padding:16px;color:var(--adm-muted);font-size:12px;">No sales data yet</div>
+        {% endfor %}
+    </div>
+
+    <div class="adm-card">
+        <h2 class="od-section-title" style="margin-bottom:12px;">
+            <i class="fa-solid fa-fire-flame-curved" style="color:#ef4444;"></i> Top Selling Items
+            <span style="font-size:11px;color:var(--adm-muted);font-weight:500;margin-left:auto;">This Month</span>
+        </h2>
+        {% for item in top_items %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="width:20px;text-align:center;font-size:12px;color:var(--adm-muted);">{{ forloop.counter }}</span>
+                <span style="font-weight:600;font-size:13px;">{{ item.menu_item__title }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span class="adm-badge {% if item.menu_item__item_tier == 'premium' %}adm-badge-premium{% else %}adm-badge-regular{% endif %}" style="font-size:10px;">{{ item.menu_item__item_tier|first|upper }}</span>
+                <span style="font-weight:700;font-size:13px;min-width:30px;text-align:right;">{{ item.qty }}</span>
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;padding:16px;color:var(--adm-muted);font-size:12px;">No items sold yet</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ══════ ACTIVE SHIFTS ══════ -->
+{% if active_shift_list %}
+<div class="adm-card od-section">
+    <h2 class="od-section-title" style="margin-bottom:12px;">
+        <i class="fa-solid fa-clock" style="color:#6366f1;"></i> Active Shifts
+    </h2>
+    {% for s in active_shift_list %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+        <div>
+            <div style="font-weight:600;font-size:13px;">{{ s.waiter.username|capfirst }}</div>
+            <div style="font-size:11px;color:var(--adm-muted);">
+                {% if not selected_branch and s.branch %}{{ s.branch.name }} &middot; {% endif %}
+                Started {{ s.started_at|date:"H:i" }} &middot; {{ s.get_duration }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ══════ RECENT ORDERS ══════ -->
+<div class="adm-card od-section">
+    <h2 class="od-section-title" style="margin-bottom:12px;">
+        <i class="fa-solid fa-receipt" style="color:var(--adm-accent);"></i> Recent Orders
+    </h2>
+    {% if recent_orders %}
+    {% for o in recent_orders %}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;{% if not forloop.last %}border-bottom:1px solid var(--adm-border);{% endif %}">
+        <div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span style="font-weight:700;font-size:13px;">#{{ o.pk }}</span>
+                <span class="adm-badge {% if o.status == 'paid' %}adm-badge-success{% elif o.status == 'active' %}adm-badge-warning{% else %}adm-badge-muted{% endif %}" style="font-size:10px;">{{ o.status|capfirst }}</span>
+                {% if not selected_branch and o.branch %}<span class="adm-badge adm-badge-info" style="font-size:9px;">{{ o.branch.name }}</span>{% endif %}
+            </div>
+            <div style="font-size:11px;color:var(--adm-muted);">{{ o.waiter.username|capfirst }}{% if o.table %} &middot; Table {{ o.table.number }}{% endif %} &middot; {{ o.created_at|date:"d M H:i" }}</div>
+        </div>
+        <div style="font-weight:700;font-size:13px;white-space:nowrap;">{{ restaurant.currency_symbol }} {{ o.get_total|floatformat:0|intcomma }}</div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:16px;color:var(--adm-muted);font-size:12px;">No recent orders</div>
+    {% endif %}
+</div>
+{% endblock %}

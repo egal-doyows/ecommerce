@@ -1,0 +1,35 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Switch Branch{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Switch Branch</h1>
+        <div class="breadcrumb-text">Select which branch to work in</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:900px;">
+    {% for b in branches %}
+    <form method="POST" style="margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="branch_id" value="{{ b.pk }}">
+        <button type="submit" class="adm-card" style="width:100%;cursor:pointer;text-align:left;border:2px solid {% if current_branch.pk == b.pk %}var(--adm-accent){% else %}var(--adm-border){% endif %};transition:all .2s;padding:24px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div style="width:48px;height:48px;border-radius:12px;background:{% if current_branch.pk == b.pk %}var(--adm-accent){% else %}rgba(99,102,241,.1){% endif %};display:flex;align-items:center;justify-content:center;color:{% if current_branch.pk == b.pk %}#fff{% else %}var(--adm-accent){% endif %};font-size:18px;flex-shrink:0;">
+                    <i class="fa-solid fa-store"></i>
+                </div>
+                <div>
+                    <div style="font-size:16px;font-weight:700;">{{ b.name }}</div>
+                    {% if b.address %}<div style="font-size:12px;color:var(--adm-muted);margin-top:2px;">{{ b.address|truncatechars:50 }}</div>{% endif %}
+                    {% if current_branch.pk == b.pk %}
+                    <span class="adm-badge adm-badge-success" style="margin-top:6px;">Current</span>
+                    {% endif %}
+                </div>
+            </div>
+        </button>
+    </form>
+    {% endfor %}
+</div>
+{% endblock %}

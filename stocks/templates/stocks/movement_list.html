@@ -1,0 +1,98 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+
+{% block title %}Stock Movements{% endblock %}
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:1000px;margin:24px auto;padding:0 20px;">
+<div class="adm-page-header">
+    <div>
+        <h1>Stock Movements</h1>
+        <div class="breadcrumb-text">Inventory movement history</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'stock-adjustment-list' %}" class="adm-btn adm-btn-outline">
+            <i class="fa-solid fa-sliders"></i> Adjustments
+        </a>
+        <a href="{% url 'stock-stocktake-pdf' %}" class="adm-btn adm-btn-outline">
+            <i class="fa-solid fa-file-pdf"></i> Stocktake Sheet
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <select name="item" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Items</option>
+            {% for item in items %}
+            <option value="{{ item.pk }}" {% if selected_item == item.pk|stringformat:"d" %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="type" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Types</option>
+            {% for code, label in type_choices %}
+            <option value="{{ code }}" {% if selected_type == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Filter</button>
+        {% if selected_item or selected_type %}
+        <a href="{% url 'stock-movement-list' %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;">
+            <i class="fa-solid fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if movements %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Item</th>
+                <th>Type</th>
+                <th style="text-align:right;">Qty</th>
+                <th style="text-align:right;">Balance</th>
+                <th>Reference</th>
+                <th>By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movements %}
+            <tr>
+                <td style="font-size:12px;white-space:nowrap;">{{ m.created_at|date:"d M Y H:i" }}</td>
+                <td style="font-weight:600;">{{ m.inventory_item.name }}</td>
+                <td>
+                    {% if m.movement_type == 'sale' %}
+                    <span class="adm-badge adm-badge-danger">Sale</span>
+                    {% elif m.movement_type == 'cancel' %}
+                    <span class="adm-badge adm-badge-warning">Cancel</span>
+                    {% elif m.movement_type == 'received' %}
+                    <span class="adm-badge adm-badge-success">Received</span>
+                    {% elif m.movement_type == 'adjustment' %}
+                    <span class="adm-badge adm-badge-info">Adjustment</span>
+                    {% elif m.movement_type == 'waste' %}
+                    <span class="adm-badge adm-badge-muted">Waste</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right;font-weight:700;color:{% if m.quantity > 0 %}var(--adm-success){% else %}var(--adm-danger){% endif %};">
+                    {% if m.quantity > 0 %}+{% endif %}{{ m.quantity|floatformat:2 }}
+                </td>
+                <td style="text-align:right;font-size:12px;">{{ m.balance_after|floatformat:2 }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.reference|default:"—" }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{{ m.created_by.username|default:"System" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-arrows-rotate"></i>
+    <p>No stock movements{% if selected_item or selected_type %} matching your filters{% endif %}.</p>
+</div>
+{% endif %}
+</div>
+{% endblock %}

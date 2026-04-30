@@ -16,6 +16,7 @@
 
 <form method="POST" style="max-width:800px;">
     {% csrf_token %}
+    {% if is_create %}{% include "administration/_branch_field.html" %}{% endif %}
 
     {% if is_create %}
     <!-- User Selection -->
@@ -126,6 +127,20 @@
         <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
             <i class="fa-solid fa-briefcase" style="color:var(--adm-accent);font-size:13px;"></i> Employment Details
         </h3>
+
+        {% if is_overall and branches %}
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+                <label class="adm-form-label">Branch</label>
+                <select name="branch" class="adm-input">
+                    <option value="">— Select branch —</option>
+                    {% for b in branches %}
+                    <option value="{{ b.pk }}" {% if emp and emp.branch_id == b.pk %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% endif %}
 
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
             <div class="adm-form-group" style="flex:1;min-width:200px;margin-bottom:0;">

@@ -32,7 +32,7 @@
             <td style="color:var(--adm-muted);">{{ member.email|default:"—" }}</td>
             <td>
                 {% for g in member.groups.all %}
-                    <span class="adm-badge {% if g.name == 'Manager' %}adm-badge-premium{% elif g.name == 'Supervisor' %}adm-badge-warning{% elif g.name == 'Cashier' %}adm-badge-success{% else %}adm-badge-info{% endif %}">{{ g.name }}</span>
+                    <span class="adm-badge {% if g.name == 'Branch Manager' or g.name == 'Overall Manager' %}adm-badge-premium{% elif g.name == 'Supervisor' %}adm-badge-warning{% elif g.name == 'Cashier' %}adm-badge-success{% else %}adm-badge-info{% endif %}">{{ g.name }}</span>
                 {% empty %}
                     <span class="adm-badge adm-badge-muted">No role</span>
                 {% endfor %}

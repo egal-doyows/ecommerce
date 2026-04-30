@@ -19,33 +19,42 @@
 <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <div class="adm-filters">
-            <a href="{% url 'po-list' %}{% if date_from or date_to %}?date_from={{ date_from }}&date_to={{ date_to }}{% endif %}" class="adm-filter-btn {% if not status_filter %}active{% endif %}">All</a>
-            <a href="{% url 'po-list' %}?status=draft{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-filter-btn {% if status_filter == 'draft' %}active{% endif %}">Draft</a>
-            <a href="{% url 'po-list' %}?status=pending{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-filter-btn {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
-            <a href="{% url 'po-list' %}?status=approved{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-filter-btn {% if status_filter == 'approved' %}active{% endif %}">Approved</a>
-            <a href="{% url 'po-list' %}?status=received{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-filter-btn {% if status_filter == 'received' %}active{% endif %}">Received</a>
-            <a href="{% url 'po-list' %}?status=cancelled{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-filter-btn {% if status_filter == 'cancelled' %}active{% endif %}">Cancelled</a>
+            <a href="{% url 'po-list' %}{% if date_from or date_to or branch_filter %}?{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if branch_filter %}branch={{ branch_filter }}{% endif %}{% endif %}" class="adm-filter-btn {% if not status_filter %}active{% endif %}">All</a>
+            <a href="{% url 'po-list' %}?status=draft{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-filter-btn {% if status_filter == 'draft' %}active{% endif %}">Draft</a>
+            <a href="{% url 'po-list' %}?status=pending{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-filter-btn {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
+            <a href="{% url 'po-list' %}?status=approved{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-filter-btn {% if status_filter == 'approved' %}active{% endif %}">Approved</a>
+            <a href="{% url 'po-list' %}?status=received{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-filter-btn {% if status_filter == 'received' %}active{% endif %}">Received</a>
+            <a href="{% url 'po-list' %}?status=cancelled{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-filter-btn {% if status_filter == 'cancelled' %}active{% endif %}">Cancelled</a>
         </div>
         <form method="get" action="{% url 'po-list' %}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+            {% if is_overall %}
+            <select name="branch" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                <option value="{{ b.pk }}" {% if branch_filter == b.pk|stringformat:"d" %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
             <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">From</label>
             <input type="date" name="date_from" value="{{ date_from }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
             <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">To</label>
             <input type="date" name="date_to" value="{{ date_to }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
             <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Filter</button>
-            {% if date_from or date_to %}
-            <a href="{% url 'po-list' %}{% if status_filter %}?status={{ status_filter }}{% endif %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;"><i class="fa-solid fa-xmark"></i> Clear dates</a>
+            {% if date_from or date_to or branch_filter %}
+            <a href="{% url 'po-list' %}{% if status_filter %}?status={{ status_filter }}{% endif %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;"><i class="fa-solid fa-xmark"></i> Clear</a>
             {% endif %}
         </form>
     </div>
 </div>
 
 {% if orders %}
-<div class="adm-card" style="padding:0;">
+<div class="adm-card" style="padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <table class="adm-table">
         <thead>
             <tr>
                 <th>PO #</th>
+                {% if is_overall %}<th>Branch</th>{% endif %}
                 <th>Supplier</th>
                 <th>Date</th>
                 <th>Items</th>
@@ -56,12 +65,20 @@
         </thead>
         <tbody>
             {% for po in orders %}
+            {% ifchanged po.branch.name %}{% if is_overall and not branch_filter %}
+            <tr>
+                <td colspan="8" style="background:var(--adm-bg);padding:10px 16px;font-weight:700;font-size:13px;color:var(--adm-accent);border-bottom:2px solid var(--adm-accent);">
+                    <i class="fa-solid fa-store" style="margin-right:6px;font-size:11px;"></i> {{ po.branch.name|default:"No Branch" }}
+                </td>
+            </tr>
+            {% endif %}{% endifchanged %}
             <tr>
                 <td>
                     <a href="{% url 'po-detail' po.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:700;">
                         {{ po.po_number }}
                     </a>
                 </td>
+                {% if is_overall %}<td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ po.branch.name|default:"—" }}</td>{% endif %}
                 <td style="font-weight:600;">{{ po.supplier.name }}</td>
                 <td style="color:var(--adm-muted);font-size:12px;white-space:nowrap;">{{ po.order_date|date:"d M Y" }}</td>
                 <td>{{ po.item_count }}</td>
@@ -94,23 +111,23 @@
     </div>
     <div style="display:flex;align-items:center;gap:4px;">
         {% if page_obj.has_previous %}
-        <a href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-btn-icon" title="First page"><i class="fa-solid fa-angles-left" style="font-size:11px;"></i></a>
-        <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-btn-icon" title="Previous"><i class="fa-solid fa-chevron-left" style="font-size:11px;"></i></a>
+        <a href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="First page"><i class="fa-solid fa-angles-left" style="font-size:11px;"></i></a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="Previous"><i class="fa-solid fa-chevron-left" style="font-size:11px;"></i></a>
         {% endif %}
 
         {% for num in page_obj.paginator.page_range %}
             {% if page_obj.number == num %}
                 <span class="adm-btn-icon" style="background:var(--adm-accent);color:#fff;border-color:var(--adm-accent);font-size:12px;font-weight:700;">{{ num }}</span>
             {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
-                <a href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-btn-icon" style="font-size:12px;">{{ num }}</a>
+                <a href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" style="font-size:12px;">{{ num }}</a>
             {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
                 <span style="color:var(--adm-muted);font-size:12px;padding:0 4px;">...</span>
             {% endif %}
         {% endfor %}
 
         {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-btn-icon" title="Next"><i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
-        <a href="?page={{ page_obj.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="adm-btn-icon" title="Last page"><i class="fa-solid fa-angles-right" style="font-size:11px;"></i></a>
+        <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="Next"><i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-btn-icon" title="Last page"><i class="fa-solid fa-angles-right" style="font-size:11px;"></i></a>
         {% endif %}
     </div>
 </div>

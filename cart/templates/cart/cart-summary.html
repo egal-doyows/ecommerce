@@ -482,12 +482,12 @@
         <!-- Right: Summary -->
         <div class="rp-summary-card">
             <div class="rp-summary-section">
-                <div class="rp-summary-label">Assign Space</div>
+                <div class="rp-summary-label">Assign Table</div>
                 <select name="table_id" class="rp-table-select" required>
-                    <option value="">-- Select a space --</option>
+                    <option value="">-- Select a table --</option>
                     {% for table in tables %}
                     <option value="{{ table.id }}" {% if table.status != 'available' %}style="color:var(--pos-muted);"{% endif %}>
-                        Space {{ table.number }} &middot; {{ table.capacity }} seats
+                        Table {{ table.number }} &middot; {{ table.capacity }} seats
                         {% if table.status != 'available' %} ({{ table.get_status_display }}){% endif %}
                     </option>
                     {% endfor %}
@@ -499,11 +499,19 @@
                 <textarea name="notes" class="rp-notes-input" placeholder="e.g. No onions, extra sauce..."></textarea>
             </div>
 
+            {% load tax_tags %}
+            {% tax_breakdown cart.get_total as tax %}
             <div class="rp-summary-section">
                 <div class="rp-cost-row">
                     <span class="rp-cost-label">Subtotal</span>
-                    <span class="rp-cost-value" id="cost-subtotal">{{ restaurant.currency_symbol }}{{ cart.get_total|floatformat:2|intcomma }}</span>
+                    <span class="rp-cost-value" id="cost-subtotal">{{ restaurant.currency_symbol }}{{ tax.subtotal|floatformat:2|intcomma }}</span>
                 </div>
+                {% if tax.is_enabled %}
+                <div class="rp-cost-row">
+                    <span class="rp-cost-label">{{ tax.tax_name }} ({{ tax.tax_rate }}%)</span>
+                    <span class="rp-cost-value" id="cost-tax">{{ restaurant.currency_symbol }}{{ tax.tax_amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endif %}
                 <div class="rp-cost-row">
                     <span class="rp-cost-label">Items</span>
                     <span class="rp-cost-value" id="cost-items">{{ cart|length }}</span>
@@ -511,7 +519,7 @@
                 <hr class="rp-cost-divider">
                 <div class="rp-cost-row rp-cost-total">
                     <span class="rp-cost-label">Total</span>
-                    <span class="rp-cost-value" id="cost-total">{{ restaurant.currency_symbol }}{{ cart.get_total|floatformat:2|intcomma }}</span>
+                    <span class="rp-cost-value" id="cost-total">{{ restaurant.currency_symbol }}{{ tax.total|floatformat:2|intcomma }}</span>
                 </div>
             </div>
 

@@ -1,0 +1,52 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Branches{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Branches</h1>
+        <div class="breadcrumb-text">Manage restaurant locations</div>
+    </div>
+    <a href="{% url 'branch-create' %}" class="adm-btn adm-btn-primary">
+        <i class="fa-solid fa-plus"></i> Add Branch
+    </a>
+</div>
+
+{% if branches %}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
+    {% for b in branches %}
+    <div class="adm-card" style="{% if not b.is_active %}opacity:0.5;{% endif %}">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+            <div style="width:44px;height:44px;border-radius:12px;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;color:var(--adm-accent);font-size:18px;flex-shrink:0;">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <div>
+                <div style="font-size:16px;font-weight:700;">{{ b.name }}</div>
+                <div style="font-size:12px;color:var(--adm-muted);">{{ b.code }}</div>
+            </div>
+            {% if b.is_active %}
+            <span class="adm-badge adm-badge-success" style="margin-left:auto;">Active</span>
+            {% else %}
+            <span class="adm-badge adm-badge-muted" style="margin-left:auto;">Inactive</span>
+            {% endif %}
+        </div>
+        <div style="font-size:12px;color:var(--adm-muted);display:flex;flex-direction:column;gap:4px;margin-bottom:16px;">
+            {% if b.address %}<div><i class="fa-solid fa-location-dot" style="width:14px;"></i> {{ b.address|truncatechars:60 }}</div>{% endif %}
+            {% if b.phone %}<div><i class="fa-solid fa-phone" style="width:14px;"></i> {{ b.phone }}</div>{% endif %}
+            {% if b.manager %}<div><i class="fa-solid fa-user-tie" style="width:14px;"></i> {% if b.manager %}{{ b.manager.get_full_name|default:b.manager.username }}{% else %}—{% endif %}</div>{% endif %}
+            <div><i class="fa-solid fa-users" style="width:14px;"></i> {{ b.staff_count }} staff member{{ b.staff_count|pluralize }}</div>
+        </div>
+        <a href="{% url 'branch-edit' b.pk %}" class="adm-btn adm-btn-outline adm-btn-sm" style="width:100%;justify-content:center;">
+            <i class="fa-solid fa-pen"></i> Edit
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-store"></i>
+    <p>No branches created yet.</p>
+</div>
+{% endif %}
+{% endblock %}

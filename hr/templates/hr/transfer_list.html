@@ -1,0 +1,111 @@
+{% extends 'administration/base.html' %}
+{% block title %}Transfer Requests{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Transfer Requests</h1>
+        <div class="breadcrumb-text">HR &rsaquo; Transfer Requests</div>
+    </div>
+</div>
+
+<!-- Status filters -->
+<div class="adm-filters" style="margin-bottom:20px;">
+    <a href="?status=pending" class="adm-filter-btn {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
+    <a href="?status=approved" class="adm-filter-btn {% if status_filter == 'approved' %}active{% endif %}">Approved</a>
+    <a href="?status=rejected" class="adm-filter-btn {% if status_filter == 'rejected' %}active{% endif %}">Rejected</a>
+    <a href="?status=" class="adm-filter-btn {% if not status_filter %}active{% endif %}">All</a>
+</div>
+
+<div class="adm-card" style="padding:0;overflow:hidden;">
+{% if transfers %}
+<table class="adm-table">
+    <thead>
+        <tr>
+            <th>Employee</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Dept / Position</th>
+            <th>Requested By</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for tr in transfers %}
+        <tr>
+            <td style="font-weight:600;">
+                {{ tr.employee.full_name }}
+            </td>
+            <td>{{ tr.from_branch.name|default:"—" }}</td>
+            <td style="font-weight:600;color:var(--adm-accent);">{{ tr.to_branch.name|default:"—" }}</td>
+            <td>
+                {% if tr.new_department %}{{ tr.new_department.name }}{% else %}—{% endif %}
+                /
+                {% if tr.new_position %}{{ tr.new_position.title }}{% else %}—{% endif %}
+            </td>
+            <td>{{ tr.requested_by.username|default:"—" }}</td>
+            <td>{{ tr.created_at|date:"d M Y, H:i" }}</td>
+            <td>
+                {% if tr.status == 'pending' %}
+                    <span class="adm-badge adm-badge-warning">Pending</span>
+                {% elif tr.status == 'approved' %}
+                    <span class="adm-badge adm-badge-success">Approved</span>
+                {% elif tr.status == 'rejected' %}
+                    <span class="adm-badge adm-badge-danger">Rejected</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if tr.status == 'pending' %}
+                <div style="display:flex;gap:6px;">
+                    <form method="post" action="{% url 'hr-transfer-approve' tr.pk %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="adm-btn adm-btn-primary adm-btn-sm" title="Approve">
+                            <i class="fa-solid fa-check"></i> Approve
+                        </button>
+                    </form>
+                    <button type="button" class="adm-btn adm-btn-danger adm-btn-sm" title="Reject" onclick="document.getElementById('reject-{{ tr.pk }}').style.display='flex'">
+                        <i class="fa-solid fa-xmark"></i> Reject
+                    </button>
+                </div>
+                <!-- Reject modal -->
+                <div id="reject-{{ tr.pk }}" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:center;justify-content:center;">
+                    <div class="adm-card" style="width:100%;max-width:420px;">
+                        <h3 style="margin:0 0 12px;font-size:16px;">Reject Transfer</h3>
+                        <p style="font-size:13px;color:var(--adm-muted);margin:0 0 16px;">
+                            Reject {{ tr.employee.full_name }}'s transfer from {{ tr.from_branch.name }} to {{ tr.to_branch.name }}?
+                        </p>
+                        <form method="post" action="{% url 'hr-transfer-reject' tr.pk %}">
+                            {% csrf_token %}
+                            <div class="adm-form-group">
+                                <label class="adm-form-label">Reason (optional)</label>
+                                <textarea name="note" class="adm-input" rows="2" placeholder="Reason for rejection..."></textarea>
+                            </div>
+                            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm" onclick="this.closest('[id^=reject]').style.display='none'">Cancel</button>
+                                <button type="submit" class="adm-btn adm-btn-danger adm-btn-sm"><i class="fa-solid fa-xmark"></i> Reject</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% elif tr.status == 'approved' %}
+                    <span style="font-size:12px;color:var(--adm-muted);">by {{ tr.reviewed_by.username|default:"—" }}</span>
+                {% elif tr.status == 'rejected' %}
+                    <span style="font-size:12px;color:var(--adm-muted);">by {{ tr.reviewed_by.username|default:"—" }}</span>
+                    {% if tr.review_note %}<br><span style="font-size:11px;color:var(--adm-danger);">{{ tr.review_note }}</span>{% endif %}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="adm-empty">
+    <i class="fa-solid fa-people-arrows"></i>
+    <p>No transfer requests found.</p>
+</div>
+{% endif %}
+</div>
+
+{% endblock %}

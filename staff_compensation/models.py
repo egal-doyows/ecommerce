@@ -15,6 +15,7 @@ class StaffCompensation(models.Model):
     COMPENSATION_TYPE_CHOICES = [
         ('commission', 'Commission'),
         ('salary', 'Salary'),
+        ('both', 'Salary & Commission'),
     ]
 
     PAYMENT_FREQUENCY_CHOICES = [
@@ -73,7 +74,18 @@ class StaffCompensation(models.Model):
             return f"{self.user.username} — commission ({scope})"
         from menu.models import RestaurantSettings
         symbol = RestaurantSettings.load().currency_symbol
+        if self.compensation_type == 'both':
+            scope = self.get_commission_scope_display()
+            return f"{self.user.username} — {symbol} {self.salary_amount} + commission ({scope})"
         return f"{self.user.username} — {symbol} {self.salary_amount} {self.get_payment_frequency_display()}"
+
+    @property
+    def earns_commission(self):
+        return self.compensation_type in ('commission', 'both')
+
+    @property
+    def earns_salary(self):
+        return self.compensation_type in ('salary', 'both')
 
     def _get_orders(self, start_date=None, end_date=None):
         """Return paid orders this user earns commission on.
@@ -120,7 +132,7 @@ class StaffCompensation(models.Model):
         Only includes order items matching the staff's commission scope,
         applying the correct rate per tier.
         """
-        if self.compensation_type != 'commission':
+        if not self.earns_commission:
             return Decimal('0')
 
         from menu.models import OrderItem
@@ -179,7 +191,7 @@ class StaffCompensation(models.Model):
         Return a list of dicts with daily commission data, sorted by date descending.
         Each dict: {date, order_count, total_sales, eligible_sales, commission}
         """
-        if self.compensation_type != 'commission':
+        if not self.earns_commission:
             return []
 
         eligible_tiers = self._get_eligible_tiers()
@@ -251,6 +263,7 @@ class PaymentRecord(models.Model):
         ('mpesa', 'M-Pesa'),
     ]
 
+    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='payment_records')
     staff = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='payment_records',
     )
@@ -323,6 +336,247 @@ class PaymentRecord(models.Model):
         self.save()
 
 
+class AdvanceRequest(models.Model):
+    """
+    Salary advance request.
+
+    Workflow:
+      - Attendants (can't login): Branch Manager submits on their behalf → Overall Manager/Owner approves.
+      - Other salaried staff: They submit themselves → Owner or Branch Manager approves.
+    """
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+        ('disbursed', 'Disbursed'),
+    ]
+
+    branch = models.ForeignKey(
+        'branches.Branch', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='advance_requests',
+    )
+    employee = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='advance_requests',
+    )
+    requested_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True,
+        related_name='submitted_advance_requests',
+        help_text='User who submitted the request (may differ from employee for attendants)',
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    reason = models.TextField(help_text='Reason for the advance request')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewed_advance_requests',
+    )
+    review_notes = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'created_at']),
+            models.Index(fields=['employee', 'status']),
+        ]
+
+    def __str__(self):
+        from menu.models import RestaurantSettings
+        symbol = RestaurantSettings.load().currency_symbol
+        return f"{self.employee.username} — {symbol} {self.amount} ({self.get_status_display()})"
+
+
+class Payroll(models.Model):
+    """
+    Monthly payroll batch — one record per month (optionally per branch).
+    Contains summary totals; individual breakdowns live in PayrollLine.
+    """
+
+    branch = models.ForeignKey(
+        'branches.Branch', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='payrolls',
+    )
+    month = models.PositiveSmallIntegerField(help_text='Month number 1-12')
+    year = models.PositiveSmallIntegerField()
+    month_label = models.CharField(max_length=30, blank=True, help_text="e.g. 'March 2026'")
+
+    # Totals (auto-calculated from lines)
+    total_basic = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_commission = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_gross = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_advances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_net = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employee_count = models.PositiveSmallIntegerField(default=0)
+
+    generated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='generated_payrolls',
+    )
+    generated_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-year', '-month']
+        unique_together = ('branch', 'month', 'year')
+        verbose_name = 'Payroll'
+        verbose_name_plural = 'Payroll Records'
+
+    def __str__(self):
+        branch_str = f' ({self.branch.name})' if self.branch else ''
+        return f'{self.month_label}{branch_str} — {self.employee_count} staff'
+
+
+class PayrollLine(models.Model):
+    """Individual employee line within a payroll batch."""
+
+    payroll = models.ForeignKey(
+        Payroll, on_delete=models.CASCADE, related_name='lines',
+    )
+    employee = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='payroll_lines',
+    )
+    branch = models.ForeignKey(
+        'branches.Branch', on_delete=models.SET_NULL,
+        null=True, blank=True,
+    )
+
+    basic_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    gross_pay = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    advance_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    other_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    net_pay = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        ordering = ['employee__username']
+        unique_together = ('payroll', 'employee')
+
+    def __str__(self):
+        return f'{self.employee.username} — Net {self.net_pay}'
+
+
+def preview_payroll(year, month, branch=None):
+    """
+    Calculate payroll data without saving anything.
+    Returns (month_label, lines_data) or (month_label, []) if no staff.
+    Each line in lines_data is a dict with user, branch, basic, commission, gross,
+    advance_total, net, and advances_qs.
+    """
+    import datetime
+    from hr.models import Employee
+
+    last_day = calendar.monthrange(year, month)[1]
+    period_start = datetime.date(year, month, 1)
+    period_end = datetime.date(year, month, last_day)
+    month_label = period_start.strftime('%B %Y')
+
+    compensations = StaffCompensation.objects.filter(
+        compensation_type__in=['salary', 'both'],
+    ).select_related('user')
+
+    if branch:
+        branch_user_ids = Employee.objects.filter(
+            branch=branch, status='active',
+        ).values_list('user_id', flat=True)
+        compensations = compensations.filter(user_id__in=branch_user_ids)
+
+    lines_data = []
+    for comp in compensations:
+        user = comp.user
+        if not user.is_active:
+            continue
+
+        basic = comp.salary_amount or Decimal('0')
+
+        commission_amount = Decimal('0')
+        if comp.earns_commission:
+            month_start_dt, month_end_dt = comp.get_month_range(year, month)
+            commission_amount = comp.get_total_commission(month_start_dt, month_end_dt)
+
+        gross = basic + commission_amount
+
+        advances = AdvanceRequest.objects.filter(
+            employee=user,
+            status='approved',
+            reviewed_at__date__lte=period_end,
+        )
+        advance_total = advances.aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0')
+
+        net = max(gross - advance_total, Decimal('0'))
+
+        emp_branch = None
+        try:
+            emp_branch = Employee.objects.get(user=user).branch
+        except Employee.DoesNotExist:
+            pass
+
+        lines_data.append({
+            'user': user,
+            'branch': emp_branch,
+            'basic': basic,
+            'commission': commission_amount,
+            'gross': gross,
+            'advance_total': advance_total,
+            'net': net,
+            'advances_qs': advances,
+        })
+
+    return month_label, lines_data
+
+
+def generate_payroll(year, month, branch=None, generated_by=None):
+    """
+    Generate a payroll batch for salaried/both employees for a given month.
+    If branch is provided, only generates for employees in that branch.
+    Returns the Payroll object, or None if already exists or no staff.
+    """
+    # Check if already generated
+    if Payroll.objects.filter(month=month, year=year, branch=branch).exists():
+        return None
+
+    month_label, lines_data = preview_payroll(year, month, branch)
+
+    if not lines_data:
+        return None
+
+    # Create the batch
+    payroll = Payroll.objects.create(
+        branch=branch,
+        month=month,
+        year=year,
+        month_label=month_label,
+        generated_by=generated_by,
+        employee_count=len(lines_data),
+        total_basic=sum(d['basic'] for d in lines_data),
+        total_commission=sum(d['commission'] for d in lines_data),
+        total_gross=sum(d['gross'] for d in lines_data),
+        total_advances=sum(d['advance_total'] for d in lines_data),
+        total_net=sum(d['net'] for d in lines_data),
+    )
+
+    for d in lines_data:
+        PayrollLine.objects.create(
+            payroll=payroll,
+            employee=d['user'],
+            branch=d['branch'],
+            basic_salary=d['basic'],
+            commission=d['commission'],
+            gross_pay=d['gross'],
+            advance_deductions=d['advance_total'],
+            net_pay=d['net'],
+        )
+        # Mark advances as disbursed
+        d['advances_qs'].update(status='disbursed')
+
+    return payroll
+
+
 def generate_past_month_records(user):
     """
     Create PaymentRecords for any past months that don't have one yet.
@@ -333,7 +587,7 @@ def generate_past_month_records(user):
     except StaffCompensation.DoesNotExist:
         return
 
-    if comp.compensation_type != 'commission':
+    if not comp.earns_commission:
         return
 
     now = timezone.now()
@@ -389,7 +643,7 @@ def generate_current_month_record(user):
     except StaffCompensation.DoesNotExist:
         return None
 
-    if comp.compensation_type != 'commission':
+    if not comp.earns_commission:
         return None
 
     now = timezone.now()

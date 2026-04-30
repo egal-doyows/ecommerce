@@ -11,6 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="{{ restaurant.name }}">
     <link rel="manifest" href="{% static 'manifest.json' %}">
     <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
+    <link rel="icon" type="image/png" href="{% static 'icons/sanityicon.png' %}">
     <title>{{ restaurant.name }}</title>
 
     <script src="{% static 'vendor/js/tailwind.js' %}"></script>
@@ -37,6 +38,7 @@
 
     <script src="{% static 'vendor/js/jquery-3.5.1.min.js' %}"></script>
     <script src="{% static 'vendor/js/bootstrap.bundle.min.js' %}"></script>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 
@@ -53,6 +55,9 @@
                 </div>
                 {% endif %}
                 <span class="tw-text-white tw-font-bold tw-text-lg tw-tracking-tight">{{ restaurant.name }}</span>
+                {% if current_branch %}
+                <span class="tw-text-xs tw-text-gray-400 tw-font-medium tw-bg-white/10 tw-px-2 tw-py-0.5 tw-rounded-md">{{ current_branch.name }}</span>
+                {% endif %}
             </a>
 
             {% if user.is_authenticated %}
@@ -65,7 +70,7 @@
                     <i class="fa-solid fa-receipt tw-text-xs"></i> Orders
                 </a>
                 <a href="{% url 'tables' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'tables' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
-                    <i class="fa-solid fa-table-cells-large tw-text-xs"></i> Spaces
+                    <i class="fa-solid fa-table-cells-large tw-text-xs"></i> Tables
                 </a>
                 <a href="{% url 'shift' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'shift' or request.resolver_match.url_name == 'shift-detail' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left tw-text-xs"></i> Shift
@@ -74,9 +79,72 @@
                     <i class="fa-solid fa-plate-wheat tw-text-xs"></i> Tray
                     <span id="cart-qty" class="tw-inline-flex tw-items-center tw-justify-center tw-min-w-[20px] tw-h-5 tw-px-1.5 tw-rounded-full tw-bg-rose-500 tw-text-white tw-text-[11px] tw-font-bold tw-leading-none">{% with qty=cart|length %}{{ qty }}{% endwith %}</span>
                 </a>
+                {% if waiter_notification_total %}
+                <div class="tw-relative" id="waiterBellWrap">
+                    <button onclick="document.getElementById('waiterBellDropdown').classList.toggle('tw-hidden')"
+                            class="tw-relative tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white tw-border-0 tw-bg-transparent tw-cursor-pointer"
+                            aria-label="{{ waiter_notification_total }} notification{{ waiter_notification_total|pluralize }}"
+                            title="{{ waiter_notification_total }} notification{{ waiter_notification_total|pluralize }}">
+                        <i class="fa-solid fa-bell tw-text-xs" style="animation:bellShake 2s ease-in-out infinite;"></i>
+                        <span class="tw-absolute tw--top-0.5 tw--right-0.5 tw-inline-flex tw-items-center tw-justify-center tw-min-w-[18px] tw-h-[18px] tw-px-1 tw-rounded-full tw-bg-red-500 tw-text-white tw-text-[10px] tw-font-bold tw-leading-none" id="waiterBellCount">{{ waiter_notification_total }}</span>
+                    </button>
+                    <div id="waiterBellDropdown" class="tw-hidden tw-absolute tw-right-0 tw-top-full tw-mt-2 tw-w-64 tw-bg-white tw-rounded-xl tw-shadow-xl tw-shadow-black/15 tw-border tw-border-gray-100 tw-overflow-hidden tw-z-50">
+                        <div class="tw-px-4 tw-py-2.5 tw-border-b tw-border-gray-100 tw-text-xs tw-font-bold tw-text-gray-500 tw-uppercase tw-tracking-wide">Kitchen & Bar Updates</div>
+                        {% if waiter_ready_count %}
+                        <form method="POST" action="{% url 'acknowledge-ready-items' %}" class="tw-m-0">
+                            {% csrf_token %}
+                            <button type="submit" class="tw-w-full tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 hover:tw-bg-gray-50 tw-transition-colors tw-border-0 tw-bg-transparent tw-cursor-pointer tw-text-left" style="font-family:inherit;">
+                                <div class="tw-w-8 tw-h-8 tw-rounded-lg tw-bg-green-50 tw-flex tw-items-center tw-justify-center tw-flex-shrink-0">
+                                    <i class="fa-solid fa-check tw-text-green-500 tw-text-xs"></i>
+                                </div>
+                                <div class="tw-flex-1 tw-min-w-0">
+                                    <div class="tw-text-sm tw-font-semibold tw-text-gray-800">Items Ready</div>
+                                    <div class="tw-text-xs tw-text-gray-400">Tap to acknowledge</div>
+                                </div>
+                                <span class="tw-inline-flex tw-items-center tw-justify-center tw-min-w-[22px] tw-h-[22px] tw-px-1.5 tw-rounded-full tw-bg-green-500 tw-text-white tw-text-[11px] tw-font-bold">{{ waiter_ready_count }}</span>
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% if waiter_request_count %}
+                        <a href="{% url 'order-list' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 tw-no-underline hover:tw-bg-gray-50 tw-transition-colors">
+                            <div class="tw-w-8 tw-h-8 tw-rounded-lg tw-bg-red-50 tw-flex tw-items-center tw-justify-center tw-flex-shrink-0">
+                                <i class="fa-solid fa-triangle-exclamation tw-text-red-500 tw-text-xs"></i>
+                            </div>
+                            <div class="tw-flex-1 tw-min-w-0">
+                                <div class="tw-text-sm tw-font-semibold tw-text-gray-800">Station Requests</div>
+                                <div class="tw-text-xs tw-text-gray-400">Edit or cancel requests</div>
+                            </div>
+                            <span class="tw-inline-flex tw-items-center tw-justify-center tw-min-w-[22px] tw-h-[22px] tw-px-1.5 tw-rounded-full tw-bg-red-500 tw-text-white tw-text-[11px] tw-font-bold">{{ waiter_request_count }}</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <style>
+                    @keyframes bellShake {
+                        0%, 100% { transform: rotate(0); }
+                        15% { transform: rotate(14deg); }
+                        30% { transform: rotate(-14deg); }
+                        45% { transform: rotate(8deg); }
+                        60% { transform: rotate(-6deg); }
+                        75% { transform: rotate(2deg); }
+                    }
+                </style>
+                <script>
+                    document.addEventListener('click', function(e) {
+                        var wrap = document.getElementById('waiterBellWrap');
+                        var dd = document.getElementById('waiterBellDropdown');
+                        if (wrap && dd && !wrap.contains(e.target)) dd.classList.add('tw-hidden');
+                    });
+                </script>
+                {% endif %}
                 {% if is_manager or is_supervisor %}
                 <a href="{% url 'admin-dashboard' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'admin-dashboard' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
                     <i class="fa-solid fa-shield-halved tw-text-xs"></i> Admin
+                </a>
+                {% endif %}
+                {% if is_overall_manager %}
+                <a href="{% url 'overall-dashboard' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white">
+                    <i class="fa-solid fa-globe tw-text-xs"></i> All Branches
                 </a>
                 {% endif %}
             </nav>
@@ -125,13 +193,6 @@
                         }
                     });
                 </script>
-                {% else %}
-                <a href="{% url 'waiter-login' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white tw-transition-all tw-duration-200 tw-no-underline">
-                    <i class="fa-solid fa-grid-2 tw-text-xs"></i> Waiter Login
-                </a>
-                <a href="{% url 'my-login' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-bg-pos-accent tw-text-white tw-text-sm tw-font-medium hover:tw-bg-pos-accent/80 tw-shadow-md tw-shadow-pos-accent/25 tw-transition-all tw-duration-200 tw-no-underline">
-                    <i class="fa-solid fa-user tw-text-xs"></i> Admin Login
-                </a>
                 {% endif %}
             </div>
 
@@ -141,8 +202,30 @@
     <!-- Spacer for fixed topbar -->
     <div class="tw-h-16"></div>
 
+    <div style="padding-bottom:60px;">
+    {% if messages %}
+    <div style="max-width:960px;margin:16px auto 0;padding:0 20px;">
+        {% for msg in messages %}
+        <div style="padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:10px;{% if msg.tags == 'success' %}background:rgba(40,167,69,.08);color:#28a745;border:1px solid rgba(40,167,69,.15);{% elif msg.tags == 'error' %}background:rgba(231,76,60,.08);color:#e74c3c;border:1px solid rgba(231,76,60,.15);{% else %}background:rgba(245,158,11,.08);color:#f59e0b;border:1px solid rgba(245,158,11,.15);{% endif %}">
+            <i class="fa-solid {% if msg.tags == 'success' %}fa-circle-check{% elif msg.tags == 'error' %}fa-circle-xmark{% else %}fa-circle-info{% endif %}"></i>
+            {{ msg }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% block content %}
     {% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="tw-fixed tw-bottom-0 tw-left-0 tw-right-0 tw-z-40 tw-bg-white tw-border-t tw-border-gray-200 tw-px-6 tw-py-3 tw-flex tw-items-center tw-justify-between" style="font-family:'Inter',sans-serif;">
+        <div class="tw-text-[11px] tw-text-gray-400">&copy; {% now "Y" %} {{ restaurant.name|default:"Restaurant" }}</div>
+        <div class="tw-flex tw-items-center tw-gap-2">
+            <img src="{% static 'icons/sanitypos.png' %}" alt="SanityPOS" class="tw-h-7 tw-opacity-90 tw-rounded">
+            <span class="tw-text-xs tw-font-bold tw-text-gray-600">SanityPOS</span>
+        </div>
+        <div class="tw-text-[11px] tw-text-gray-400">All rights reserved</div>
+    </footer>
 
     <script src="{% static 'js/pwa.js' %}"></script>
 </body>

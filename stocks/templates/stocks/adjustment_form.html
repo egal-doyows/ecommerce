@@ -1,0 +1,103 @@
+{% extends 'administration/base.html' %}
+
+{% block title %}New Stock Adjustment{% endblock %}
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:24px auto;padding:0 20px;">
+<div class="adm-page-header">
+    <div>
+        <h1>New Stock Adjustment</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'stock-movement-list' %}" style="color:var(--adm-accent);text-decoration:none;">Stock</a> /
+            <a href="{% url 'stock-adjustment-list' %}" style="color:var(--adm-accent);text-decoration:none;">Adjustments</a> / New
+        </div>
+    </div>
+</div>
+
+<form method="POST" id="adjForm">
+{% csrf_token %}
+
+<div class="adm-card" style="padding:20px;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:16px;">
+        <div>
+            <label class="adm-label">Reason</label>
+            <select name="reason" class="adm-input" required>
+                {% for code, label in reason_choices %}
+                <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="adm-label">Notes</label>
+            <input type="text" name="notes" class="adm-input" placeholder="Optional notes...">
+        </div>
+    </div>
+</div>
+
+<div class="adm-card" style="padding:0;">
+    <div style="padding:14px 20px;border-bottom:1px solid var(--adm-border);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;font-size:14px;">Inventory Items</span>
+        <span style="font-size:12px;color:var(--adm-muted);">Only changed quantities will be saved</span>
+    </div>
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Current Qty</th>
+                <th style="text-align:right;">New Qty</th>
+                <th style="text-align:right;">Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr data-row>
+                <td style="font-weight:600;">{{ item.name }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{{ item.get_unit_display }}</td>
+                <td style="text-align:right;">{{ item.stock_quantity|floatformat:2 }}</td>
+                <td style="text-align:right;width:120px;">
+                    <input type="hidden" name="item_id" value="{{ item.pk }}">
+                    <input type="number" name="new_qty" step="0.01"
+                           value="{{ item.stock_quantity|floatformat:2 }}"
+                           data-original="{{ item.stock_quantity|floatformat:2 }}"
+                           class="adm-input" style="width:100px;text-align:right;padding:5px 8px;font-size:13px;"
+                           oninput="updateDiff(this)">
+                </td>
+                <td style="text-align:right;font-weight:700;" data-diff>—</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
+    <a href="{% url 'stock-adjustment-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+    <button type="submit" class="adm-btn adm-btn-primary">
+        <i class="fa-solid fa-check"></i> Save Adjustment
+    </button>
+</div>
+</form>
+
+<script>
+function updateDiff(input) {
+    const row = input.closest('[data-row]');
+    const diffEl = row.querySelector('[data-diff]');
+    const original = parseFloat(input.dataset.original);
+    const newVal = parseFloat(input.value);
+    if (isNaN(newVal)) { diffEl.textContent = '—'; diffEl.style.color = ''; return; }
+    const diff = newVal - original;
+    if (Math.abs(diff) < 0.005) {
+        diffEl.textContent = '—';
+        diffEl.style.color = '';
+        row.style.background = '';
+    } else {
+        const sign = diff > 0 ? '+' : '';
+        diffEl.textContent = sign + diff.toFixed(2);
+        diffEl.style.color = diff > 0 ? 'var(--adm-success)' : 'var(--adm-danger)';
+        row.style.background = 'rgba(124,131,255,.04)';
+    }
+}
+</script>
+</div>
+{% endblock %}

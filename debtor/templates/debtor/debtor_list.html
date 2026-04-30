@@ -13,18 +13,35 @@
 </div>
 
 <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
-    <div class="adm-filters">
-        <a href="{% url 'debtor-list' %}" class="adm-filter-btn {% if show != 'all' %}active{% endif %}">Active</a>
-        <a href="{% url 'debtor-list' %}?show=all" class="adm-filter-btn {% if show == 'all' %}active{% endif %}">All</a>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div class="adm-filters">
+            <a href="{% url 'debtor-list' %}{% if branch_filter %}?branch={{ branch_filter }}{% endif %}" class="adm-filter-btn {% if show != 'all' %}active{% endif %}">Active</a>
+            <a href="{% url 'debtor-list' %}?show=all{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="adm-filter-btn {% if show == 'all' %}active{% endif %}">All</a>
+        </div>
+        {% if is_overall %}
+        <form method="get" action="{% url 'debtor-list' %}" style="display:flex;align-items:center;gap:8px;">
+            {% if show == 'all' %}<input type="hidden" name="show" value="all">{% endif %}
+            <select name="branch" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;" onchange="this.form.submit()">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                <option value="{{ b.pk }}" {% if branch_filter == b.pk|stringformat:"d" %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+            {% if branch_filter %}
+            <a href="{% url 'debtor-list' %}{% if show == 'all' %}?show=all{% endif %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;"><i class="fa-solid fa-xmark"></i></a>
+            {% endif %}
+        </form>
+        {% endif %}
     </div>
 </div>
 
 {% if debtors %}
-<div class="adm-card" style="padding:0;">
+<div class="adm-card" style="padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch;">
     <table class="adm-table">
         <thead>
             <tr>
                 <th>Debtor</th>
+                {% if is_overall %}<th>Branch</th>{% endif %}
                 <th>Contact</th>
                 <th>Phone</th>
                 <th style="text-align:right;">Total Owed</th>
@@ -35,11 +52,19 @@
         </thead>
         <tbody>
             {% for d in debtors %}
+            {% ifchanged d.branch.name %}{% if is_overall and not branch_filter %}
+            <tr>
+                <td colspan="{% if is_overall %}8{% else %}7{% endif %}" style="background:var(--adm-bg);padding:10px 16px;font-weight:700;font-size:13px;color:var(--adm-accent);border-bottom:2px solid var(--adm-accent);">
+                    <i class="fa-solid fa-store" style="margin-right:6px;font-size:11px;"></i> {{ d.branch.name|default:"No Branch" }}
+                </td>
+            </tr>
+            {% endif %}{% endifchanged %}
             <tr>
                 <td>
                     <a href="{% url 'debtor-detail' d.pk %}" style="font-weight:700;color:var(--adm-text);text-decoration:none;">{{ d.name }}</a>
                     {% if not d.is_active %}<span class="adm-badge adm-badge-muted" style="margin-left:6px;">Inactive</span>{% endif %}
                 </td>
+                {% if is_overall %}<td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ d.branch.name|default:"—" }}</td>{% endif %}
                 <td style="color:var(--adm-muted);">{{ d.contact_person|default:"—" }}</td>
                 <td style="color:var(--adm-muted);">{{ d.phone|default:"—" }}</td>
                 <td style="text-align:right;">{{ restaurant.currency_symbol }} {{ d.total_owed|floatformat:2|intcomma }}</td>

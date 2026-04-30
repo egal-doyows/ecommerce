@@ -1,13 +1,13 @@
 {% extends 'administration/base.html' %}
-{% block title %}Spaces{% endblock %}
+{% block title %}Tables{% endblock %}
 
 {% block content %}
 <div class="adm-page-header">
     <div>
-        <h1>Spaces</h1>
+        <h1>Tables</h1>
         <div class="breadcrumb-text">Manage restaurant seating</div>
     </div>
-    {% if is_manager %}<a href="{% url 'admin-table-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Space</a>{% endif %}
+    {% if is_manager %}<a href="{% url 'admin-table-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Table</a>{% endif %}
 </div>
 
 <div class="adm-card">
@@ -18,7 +18,7 @@
             <div style="font-size:28px;color:{% if table.status == 'available' %}var(--adm-success){% elif table.status == 'occupied' %}var(--adm-warning){% else %}var(--adm-muted){% endif %};margin-bottom:8px;">
                 <i class="fa-solid fa-chair"></i>
             </div>
-            <div style="font-size:18px;font-weight:700;">Space {{ table.number }}</div>
+            <div style="font-size:18px;font-weight:700;">Table {{ table.number }}</div>
             <div style="font-size:12px;color:var(--adm-muted);margin:4px 0 10px;">{{ table.capacity }} seats</div>
             <span class="adm-badge {% if table.status == 'available' %}adm-badge-success{% elif table.status == 'occupied' %}adm-badge-warning{% else %}adm-badge-muted{% endif %}">
                 {{ table.get_status_display }}

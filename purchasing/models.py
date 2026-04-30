@@ -22,6 +22,7 @@ class PurchaseOrder(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
+    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='purchase_orders')
     supplier = models.ForeignKey(
         Supplier, on_delete=models.CASCADE, related_name='purchase_orders',
     )

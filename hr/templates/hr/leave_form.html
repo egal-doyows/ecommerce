@@ -1,8 +1,11 @@
-{% extends "administration/base.html" %}
+{% extends base_template|default:"administration/base.html" %}
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
 {% block content %}
+<div style="max-width:960px;margin:24px auto;padding:0 20px;">
 <div class="adm-page-header">
     <div>
         <h1>{{ title }}</h1>
@@ -96,4 +99,5 @@
     update();
 })();
 </script>
+</div>
 {% endblock %}

@@ -1,0 +1,105 @@
+{% extends base_template|default:"menu/base.html" %}
+{% load humanize %}
+{% block title %}Advance Requests{% endblock %}
+
+{% block extra_head %}{% include "administration/includes/adm_styles.html" %}{% endblock %}
+
+{% block content %}
+<div style="max-width:960px;margin:24px auto;padding:0 20px;">
+<div class="adm-page-header">
+    <div>
+        <h1>Salary Advance Requests</h1>
+        <div class="breadcrumb-text">Manage advance payment requests</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+        {% if can_approve %}
+        <a href="{% url 'advance-verify' %}" class="adm-btn adm-btn-outline">
+            <i class="fa-solid fa-shield-halved"></i> Verify
+        </a>
+        {% endif %}
+        {% if is_branch_manager or can_approve %}
+        <a href="{% url 'advance-request-for-staff' %}" class="adm-btn adm-btn-outline">
+            <i class="fa-solid fa-user-plus"></i> Request for Employee
+        </a>
+        {% endif %}
+        <a href="{% url 'advance-request' %}" class="adm-btn adm-btn-primary">
+            <i class="fa-solid fa-plus"></i> Request Advance
+        </a>
+    </div>
+</div>
+
+<!-- Status filter -->
+<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+    <a href="{% url 'advance-list' %}" class="adm-filter-btn {% if not status_filter %}active{% endif %}">All</a>
+    <a href="{% url 'advance-list' %}?status=pending" class="adm-filter-btn {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
+    <a href="{% url 'advance-list' %}?status=approved" class="adm-filter-btn {% if status_filter == 'approved' %}active{% endif %}">Approved</a>
+    <a href="{% url 'advance-list' %}?status=rejected" class="adm-filter-btn {% if status_filter == 'rejected' %}active{% endif %}">Rejected</a>
+    <a href="{% url 'advance-list' %}?status=disbursed" class="adm-filter-btn {% if status_filter == 'disbursed' %}active{% endif %}">Disbursed</a>
+</div>
+
+<div class="adm-card">
+    {% if advance_requests %}
+    <div style="overflow-x:auto;">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th>Employee</th>
+                    <th>Requested By</th>
+                    <th style="text-align:right;">Amount</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in advance_requests %}
+                <tr onclick="window.location='{% if req.status == 'pending' and can_approve and req.employee != user and req.requested_by != user %}{% url 'advance-review' req.pk %}{% else %}{% url 'advance-list' %}{% endif %}'" style="cursor:pointer;" class="adm-row-hover">
+                    <td style="font-weight:600;">{{ req.employee.username|capfirst }}</td>
+                    <td style="color:var(--adm-muted);font-size:12px;">
+                        {% if req.requested_by != req.employee %}
+                            {{ req.requested_by.username|capfirst }}
+                        {% else %}
+                            Self
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right;font-weight:700;">{{ restaurant.currency_symbol }} {{ req.amount|floatformat:2|intcomma }}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">{{ req.reason }}</td>
+                    <td>
+                        <span class="adm-badge {% if req.status == 'pending' %}adm-badge-warning{% elif req.status == 'approved' %}adm-badge-success{% elif req.status == 'rejected' %}adm-badge-danger{% else %}adm-badge-muted{% endif %}">
+                            {{ req.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="color:var(--adm-muted);font-size:12px;">{{ req.created_at|date:"d M Y H:i" }}</td>
+                    <td style="white-space:nowrap;">
+                        {% if req.status == 'pending' and req.employee == user or req.status == 'pending' and req.requested_by == user %}
+                        <form method="POST" action="{% url 'advance-cancel' req.pk %}" style="display:inline;" onclick="event.stopPropagation();" onsubmit="return confirm('Cancel this advance request?');">
+                            {% csrf_token %}
+                            <button type="submit" class="adm-btn adm-btn-sm adm-btn-outline" style="padding:4px 10px;font-size:11px;">Cancel</button>
+                        </form>
+                        {% endif %}
+                        {% if req.employee == user %}{% if req.status == 'approved' or req.status == 'rejected' %}
+                        <a href="{% url 'advance-pdf' req.pk %}" class="adm-btn adm-btn-sm adm-btn-outline" title="Download PDF" style="padding:4px 10px;" onclick="event.stopPropagation();">
+                            <i class="fa-solid fa-file-pdf" style="color:var(--adm-danger);"></i>
+                        </a>
+                        {% endif %}{% endif %}
+                        {% if req.reviewed_by %}
+                        <span style="font-size:11px;color:var(--adm-muted);" title="{{ req.review_notes }}">
+                            by {{ req.reviewed_by.username|capfirst }}
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="adm-empty" style="padding:40px;">
+        <i class="fa-solid fa-money-bill-transfer"></i>
+        <p>No advance requests{% if status_filter %} with status "{{ status_filter }}"{% endif %}</p>
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}
