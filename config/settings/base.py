@@ -43,8 +43,6 @@ INSTALLED_APPS = [
     'crispy_forms',
     'django_celery_beat',
     # Local apps
-    'core',
-    'api',
     'menu',
     'cart',
     'account',
@@ -54,14 +52,9 @@ INSTALLED_APPS = [
     'debtor',
     'purchasing',
     'receiving',
-    'wastage',
+    'waste',
     'expenses',
     'hr',
-    'branches',
-    'finance',
-    'tax',
-    'stocks',
-    'assets',
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
@@ -77,7 +70,6 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'auditlog.middleware.AuditlogMiddleware',
-    'branches.middleware.BranchMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -96,10 +88,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'menu.views.categories',
                 'menu.views.restaurant_settings',
-                'menu.views.waiter_notifications',
                 'cart.context_processors.cart',
                 'administration.context_processors.admin_role',
-                'tax.context_processors.tax_config',
             ],
         },
     },
