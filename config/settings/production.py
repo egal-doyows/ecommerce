@@ -34,6 +34,19 @@ SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
+# ── CSRF trusted origins ──────────────────────────────────────────────────
+# Django 4+ requires HTTPS POSTs to come from an origin in this list.
+# Provide via env as a comma-separated list of full origins, e.g.
+#   CSRF_TRUSTED_ORIGINS=https://example.com,https://www.example.com
+
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if o.strip()
+]
 
 
 # ── Static files (whitenoise compressed manifest) ─────────────────────────
