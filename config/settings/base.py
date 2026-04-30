@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'mathfilters',
     'django.contrib.humanize',
     'crispy_forms',
+    'django_celery_beat',
     # Local apps
     'core',
     'api',
@@ -213,6 +214,7 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 try:
     from celery.schedules import crontab
