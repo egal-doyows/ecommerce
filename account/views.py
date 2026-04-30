@@ -1,3 +1,5 @@
+import logging
+
 from django.shortcuts import render, redirect
 from django.contrib.auth.models import User
 from django.contrib.auth.models import auth
@@ -7,12 +9,15 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django_ratelimit.decorators import ratelimit
 
 from .forms import CreateUserForm, LoginForm, UserUpdateForm, WaiterLoginForm, WaiterProfileForm
 from .models import WaiterCode
 from .token import user_tokenizer_generate
 from menu.models import Shift
 from staff_compensation.models import StaffCompensation
+
+auth_logger = logging.getLogger('auth')
 
 
 def register(request):
@@ -82,32 +87,67 @@ def email_verification_failed(request):
     return render(request, 'accounts/registration/email-verification-failed.html')
 
 
-def _get_post_login_redirect(user):
+def _resolve_user_branch(user):
+    """Resolve the user's primary branch after login (middleware hasn't re-run yet)."""
+    from branches.models import UserBranch, Branch
+    assignment = (
+        UserBranch.objects.filter(user=user, branch__is_active=True)
+        .select_related('branch')
+        .order_by('-is_primary', 'branch__name')
+        .first()
+    )
+    if assignment:
+        return assignment.branch
+    # Overall managers / superusers may not have an assignment
+    return Branch.objects.filter(is_active=True).first()
+
+
+def _ensure_login_shift(user, branch):
+    """Create an auto-shift for manager-type roles if one doesn't exist."""
+    if not Shift.objects.filter(waiter=user, is_active=True).exists():
+        Shift.objects.create(waiter=user, starting_cash=0, branch=branch)
+
+
+def _get_post_login_redirect(request):
     """Route user to the right landing page after login."""
+    user = request.user
+    # Always resolve fresh from UserBranch on login (ignore stale session)
+    branch = _resolve_user_branch(user)
+    if branch:
+        request.session['branch_id'] = branch.pk
+
     # Superusers → Django admin
     if user.is_superuser:
         return redirect('/admin/')
-    # Managers → auto-shift (no starting cash) + admin dashboard
-    if user.groups.filter(name='Manager').exists():
-        if not Shift.objects.filter(waiter=user, is_active=True).exists():
-            Shift.objects.create(waiter=user, starting_cash=0)
+    # Admin role → admin dashboard (full access, no Django admin)
+    if user.groups.filter(name='Owner').exists():
+        _ensure_login_shift(user, branch)
         return redirect('admin-dashboard')
-    # Supervisors → auto-shift + POS (they create orders on behalf of attendants)
+    # Overall Managers → admin dashboard (no shift needed)
+    if user.groups.filter(name='Overall Manager').exists():
+        return redirect('admin-dashboard')
+    # Branch Managers → auto-shift + admin dashboard
+    if user.groups.filter(name='Branch Manager').exists():
+        _ensure_login_shift(user, branch)
+        return redirect('admin-dashboard')
+    # Supervisors → auto-shift + POS
     if user.groups.filter(name='Supervisor').exists():
-        if not Shift.objects.filter(waiter=user, is_active=True).exists():
-            Shift.objects.create(waiter=user, starting_cash=0)
+        _ensure_login_shift(user, branch)
         return redirect('pos')
-    # Marketing → auto-shift (no starting cash) + POS
+    # Marketing → auto-shift + POS
     if user.groups.filter(name='Marketing').exists():
-        if not Shift.objects.filter(waiter=user, is_active=True).exists():
-            Shift.objects.create(waiter=user, starting_cash=0)
+        _ensure_login_shift(user, branch)
         return redirect('pos')
+    # Display group → station display (no shift needed)
+    if user.groups.filter(name='Display').exists():
+        return redirect('station-display')
     # Front Service / Cashiers / others → shift or POS
     if Shift.objects.filter(waiter=user, is_active=True).exists():
         return redirect('pos')
     return redirect('shift')
 
 
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
 def my_login(request):
     form = LoginForm()
     if request.method == 'POST':
@@ -116,17 +156,40 @@ def my_login(request):
             username = request.POST.get('username')
             password = request.POST.get('password')
             user = authenticate(username=username, password=password)
+            if user is None:
+                auth_logger.warning('Failed login attempt for username=%s from IP=%s', username, request.META.get('REMOTE_ADDR'))
             if user is not None:
+                auth_logger.info('Successful login for user=%s from IP=%s', username, request.META.get('REMOTE_ADDR'))
+                # Block attendants from logging in
+                if user.groups.filter(name='Attendant').exists():
+                    messages.error(request, 'Attendants are not allowed to login. Please contact your manager.')
+                    return render(request, 'accounts/my-login.html', {'form': LoginForm()})
+                # Block login if employee has a pending branch transfer
+                from hr.models import TransferRequest
+                from core.auth import has_full_access
+                if not has_full_access(user) and TransferRequest.objects.filter(
+                    employee__user=user, status='pending',
+                ).exists():
+                    messages.error(request, 'Your account is locked pending a branch transfer approval. Please contact your manager.')
+                    return render(request, 'accounts/my-login.html', {'form': LoginForm()})
+
                 auth.login(request, user)
                 # Prompt to create login code if they don't have one
-                if not user.is_superuser and not hasattr(user, 'waiter_code'):
+                if not has_full_access(user) and not hasattr(user, 'waiter_code'):
                     return redirect('setup-login-code')
-                return _get_post_login_redirect(user)
+                return _get_post_login_redirect(request)
 
     context = {'form': form}
     return render(request, 'accounts/my-login.html', context)
 
 
+# Brute-force protection on the 6-digit waiter code. Stack two windows:
+#   5/m   — kills typing-fast brute force (humans can't legitimately mistype
+#           5 times in 60s; bots try 100s/sec).
+#   30/h  — caps sustained attack to 720/day per IP, so even a 100-IP botnet
+#           takes ~3 months to walk the full 1M code space.
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
+@ratelimit(key='ip', rate='30/h', method='POST', block=True)
 def waiter_login(request):
     form = WaiterLoginForm()
     error = None
@@ -137,13 +200,25 @@ def waiter_login(request):
             code = form.cleaned_data['code']
             try:
                 waiter_code = WaiterCode.objects.get(code=code, is_active=True)
-                user = waiter_code.user
-                if user.is_active:
-                    auth.login(request, user)
-                    return _get_post_login_redirect(user)
-                else:
+                if waiter_code.is_locked():
+                    auth_logger.warning('Login attempt on locked waiter code user=%s from IP=%s', waiter_code.user.username, request.META.get('REMOTE_ADDR'))
+                    error = 'Account temporarily locked due to too many failed attempts. Please try again later.'
+                elif not waiter_code.user.is_active:
                     error = 'This account is not active.'
+                else:
+                    user = waiter_code.user
+                    # Block login if employee has a pending branch transfer
+                    from hr.models import TransferRequest
+                    if TransferRequest.objects.filter(
+                        employee__user=user, status='pending',
+                    ).exists():
+                        error = 'Your account is locked pending a branch transfer approval. Please contact your manager.'
+                    else:
+                        waiter_code.reset_failed_attempts()
+                        auth.login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                        return _get_post_login_redirect(request)
             except WaiterCode.DoesNotExist:
+                auth_logger.warning('Failed waiter login attempt with invalid code from IP=%s', request.META.get('REMOTE_ADDR'))
                 error = 'Invalid code. Please try again.'
 
     context = {'form': form, 'error': error}
@@ -154,18 +229,18 @@ def waiter_login(request):
 def setup_login_code(request):
     # If they already have a code, skip
     if hasattr(request.user, 'waiter_code'):
-        return _get_post_login_redirect(request.user)
+        return _get_post_login_redirect(request)
 
     error = None
     if request.method == 'POST':
         code = request.POST.get('code', '').strip()
-        if len(code) != 6 or not code.isdigit():
-            error = 'Please enter a valid 6-digit code.'
+        if len(code) != WaiterCode.CODE_LENGTH or not code.isdigit():
+            error = f'Please enter a valid {WaiterCode.CODE_LENGTH}-digit code.'
         elif WaiterCode.objects.filter(code=code).exists():
             error = 'This code is already taken. Choose a different one.'
         else:
             WaiterCode.objects.create(user=request.user, code=code)
-            return _get_post_login_redirect(request.user)
+            return _get_post_login_redirect(request)
 
     suggested = WaiterCode.generate_code()
     return render(request, 'accounts/setup-login-code.html', {
@@ -177,29 +252,77 @@ def setup_login_code(request):
 @login_required(login_url='my-login')
 def dashboard(request):
     from django.utils import timezone
+    from django.db.models import Q, Sum, F
     from menu.models import Shift, Order
-    active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
-    from django.db.models import Q
+    user = request.user
+
+    active_shift = Shift.objects.filter(waiter=user, is_active=True).first()
     today_orders = Order.objects.filter(
-        Q(waiter=request.user) | Q(created_by=request.user),
+        Q(waiter=user) | Q(created_by=user),
         created_at__date=timezone.now().date(),
     ).distinct()
+    today_sales = today_orders.filter(status='paid').aggregate(
+        total=Sum(F('items__unit_price') * F('items__quantity'))
+    )['total'] or 0
+
+    from staff_compensation.models import AdvanceRequest, PayrollLine
+    from hr.models import LeaveRequest
+    pending_advances = AdvanceRequest.objects.filter(employee=user, status='pending').count()
+    pending_leaves = LeaveRequest.objects.filter(employee__user=user, status='pending').count()
+
+    is_staff_user = not (
+        user.is_superuser
+        or user.groups.filter(name__in=['Owner', 'Branch Manager', 'Overall Manager', 'Supervisor']).exists()
+    )
+
     context = {
         'active_shift': active_shift,
         'today_order_count': today_orders.count(),
-        'today_sales': sum(o.get_total() for o in today_orders.filter(status='paid')),
+        'today_sales': today_sales,
+        'pending_advances': pending_advances,
+        'pending_leaves': pending_leaves,
+        'is_staff_user': is_staff_user,
     }
+
+    # Extra context for non-manager staff
+    if is_staff_user:
+        compensation = getattr(user, 'compensation', None)
+        context['compensation'] = compensation
+
+        # Latest payslips
+        latest_payslips = PayrollLine.objects.filter(
+            employee=user,
+        ).select_related('payroll').order_by('-payroll__year', '-payroll__month')[:3]
+        context['latest_payslips'] = latest_payslips
+
+        # Outstanding balance (unpaid payment records)
+        from staff_compensation.models import PaymentRecord
+        outstanding = PaymentRecord.objects.filter(
+            staff=user, status='pending',
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        context['outstanding_balance'] = outstanding
+
+        # Total advances taken
+        total_advances = AdvanceRequest.objects.filter(
+            employee=user, status__in=['approved', 'disbursed'],
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        context['total_advances'] = total_advances
+
     return render(request, 'accounts/dashboard.html', context)
 
 
 def user_logout(request):
     auth.logout(request)
-    return redirect('pos')
+    return redirect('waiter-login')
 
 
 @login_required(login_url='my-login')
 def profile_management(request):
     waiter_code = getattr(request.user, 'waiter_code', None)
+    is_staff_user = not (
+        request.user.is_superuser
+        or request.user.groups.filter(name__in=['Owner', 'Branch Manager', 'Overall Manager', 'Supervisor']).exists()
+    )
 
     if request.method == 'POST':
         form = WaiterProfileForm(request.POST, request.FILES)
@@ -212,7 +335,8 @@ def profile_management(request):
                     form.add_error('code', 'This code is already in use.')
                 else:
                     waiter_code.code = new_code
-                    if form.cleaned_data.get('photo'):
+                    # Only managers can update photo
+                    if not is_staff_user and form.cleaned_data.get('photo'):
                         waiter_code.photo = form.cleaned_data['photo']
                     waiter_code.save()
                     return redirect('dashboard')
@@ -225,16 +349,23 @@ def profile_management(request):
     context = {
         'form': form,
         'waiter_code': waiter_code,
+        'is_staff_user': is_staff_user,
     }
     return render(request, 'accounts/profile-management.html', context)
 
 
 @login_required(login_url='my-login')
 def delete_account(request):
-    user = User.objects.get(id=request.user.id)
-
     if request.method == 'POST':
-        user.delete()
-        return redirect('pos')
+        password = request.POST.get('password', '')
+        if not request.user.check_password(password):
+            from django.contrib import messages
+            messages.error(request, 'Incorrect password. Account was not deactivated.')
+            return render(request, 'accounts/delete-account.html', {})
+        user = request.user
+        auth.logout(request)
+        user.is_active = False
+        user.save()
+        return redirect('my-login')
 
     return render(request, 'accounts/delete-account.html', {})
