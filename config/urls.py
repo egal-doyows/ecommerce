@@ -15,13 +15,26 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.db import connection
+from django.http import JsonResponse
 from django.urls import path, include
+from django.views.decorators.cache import never_cache
 
 from django.conf import settings
 from django.conf.urls.static import static
 
 from menu.views import service_worker_view
-from core.views import health_check
+
+
+@never_cache
+def health_check(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+        return JsonResponse({'status': 'ok', 'database': 'ok'})
+    except Exception:
+        return JsonResponse({'status': 'error', 'database': 'error'}, status=503)
+
 
 urlpatterns = [
     path('health/', health_check, name='health-check'),
@@ -37,15 +50,9 @@ urlpatterns = [
     path('debtors/', include('debtor.urls')),
     path('purchasing/', include('purchasing.urls')),
     path('receiving/', include('receiving.urls')),
-    path('wastage/', include('wastage.urls')),
+    path('waste/', include('waste.urls')),
     path('expenses/', include('expenses.urls')),
     path('hr/', include('hr.urls')),
-    path('finance/', include('finance.urls')),
-    path('tax/', include('tax.urls')),
-    path('stocks/', include('stocks.urls')),
-    path('assets/', include('assets.urls')),
-    path('branches/', include('branches.urls')),
-    path('api/v1/', include('api.urls')),
 ]
 
 if settings.DEBUG:
