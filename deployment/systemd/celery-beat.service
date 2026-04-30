@@ -1,0 +1,21 @@
+[Unit]
+Description=celery beat scheduler for ecommerce restaurant POS
+After=network.target redis-server.service postgresql.service
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/home/deploy/ecommerce
+EnvironmentFile=/home/deploy/ecommerce/.env
+Environment="DJANGO_ENV=production"
+ExecStart=/home/deploy/ecommerce/.venv/bin/celery -A config beat \
+    --scheduler django_celery_beat.schedulers:DatabaseScheduler \
+    --pidfile=/home/deploy/ecommerce/run/celery-beat.pid \
+    --logfile=/home/deploy/ecommerce/logs/celery-beat.log \
+    --loglevel=INFO
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

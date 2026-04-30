@@ -1,0 +1,11 @@
+[Unit]
+Description=gunicorn socket for ecommerce restaurant POS
+
+[Socket]
+ListenStream=/run/gunicorn-ecommerce.sock
+SocketUser=deploy
+SocketGroup=www-data
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target
