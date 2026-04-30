@@ -1,7 +1,25 @@
 asgiref==3.11.1
-Django
+Django>=5.1,<6.1
 django-crispy-forms==1.14.0
 django-mathfilters==1.0.0
-django-utils-six==2.0
-pillow
+pillow>=10.0
 sqlparse==0.5.5
+
+# PostgreSQL
+psycopg2-binary
+
+# Security
+django-ratelimit
+
+# Background tasks
+celery[redis]
+redis
+
+# REST API
+djangorestframework
+
+# Audit logging
+django-auditlog
+
+# Production server
+gunicorn
