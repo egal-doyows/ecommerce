@@ -36,3 +36,18 @@ SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+
+# ── Static files (whitenoise compressed manifest) ─────────────────────────
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+# Vendored CSS references some sourcemap files that aren't shipped — don't
+# fail the whole collectstatic over it.
+WHITENOISE_MANIFEST_STRICT = False
