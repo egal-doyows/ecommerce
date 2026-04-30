@@ -1,4 +1,4 @@
-{% extends base_template|default:"menu/base.html" %}
+{% extends "menu/base.html" %}
 {% load crispy_forms_tags %}
 
 {% block content %}
@@ -270,17 +270,6 @@
                         <p>Fixed pay per period</p>
                     </label>
                 </div>
-                <div class="sc-type-option">
-                    <input type="radio" name="compensation_type" value="both" id="type_both"
-                           {% if form.initial.compensation_type == 'both' or form.data.compensation_type == 'both' %}checked{% endif %}>
-                    <label for="type_both" class="sc-type-label">
-                        <div class="sc-type-icon" style="background:#fef3c7; color:#92400e;">
-                            <i class="fa-solid fa-coins"></i>
-                        </div>
-                        <h4>Both</h4>
-                        <p>Salary + commission</p>
-                    </label>
-                </div>
             </div>
 
             {% if form.errors.compensation_type %}
@@ -368,7 +357,6 @@
     (function() {
         const commRadio = document.getElementById('type_commission');
         const salRadio = document.getElementById('type_salary');
-        const bothRadio = document.getElementById('type_both');
         const commFields = document.getElementById('commissionFields');
         const salFields = document.getElementById('salaryFields');
 
@@ -379,11 +367,9 @@
         const ratePremCol = document.getElementById('ratePremiumCol');
 
         function toggleType() {
-            const showComm = commRadio.checked || bothRadio.checked;
-            const showSal = salRadio.checked || bothRadio.checked;
-            commFields.classList.toggle('visible', showComm);
-            salFields.classList.toggle('visible', showSal);
-            if (showComm) toggleScope();
+            commFields.classList.toggle('visible', commRadio.checked);
+            salFields.classList.toggle('visible', salRadio.checked);
+            if (commRadio.checked) toggleScope();
         }
 
         function toggleScope() {
@@ -395,7 +381,6 @@
 
         commRadio.addEventListener('change', toggleType);
         salRadio.addEventListener('change', toggleType);
-        bothRadio.addEventListener('change', toggleType);
         scopeRegular.addEventListener('change', toggleScope);
         scopePremium.addEventListener('change', toggleScope);
         scopeBoth.addEventListener('change', toggleScope);

@@ -6,7 +6,6 @@ from django.utils import timezone
 
 
 class Debtor(models.Model):
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='debtors')
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=200, blank=True)
     phone = models.CharField(max_length=20, blank=True)

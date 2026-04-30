@@ -1,4 +1,4 @@
-{% extends base_template|default:"menu/base.html" %}
+{% extends "menu/base.html" %}
 {% load humanize %}
 
 {% block content %}
@@ -151,26 +151,10 @@
         </a>
     </div>
 
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-        <div class="sc-filters" style="margin-bottom:0;">
-            <a href="{% url 'payment-list' %}{% if branch_filter %}?branch={{ branch_filter }}{% endif %}" class="sc-filter-btn {% if not status_filter %}active{% endif %}">All</a>
-            <a href="{% url 'payment-list' %}?status=pending{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="sc-filter-btn {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
-            <a href="{% url 'payment-list' %}?status=paid{% if branch_filter %}&branch={{ branch_filter }}{% endif %}" class="sc-filter-btn {% if status_filter == 'paid' %}active{% endif %}">Paid</a>
-        </div>
-        {% if is_overall %}
-        <form method="get" action="{% url 'payment-list' %}" style="display:flex;align-items:center;gap:8px;">
-            {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-            <select name="branch" style="padding:5px 10px;font-size:12px;border-radius:8px;border:1.5px solid var(--pos-border, #e5e7eb);" onchange="this.form.submit()">
-                <option value="">All Branches</option>
-                {% for b in branches %}
-                <option value="{{ b.pk }}" {% if branch_filter == b.pk|stringformat:"d" %}selected{% endif %}>{{ b.name }}</option>
-                {% endfor %}
-            </select>
-            {% if branch_filter %}
-            <a href="{% url 'payment-list' %}{% if status_filter %}?status={{ status_filter }}{% endif %}" style="color:#dc3545;font-size:12px;text-decoration:none;font-weight:600;"><i class="fa-solid fa-xmark"></i></a>
-            {% endif %}
-        </form>
-        {% endif %}
+    <div class="sc-filters">
+        <a href="{% url 'payment-list' %}" class="sc-filter-btn {% if not status_filter %}active{% endif %}">All</a>
+        <a href="{% url 'payment-list' %}?status=pending" class="sc-filter-btn {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
+        <a href="{% url 'payment-list' %}?status=paid" class="sc-filter-btn {% if status_filter == 'paid' %}active{% endif %}">Paid</a>
     </div>
 
     <table class="sc-table">

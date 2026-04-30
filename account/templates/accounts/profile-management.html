@@ -209,7 +209,7 @@
             <h3><i class="fa-solid fa-user-pen"></i> &nbsp; Edit Profile</h3>
         </div>
         <div class="ep-card-body">
-            <form method="POST" {% if not is_staff_user %}enctype="multipart/form-data"{% endif %}>
+            <form method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
 
                 <!-- Photo -->
@@ -219,13 +219,9 @@
                         <img src="{{ waiter_code.photo.url }}" alt="Profile photo" id="photoPreview">
                         {% else %}
                         <div class="ep-photo-placeholder" id="photoPlaceholder">{{ user.username|first|upper }}</div>
-                        {% if not is_staff_user %}<img src="" alt="" id="photoPreview" style="display:none; width:100%; height:100%; object-fit:cover;">{% endif %}
+                        <img src="" alt="" id="photoPreview" style="display:none; width:100%; height:100%; object-fit:cover;">
                         {% endif %}
                     </div>
-                    {% if is_staff_user %}
-                    <div style="font-size:16px;font-weight:700;color:var(--pos-text);margin-bottom:2px;">{{ user.username|capfirst }}</div>
-                    <div class="ep-photo-label">{% for g in user.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% empty %}Staff{% endfor %}</div>
-                    {% else %}
                     <div class="ep-photo-label">Profile Photo</div>
                     <div class="ep-photo-input">
                         <div class="ep-photo-btn">
@@ -234,7 +230,6 @@
                         <input type="file" name="photo" accept="image/*" onchange="previewPhoto(this)">
                     </div>
                     <div class="ep-photo-name" id="photoName"></div>
-                    {% endif %}
                 </div>
 
                 <!-- Login Code -->

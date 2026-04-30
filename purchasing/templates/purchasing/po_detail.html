@@ -276,10 +276,9 @@
     <input type="hidden" name="unit_price" id="addItemPrice">
 </form>
 
-{{ inventory_items_data|json_script:"inventory-data" }}
 <script>
-const inventoryItems = JSON.parse(document.getElementById('inventory-data').textContent);
-const currencySymbol = '{{ currency_symbol|escapejs }}';
+const inventoryItems = {{ inventory_json|safe }};
+const currencySymbol = '{{ currency_symbol }}';
 let currentTab = 'all';
 
 function switchTab(tab) {

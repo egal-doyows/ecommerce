@@ -53,10 +53,8 @@ class Expense(models.Model):
         ('pending', 'Pending Approval'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
-        ('cancelled', 'Cancelled'),
     ]
 
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='expenses')
     category = models.ForeignKey(
         ExpenseCategory, on_delete=models.SET_NULL, null=True,
         related_name='expenses',

@@ -2,23 +2,43 @@ from datetime import datetime
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import models, transaction
 from django.utils import timezone as tz
 
-from core.permissions import manager_required
 from purchasing.models import PurchaseOrder, PurchaseOrderItem
 from supplier.models import SupplierTransaction
 from .models import GoodsReceipt, GoodsReceiptItem
+
+
+def _is_manager(user):
+    """Manager or Superuser only (not Supervisor)."""
+    return user.is_authenticated and (
+        user.is_superuser or user.groups.filter(name='Manager').exists()
+    )
+
+
+def manager_required(view_func):
+    """Only managers and superusers can access receiving."""
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        if not _is_manager(request.user):
+            messages.error(request, 'Only managers can access goods receiving.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    wrapper.__doc__ = view_func.__doc__
+    return wrapper
 
 
 # ── Receipt List ─────────────────────────────────────────────────────
 
 @manager_required
 def receipt_list(request):
-    receipts = GoodsReceipt.objects.filter(branch=request.branch).select_related(
-        'purchase_order__supplier', 'received_by', 'branch',
+    receipts = GoodsReceipt.objects.select_related(
+        'purchase_order__supplier', 'received_by',
     ).order_by('-received_date', '-pk')
 
     # Date filtering
@@ -53,7 +73,7 @@ def receipt_list(request):
 
     # Approved POs available for receiving
     approved_pos = PurchaseOrder.objects.filter(
-        status='approved', branch=request.branch,
+        status='approved',
     ).select_related('supplier').order_by('-order_date')
 
     # Suppliers for filter dropdown
@@ -69,9 +89,6 @@ def receipt_list(request):
         'search': search,
         'approved_pos': approved_pos,
         'suppliers': suppliers,
-        'is_overall': False,
-        'branches': [],
-        'branch_filter': '',
     })
 
 
@@ -79,13 +96,9 @@ def receipt_list(request):
 
 @manager_required
 def receipt_create(request, po_pk):
-    is_overall = request.user.is_superuser or request.user.groups.filter(name='Overall Manager').exists()
-    filter_kwargs = {'pk': po_pk}
-    if not is_overall:
-        filter_kwargs['branch'] = request.branch
     po = get_object_or_404(
         PurchaseOrder.objects.select_related('supplier'),
-        **filter_kwargs,
+        pk=po_pk,
     )
 
     if po.status not in ('approved', 'received'):
@@ -116,7 +129,6 @@ def receipt_create(request, po_pk):
     symbol = RestaurantSettings.load().currency_symbol
 
     if request.method == 'POST':
-        from branches.utils import resolve_branch
         notes = request.POST.get('notes', '').strip()
 
         with transaction.atomic():
@@ -125,7 +137,6 @@ def receipt_create(request, po_pk):
                 received_by=request.user,
                 received_date=tz.now().date(),
                 notes=notes,
-                branch=resolve_branch(request),
             )
 
             total_received_value = Decimal('0')
@@ -162,25 +173,15 @@ def receipt_create(request, po_pk):
                 item.received_quantity += received_qty
                 item.save()
 
-                # Update inventory stock (F() prevents race conditions)
+                # Update inventory stock
                 if received_qty > 0:
                     any_received = True
                     inv = item.inventory_item
-                    from menu.models import InventoryItem
-                    update_kwargs = {'stock_quantity': models.F('stock_quantity') + received_qty}
+                    inv.stock_quantity += received_qty
                     if item.unit_price > 0:
-                        update_kwargs['buying_price'] = item.unit_price
-                    InventoryItem.objects.filter(pk=inv.pk).update(**update_kwargs)
+                        inv.buying_price = item.unit_price
+                    inv.save()
                     total_received_value += received_qty * item.unit_price
-
-                    # Log stock movement
-                    from stocks.tracking import log_movement
-                    inv.refresh_from_db(fields=['stock_quantity'])
-                    log_movement(
-                        inv, 'received', received_qty,
-                        reference=f'PO #{po.pk}',
-                        user=request.user, branch=getattr(request, 'branch', None),
-                    )
 
             if not any_received:
                 receipt.delete()
@@ -211,7 +212,6 @@ def receipt_create(request, po_pk):
                     description=f'Goods received — {receipt.grn_number} ({po.po_number})',
                     reference=receipt.grn_number,
                     created_by=request.user,
-                    branch=request.branch,
                 )
 
         status_msg = 'fully received' if fully_received else 'partially received'
@@ -233,15 +233,11 @@ def receipt_create(request, po_pk):
 
 @manager_required
 def receipt_detail(request, pk):
-    is_overall = request.user.is_superuser or request.user.groups.filter(name='Overall Manager').exists()
-    filter_kwargs = {'pk': pk}
-    if not is_overall:
-        filter_kwargs['branch'] = request.branch
     receipt = get_object_or_404(
         GoodsReceipt.objects.select_related(
             'purchase_order__supplier', 'received_by',
         ),
-        **filter_kwargs,
+        pk=pk,
     )
     items = receipt.items.select_related('po_item__inventory_item').all()
 
@@ -260,13 +256,9 @@ def receipt_detail(request, pk):
 @manager_required
 def po_receiving_summary(request, po_pk):
     """Show all receipts for a specific PO."""
-    is_overall = request.user.is_superuser or request.user.groups.filter(name='Overall Manager').exists()
-    filter_kwargs = {'pk': po_pk}
-    if not is_overall:
-        filter_kwargs['branch'] = request.branch
     po = get_object_or_404(
         PurchaseOrder.objects.select_related('supplier'),
-        **filter_kwargs,
+        pk=po_pk,
     )
     receipts = po.receipts.select_related('received_by').order_by('-received_date')
 
@@ -324,15 +316,11 @@ def receipt_pdf(request, pk):
     WARNING = colors.HexColor('#d97706')
     DANGER = colors.HexColor('#dc2626')
 
-    is_overall = request.user.is_superuser or request.user.groups.filter(name='Overall Manager').exists()
-    filter_kwargs = {'pk': pk}
-    if not is_overall:
-        filter_kwargs['branch'] = request.branch
     receipt = get_object_or_404(
         GoodsReceipt.objects.select_related(
             'purchase_order__supplier', 'received_by',
         ),
-        **filter_kwargs,
+        pk=pk,
     )
     items = receipt.items.select_related('po_item__inventory_item').all()
     po = receipt.purchase_order

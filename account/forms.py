@@ -3,15 +3,6 @@ from django.contrib.auth.models import User
 from django import forms
 from django.forms.widgets import PasswordInput, TextInput
 
-from account.models import WaiterCode
-
-
-def _validate_digit_code(code):
-    """Shared validator for waiter login codes."""
-    if not code.isdigit():
-        raise forms.ValidationError('Code must contain only digits.')
-    return code
-
 
 COMPENSATION_TYPE_CHOICES = [
     ('commission', 'Commission'),
@@ -118,20 +109,23 @@ class LoginForm(AuthenticationForm):
 
 class WaiterLoginForm(forms.Form):
     code = forms.CharField(
-        max_length=WaiterCode.CODE_LENGTH,
-        min_length=WaiterCode.CODE_LENGTH,
+        max_length=6,
+        min_length=6,
         widget=forms.TextInput(attrs={
-            'placeholder': f'Enter {WaiterCode.CODE_LENGTH}-digit code',
+            'placeholder': 'Enter 6-digit code',
             'class': 'form-control form-control-lg text-center',
             'inputmode': 'numeric',
-            'pattern': f'[0-9]{{{WaiterCode.CODE_LENGTH}}}',
+            'pattern': '[0-9]{6}',
             'autofocus': 'autofocus',
         }),
         label='Login Code',
     )
 
     def clean_code(self):
-        return _validate_digit_code(self.cleaned_data.get('code'))
+        code = self.cleaned_data.get('code')
+        if not code.isdigit():
+            raise forms.ValidationError('Code must contain only digits.')
+        return code
 
 
 class WaiterProfileForm(forms.Form):
@@ -140,19 +134,22 @@ class WaiterProfileForm(forms.Form):
         'accept': 'image/*',
     }))
     code = forms.CharField(
-        max_length=WaiterCode.CODE_LENGTH,
-        min_length=WaiterCode.CODE_LENGTH,
+        max_length=6,
+        min_length=6,
         widget=forms.TextInput(attrs={
             'class': 'form-control form-control-lg text-center',
             'inputmode': 'numeric',
-            'pattern': f'[0-9]{{{WaiterCode.CODE_LENGTH}}}',
+            'pattern': '[0-9]{6}',
             'style': 'letter-spacing:8px; font-size:24px; font-weight:700;',
         }),
         label='Login Code',
     )
 
     def clean_code(self):
-        return _validate_digit_code(self.cleaned_data.get('code'))
+        code = self.cleaned_data.get('code')
+        if not code.isdigit():
+            raise forms.ValidationError('Code must contain only digits.')
+        return code
 
 
 class UserUpdateForm(forms.ModelForm):

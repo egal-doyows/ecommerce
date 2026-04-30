@@ -33,6 +33,17 @@
         border-radius: 50%;
     }
 
+    .wp-profile::after {
+        content: '';
+        position: absolute;
+        bottom: -30px;
+        right: 60px;
+        width: 100px;
+        height: 100px;
+        background: rgba(124,131,255,0.05);
+        border-radius: 50%;
+    }
+
     .wp-avatar {
         width: 72px;
         height: 72px;
@@ -52,122 +63,241 @@
     .wp-name { font-size: 22px; font-weight: 800; margin: 0 0 2px; color: #000 !important; }
     .wp-role { font-size: 13px; margin: 0 0 12px; color: var(--pos-muted) !important; }
 
-    .wp-stats { display: flex; gap: 24px; }
+    .wp-stats {
+        display: flex;
+        gap: 24px;
+    }
+
     .wp-stat { text-align: left; }
-    .wp-stat-value { font-size: 20px; font-weight: 800; display: block; line-height: 1.2; color: #000 !important; }
-    .wp-stat-label { font-size: 11px; color: var(--pos-muted) !important; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .wp-stat-value {
+        font-size: 20px;
+        font-weight: 800;
+        display: block;
+        line-height: 1.2;
+        color: #000 !important;
+    }
+
+    .wp-stat-label {
+        font-size: 11px;
+        color: var(--pos-muted) !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
 
     .wp-edit-btn {
-        position: absolute; top: 16px; right: 16px; z-index: 2;
-        width: 36px; height: 36px; border-radius: 10px;
-        background: rgba(124,131,255,0.1); border: 1px solid rgba(124,131,255,0.2);
-        color: var(--pos-accent); display: flex; align-items: center; justify-content: center;
-        font-size: 14px; text-decoration: none; transition: all 0.15s;
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        z-index: 2;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        text-decoration: none;
+        transition: all 0.15s;
     }
-    .wp-edit-btn:hover { background: var(--pos-accent); color: #fff; }
+
+    .wp-edit-btn:hover {
+        background: rgba(255,255,255,0.25);
+        color: #fff;
+    }
 
     /* Shift Banner */
     .wp-shift {
-        display: flex; align-items: center; gap: 12px;
-        padding: 14px 20px; border-radius: 12px; margin-bottom: 24px;
-        font-size: 13px; font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 20px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        font-size: 13px;
+        font-weight: 600;
     }
-    .wp-shift-active { background: #ecfdf5; color: #065f46; border: 1.5px solid #a7f3d0; }
+
+    .wp-shift-active {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1.5px solid #a7f3d0;
+    }
+
     .wp-shift-active i { color: var(--pos-success); }
-    .wp-shift-inactive { background: #fef3c7; color: #92400e; border: 1.5px solid #fde68a; }
+
+    .wp-shift-inactive {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1.5px solid #fde68a;
+    }
+
     .wp-shift-inactive i { color: #f59e0b; }
+
     .wp-shift span { flex: 1; }
-    .wp-shift-link { font-size: 12px; font-weight: 700; text-decoration: none; color: inherit; opacity: 0.8; }
-    .wp-shift-link:hover { opacity: 1; }
+
+    .wp-shift-link {
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        color: inherit;
+        opacity: 0.8;
+        transition: opacity 0.15s;
+    }
+
+    .wp-shift-link:hover { opacity: 1; color: inherit; }
 
     /* Section Title */
     .wp-section-title {
-        font-size: 15px; font-weight: 700; color: var(--pos-text);
-        margin: 0 0 14px; display: flex; align-items: center; gap: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--pos-text);
+        margin: 0 0 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
-    .wp-section-title i { color: var(--pos-accent); font-size: 14px; }
+
+    .wp-section-title i {
+        color: var(--pos-accent);
+        font-size: 14px;
+    }
 
     /* Services Grid */
     .wp-services {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-        gap: 14px; margin-bottom: 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: 14px;
+        margin-bottom: 24px;
     }
 
     .wp-service {
-        background: #fff; border-radius: 14px; padding: 24px 22px;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.04); transition: all 0.2s;
-        text-decoration: none; color: var(--pos-text); border: 2px solid transparent; display: block;
+        background: #fff;
+        border-radius: 14px;
+        padding: 24px 22px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        transition: all 0.2s;
+        text-decoration: none;
+        color: var(--pos-text);
+        border: 2px solid transparent;
+        display: block;
     }
+
     .wp-service:hover {
-        transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-        border-color: var(--pos-accent); color: var(--pos-text);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        border-color: var(--pos-accent);
+        color: var(--pos-text);
     }
 
     .wp-service-icon {
-        width: 44px; height: 44px; border-radius: 12px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 18px; margin-bottom: 14px;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-bottom: 14px;
     }
-    .wp-service h4 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
-    .wp-service p { font-size: 12px; color: var(--pos-muted); margin: 0; line-height: 1.5; }
+
+    .wp-service h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 4px;
+    }
+
+    .wp-service p {
+        font-size: 12px;
+        color: var(--pos-muted);
+        margin: 0;
+        line-height: 1.5;
+    }
+
     .wp-service-arrow {
-        display: flex; align-items: center; gap: 4px;
-        font-size: 11px; font-weight: 700; color: var(--pos-accent);
-        margin-top: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--pos-accent);
+        margin-top: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     /* Quick Actions */
-    .wp-actions { display: flex; gap: 10px; margin-bottom: 24px; }
+    .wp-actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
     .wp-action-btn {
-        flex: 1; display: flex; align-items: center; justify-content: center;
-        gap: 8px; padding: 14px 16px; border-radius: 12px;
-        font-size: 13px; font-weight: 700; text-decoration: none; transition: all 0.2s;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s;
     }
-    .wp-action-primary { background: var(--pos-success); color: #fff; }
-    .wp-action-primary:hover { background: #00a884; color: #fff; box-shadow: 0 4px 14px rgba(0,184,148,0.35); transform: translateY(-1px); }
-    .wp-action-secondary { background: #fff; color: var(--pos-text); border: 2px solid var(--pos-border); }
-    .wp-action-secondary:hover { border-color: var(--pos-blue); color: var(--pos-blue); transform: translateY(-1px); }
-    .wp-action-danger { background: #fff; color: #dc2626; border: 2px solid #fecaca; }
-    .wp-action-danger:hover { background: #fef2f2; border-color: #dc2626; transform: translateY(-1px); }
 
-    /* Payslip card */
-    .wp-payslip-list { margin-bottom: 24px; }
-    .wp-payslip-item {
-        display: flex; align-items: center; gap: 14px;
-        padding: 14px 18px; background: #fff; border-radius: 12px;
-        border: 1.5px solid var(--pos-border); margin-bottom: 8px;
-        transition: all 0.15s;
+    .wp-action-primary {
+        background: var(--pos-success);
+        color: #fff;
     }
-    .wp-payslip-item:hover { border-color: var(--pos-accent); }
-    .wp-payslip-icon {
-        width: 40px; height: 40px; border-radius: 10px; background: #eef2ff; color: #4f46e5;
-        display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
-    }
-    .wp-payslip-info { flex: 1; }
-    .wp-payslip-month { font-size: 14px; font-weight: 700; color: var(--pos-text); }
-    .wp-payslip-amount { font-size: 12px; color: var(--pos-muted); margin-top: 2px; }
-    .wp-payslip-download {
-        padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 700;
-        text-decoration: none; color: var(--pos-accent); border: 1.5px solid var(--pos-accent);
-        transition: all 0.15s;
-    }
-    .wp-payslip-download:hover { background: var(--pos-accent); color: #fff; }
 
-    /* Summary stat cards */
-    .wp-summary-cards {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        gap: 12px; margin-bottom: 24px;
+    .wp-action-primary:hover {
+        background: #00a884;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(0,184,148,0.35);
+        transform: translateY(-1px);
     }
-    .wp-summary-card {
-        background: #fff; border-radius: 12px; padding: 18px 16px;
-        border: 1.5px solid var(--pos-border);
+
+    .wp-action-secondary {
+        background: #fff;
+        color: var(--pos-text);
+        border: 2px solid var(--pos-border);
     }
-    .wp-summary-card-label {
-        font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-        color: var(--pos-muted); font-weight: 700;
+
+    .wp-action-secondary:hover {
+        border-color: var(--pos-blue);
+        color: var(--pos-blue);
+        transform: translateY(-1px);
     }
-    .wp-summary-card-value {
-        font-size: 20px; font-weight: 800; margin-top: 6px; line-height: 1.2;
+
+    .wp-action-danger {
+        background: #fff;
+        color: #dc2626;
+        border: 2px solid #fecaca;
+    }
+
+    .wp-action-danger:hover {
+        background: #fef2f2;
+        border-color: #dc2626;
+        transform: translateY(-1px);
+    }
+
+    /* Coming Soon Badge */
+    .wp-coming-soon {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: var(--pos-light);
+        color: var(--pos-muted);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-left: 6px;
     }
 </style>
 
@@ -185,10 +315,7 @@
         {% endif %}
         <div class="wp-info">
             <h2 class="wp-name">{{ user.username|capfirst }}</h2>
-            <p class="wp-role">
-                {% for g in user.groups.all %}{{ g.name }}{% if not forloop.last %}, {% endif %}{% empty %}Staff{% endfor %}
-                &middot; {{ user.email|default:"No email set" }}
-            </p>
+            <p class="wp-role">{% if user.is_superuser %}Admin{% else %}Waiter{% endif %} &middot; {{ user.email|default:"No email set" }}</p>
             <div class="wp-stats">
                 <div class="wp-stat">
                     <span class="wp-stat-value">{{ today_order_count }}</span>
@@ -221,131 +348,6 @@
     </div>
     {% endif %}
 
-    {% if is_staff_user %}
-    {# ═══════════════════ NON-MANAGER STAFF DASHBOARD ═══════════════════ #}
-
-    <!-- Financial Summary -->
-    <h3 class="wp-section-title"><i class="fa-solid fa-chart-pie"></i> My Summary</h3>
-    <div class="wp-summary-cards">
-        {% if compensation %}
-        <div class="wp-summary-card">
-            <div class="wp-summary-card-label">Compensation</div>
-            <div class="wp-summary-card-value" style="font-size:14px;color:var(--pos-text);">
-                {% if compensation.compensation_type == 'commission' %}Commission
-                {% elif compensation.compensation_type == 'both' %}Salary + Commission
-                {% else %}Salary{% endif %}
-            </div>
-        </div>
-        {% if compensation.earns_salary %}
-        <div class="wp-summary-card">
-            <div class="wp-summary-card-label">Monthly Salary</div>
-            <div class="wp-summary-card-value" style="color:var(--pos-text);">{{ restaurant.currency_symbol }} {{ compensation.salary_amount|floatformat:2|intcomma }}</div>
-        </div>
-        {% endif %}
-        {% endif %}
-        <div class="wp-summary-card">
-            <div class="wp-summary-card-label">Outstanding Balance</div>
-            <div class="wp-summary-card-value" style="color:{% if outstanding_balance > 0 %}#b45309{% else %}#16a34a{% endif %};">
-                {% if outstanding_balance > 0 %}{{ restaurant.currency_symbol }} {{ outstanding_balance|floatformat:2|intcomma }}{% else %}Settled{% endif %}
-            </div>
-        </div>
-        <div class="wp-summary-card">
-            <div class="wp-summary-card-label">Advances Taken</div>
-            <div class="wp-summary-card-value" style="color:{% if total_advances > 0 %}#dc2626{% else %}var(--pos-muted){% endif %};">
-                {% if total_advances > 0 %}{{ restaurant.currency_symbol }} {{ total_advances|floatformat:2|intcomma }}{% else %}None{% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Payslips -->
-    {% if latest_payslips %}
-    <h3 class="wp-section-title"><i class="fa-solid fa-file-invoice-dollar"></i> Recent Payslips</h3>
-    <div class="wp-payslip-list">
-        {% for line in latest_payslips %}
-        <div class="wp-payslip-item">
-            <div class="wp-payslip-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
-            <div class="wp-payslip-info">
-                <div class="wp-payslip-month">{{ line.payroll.month_label }}</div>
-                <div class="wp-payslip-amount">
-                    Net: {{ restaurant.currency_symbol }} {{ line.net_pay|floatformat:2|intcomma }}
-                    {% if line.advance_deductions > 0 %} · Advances: -{{ restaurant.currency_symbol }} {{ line.advance_deductions|floatformat:2|intcomma }}{% endif %}
-                </div>
-            </div>
-            <a href="{% url 'payslip-pdf' line.pk %}" class="wp-payslip-download">
-                <i class="fa-solid fa-download"></i> PDF
-            </a>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- Account Services -->
-    <h3 class="wp-section-title"><i class="fa-solid fa-grid-2"></i> Account Services</h3>
-    <div class="wp-services">
-        <a href="{% url 'my-earnings' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#fdf4ff; color:#a21caf;">
-                <i class="fa-solid fa-wallet"></i>
-            </div>
-            <h4>My Earnings</h4>
-            <p>View compensation, commissions &amp; payment history</p>
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
-        <a href="{% url 'payroll-list' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#eef2ff; color:#4f46e5;">
-                <i class="fa-solid fa-file-invoice-dollar"></i>
-            </div>
-            <h4>My Payslips</h4>
-            <p>Download monthly payslips</p>
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
-        <a href="{% url 'advance-list' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#fef3c7; color:#92400e;">
-                <i class="fa-solid fa-money-bill-transfer"></i>
-            </div>
-            <h4>Advance Requests</h4>
-            <p>Request or track salary advances</p>
-            {% if pending_advances %}
-            <span style="display:inline-block;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin-top:6px;">{{ pending_advances }} pending</span>
-            {% endif %}
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
-        <a href="{% url 'hr-leave-list' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#e0f2fe; color:#0369a1;">
-                <i class="fa-solid fa-calendar-xmark"></i>
-            </div>
-            <h4>Leave Requests</h4>
-            <p>Apply for leave or check status</p>
-            {% if pending_leaves %}
-            <span style="display:inline-block;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin-top:6px;">{{ pending_leaves }} pending</span>
-            {% endif %}
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
-        <a href="{% url 'shift' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#fce4ec; color:#c62828;">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-            </div>
-            <h4>My Shifts</h4>
-            <p>Clock in/out and view shift history</p>
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
-        <a href="{% url 'profile-management' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#f3e5f5; color:#7b1fa2;">
-                <i class="fa-solid fa-user-pen"></i>
-            </div>
-            <h4>My Account</h4>
-            <p>Update profile and settings</p>
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-    </div>
-
-    {% else %}
-    {# ═══════════════════ MANAGER / SUPERVISOR DASHBOARD ═══════════════════ #}
-
     <!-- Quick Actions -->
     <div class="wp-actions">
         <a href="{% url 'pos' %}" class="wp-action-btn wp-action-primary">
@@ -355,7 +357,7 @@
             <i class="fa-solid fa-receipt"></i> Active Orders
         </a>
         <a href="{% url 'tables' %}" class="wp-action-btn wp-action-secondary">
-            <i class="fa-solid fa-table-cells-large"></i> Tables
+            <i class="fa-solid fa-table-cells-large"></i> Spaces
         </a>
     </div>
 
@@ -384,8 +386,8 @@
             <div class="wp-service-icon" style="background:#fff3e0; color:#e65100;">
                 <i class="fa-solid fa-table-cells-large"></i>
             </div>
-            <h4>Tables</h4>
-            <p>Check availability and reserve tables</p>
+            <h4>Spaces</h4>
+            <p>Check availability and reserve spaces</p>
             <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
 
@@ -413,35 +415,10 @@
                 <i class="fa-solid fa-shield-halved"></i>
             </div>
             <h4>Admin Panel</h4>
-            <p>{% if is_supervisor %}Operations dashboard{% else %}Full management dashboard{% endif %}</p>
+            <p>{% if is_supervisor %}Operations dashboard{% else %}Full management dashboard for your restaurant{% endif %}</p>
             <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
         {% endif %}
-
-        <a href="{% url 'advance-list' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#fef3c7; color:#92400e;">
-                <i class="fa-solid fa-money-bill-transfer"></i>
-            </div>
-            <h4>Advance Requests</h4>
-            <p>Request or track salary advances</p>
-            {% if pending_advances %}
-            <span style="display:inline-block;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin-top:6px;">{{ pending_advances }} pending</span>
-            {% endif %}
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
-        <a href="{% url 'hr-leave-list' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#e0f2fe; color:#0369a1;">
-                <i class="fa-solid fa-calendar-xmark"></i>
-            </div>
-            <h4>Leave Requests</h4>
-            <p>Apply for leave or check status</p>
-            {% if pending_leaves %}
-            <span style="display:inline-block;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin-top:6px;">{{ pending_leaves }} pending</span>
-            {% endif %}
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
         {% if user.is_superuser or is_manager %}
         <a href="{% url 'compensation-overview' %}" class="wp-service">
             <div class="wp-service-icon" style="background:#fdf4ff; color:#a21caf;">
@@ -451,9 +428,17 @@
             <p>Manage salaries, commissions, and payments</p>
             <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
+        {% elif not user.is_superuser and not is_manager and not is_supervisor %}
+        <a href="{% url 'my-earnings' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#fdf4ff; color:#a21caf;">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <h4>My Earnings</h4>
+            <p>View your compensation and payment history</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
         {% endif %}
     </div>
-    {% endif %}
 
     <!-- Account Actions -->
     <h3 class="wp-section-title"><i class="fa-solid fa-gear"></i> Account</h3>

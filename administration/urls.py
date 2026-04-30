@@ -55,11 +55,4 @@ urlpatterns = [
     path('accounts/', views.accounts_overview, name='admin-accounts'),
     path('accounts/transfer/', views.transfer_funds, name='admin-transfer-funds'),
     path('accounts/<int:pk>/', views.account_detail, name='admin-account-detail'),
-
-    # Branch Menu Availability
-    path('menu/availability/', views.branch_menu_availability, name='admin-branch-menu'),
-    path('menu/<int:menu_item_id>/toggle-availability/', views.toggle_branch_availability, name='admin-toggle-availability'),
-
-    # Overall Manager — Cross-branch analytics
-    path('overall/', views.overall_dashboard, name='overall-dashboard'),
 ]

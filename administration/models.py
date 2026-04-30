@@ -21,10 +21,9 @@ class Account(models.Model):
         ('bank', 'Bank Account'),
     ]
 
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='accounts')
     name = models.CharField(max_length=100)
     account_type = models.CharField(
-        max_length=10, choices=ACCOUNT_TYPE_CHOICES,
+        max_length=10, choices=ACCOUNT_TYPE_CHOICES, unique=True,
     )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -32,7 +31,6 @@ class Account(models.Model):
 
     class Meta:
         ordering = ['name']
-        unique_together = ('branch', 'account_type')
 
     def __str__(self):
         return self.name
@@ -68,12 +66,11 @@ class Account(models.Model):
         return credits - debits
 
     @classmethod
-    def get_by_type(cls, account_type, branch=None):
-        """Return the account for a given type and branch, creating it if needed."""
+    def get_by_type(cls, account_type):
+        """Return the account for a given type, creating it if needed."""
         defaults = dict(cls.ACCOUNT_TYPE_CHOICES)
         account, _ = cls.objects.get_or_create(
             account_type=account_type,
-            branch=branch,
             defaults={'name': defaults.get(account_type, account_type)},
         )
         return account
@@ -94,7 +91,6 @@ class Transaction(models.Model):
         ('debit', 'Debit'),
     ]
 
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='transactions')
     account = models.ForeignKey(
         Account, on_delete=models.CASCADE, related_name='transactions',
     )
@@ -116,11 +112,6 @@ class Transaction(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['branch', 'created_at']),
-            models.Index(fields=['account', 'transaction_type', 'created_at']),
-            models.Index(fields=['reference_type', 'reference_id']),
-        ]
 
     def __str__(self):
         sign = '+' if self.transaction_type == 'credit' else '-'
@@ -147,10 +138,9 @@ def record_order_payment(order, created_by=None):
     if not account_type:
         return None
 
-    account = Account.get_by_type(account_type, branch=order.branch)
+    account = Account.get_by_type(account_type)
     return Transaction.objects.create(
         account=account,
-        branch=order.branch,
         transaction_type='credit',
         amount=order.get_total(),
         description=f'Order #{order.id} — Space {order.table.number if order.table else "N/A"}',
@@ -178,13 +168,12 @@ def record_staff_payment(payment_record, account=None, created_by=None, amount=N
         account_type = STAFF_PAYMENT_TO_ACCOUNT.get(payment_record.disbursement_method)
         if not account_type:
             return None
-        account = Account.get_by_type(account_type, branch=payment_record.branch)
+        account = Account.get_by_type(account_type)
 
     pay_amount = amount if amount is not None else payment_record.amount
 
     return Transaction.objects.create(
         account=account,
-        branch=payment_record.branch,
         transaction_type='debit',
         amount=pay_amount,
         description=f'Staff payment — {payment_record.staff.username} ({payment_record.month_label})',

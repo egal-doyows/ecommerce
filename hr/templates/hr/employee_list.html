@@ -39,14 +39,6 @@
             <option value="{{ code }}" {% if type_filter == code %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
-        {% if is_overall %}
-        <select name="branch" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
-            <option value="">All Branches</option>
-            {% for b in branches %}
-            <option value="{{ b.pk }}" {% if branch_filter == b.pk|stringformat:"d" %}selected{% endif %}>{{ b.name }}</option>
-            {% endfor %}
-        </select>
-        {% endif %}
         <input type="text" name="q" value="{{ search }}" placeholder="Search name, ID, phone..." class="adm-input" style="width:160px;padding:5px 10px;font-size:12px;">
         <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Filter</button>
         {% if status_filter or dept_filter or type_filter or search %}
@@ -64,7 +56,6 @@
             <tr>
                 <th>Employee ID</th>
                 <th>Name</th>
-                <th>Branch</th>
                 <th>Department</th>
                 <th>Position</th>
                 <th>Phone</th>
@@ -92,7 +83,6 @@
                         </div>
                     </div>
                 </td>
-                <td style="font-size:12px;">{{ emp.branch.name|default:"—" }}</td>
                 <td>
                     {% if emp.department %}
                     <span class="adm-badge adm-badge-info">{{ emp.department.name }}</span>

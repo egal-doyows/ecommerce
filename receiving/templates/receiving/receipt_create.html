@@ -40,7 +40,6 @@
 
 <form method="POST">
     {% csrf_token %}
-    {% include "administration/_branch_field.html" %}
 
     <div class="adm-card" style="padding:0;margin-bottom:24px;">
         <table class="adm-table">
@@ -133,7 +132,7 @@
 </form>
 
 <script>
-    const currencySymbol = '{{ currency_symbol|escapejs }}';
+    const currencySymbol = '{{ currency_symbol }}';
     const inputs = document.querySelectorAll('.received-input');
 
     function updateTotals() {

@@ -1,0 +1,141 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Waste Summary{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Waste Summary</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'waste-list' %}" style="color:var(--adm-accent);text-decoration:none;">Waste</a> / Summary
+        </div>
+    </div>
+    <div>
+        <a href="{% url 'waste-create' %}" class="adm-btn adm-btn-primary" style="background:var(--adm-danger);">
+            <i class="fa-solid fa-plus"></i> Log Waste
+        </a>
+    </div>
+</div>
+
+<!-- Date range filter -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="get" action="{% url 'waste-summary' %}" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+        <label style="font-size:12px;font-weight:600;color:var(--adm-muted);">To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+        <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Update</button>
+    </form>
+</div>
+
+<!-- Summary stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(220,53,69,.1);color:var(--adm-danger);">
+            <i class="fa-solid fa-money-bill-wave"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:20px;color:var(--adm-danger);">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Waste Cost</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-clipboard-list"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:20px;">{{ total_events }}</div>
+            <div class="adm-stat-label">Waste Events</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:20px;">{{ total_items }}</div>
+            <div class="adm-stat-label">Items Wasted</div>
+        </div>
+    </div>
+</div>
+
+<!-- Waste by reason -->
+{% if by_reason %}
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-chart-pie" style="color:var(--adm-danger);"></i>
+    Waste by Reason
+</h3>
+
+<div class="adm-card" style="padding:0;margin-bottom:24px;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Reason</th>
+                <th style="text-align:right;">Items</th>
+                <th style="text-align:right;">Cost</th>
+                <th style="width:30%;">Proportion</th>
+                <th style="text-align:right;">%</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in by_reason %}
+            <tr>
+                <td style="font-weight:600;">{{ r.reason }}</td>
+                <td style="text-align:right;">{{ r.count }}</td>
+                <td style="text-align:right;font-weight:700;color:var(--adm-danger);">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                <td>
+                    <div style="background:var(--adm-border);border-radius:4px;height:18px;overflow:hidden;">
+                        <div style="background:var(--adm-danger);height:100%;width:{{ r.pct }}%;border-radius:4px;transition:width .3s;"></div>
+                    </div>
+                </td>
+                <td style="text-align:right;font-weight:600;font-size:12px;">{{ r.pct }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Top wasted items -->
+{% if top_items %}
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-ranking-star" style="color:var(--adm-danger);"></i>
+    Top Wasted Items
+</h3>
+
+<div class="adm-card" style="padding:0;margin-bottom:24px;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Total Qty</th>
+                <th style="text-align:right;">Total Cost</th>
+                <th style="text-align:right;">Events</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in top_items %}
+            <tr>
+                <td style="font-weight:700;color:var(--adm-muted);">{{ forloop.counter }}</td>
+                <td style="font-weight:600;">{{ item.name }}</td>
+                <td style="color:var(--adm-muted);">{{ item.unit }}</td>
+                <td style="text-align:right;font-weight:700;">{{ item.total_qty|floatformat:2 }}</td>
+                <td style="text-align:right;font-weight:700;color:var(--adm-danger);">{{ currency_symbol }} {{ item.total_cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">{{ item.count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if not by_reason and not top_items %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-chart-pie"></i>
+    <p>No waste data for the selected period.</p>
+</div>
+{% endif %}
+{% endblock %}

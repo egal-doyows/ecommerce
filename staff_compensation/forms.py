@@ -1,19 +1,9 @@
 from django import forms
-from django.contrib.auth.models import User
-from .models import StaffCompensation, StaffBankDetails, PaymentRecord, AdvanceRequest
+from .models import StaffCompensation, StaffBankDetails, PaymentRecord
 
 
 class CompensationForm(forms.ModelForm):
     """Form for setting compensation type during user creation."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Make all conditional fields optional at the form level;
-        # clean() enforces requirements based on compensation_type.
-        for f in ('commission_scope', 'commission_rate_regular', 'commission_rate_premium',
-                  'salary_amount', 'payment_frequency'):
-            if f in self.fields:
-                self.fields[f].required = False
 
     class Meta:
         model = StaffCompensation
@@ -58,10 +48,7 @@ class CompensationForm(forms.ModelForm):
         cleaned_data = super().clean()
         comp_type = cleaned_data.get('compensation_type')
 
-        needs_commission = comp_type in ('commission', 'both')
-        needs_salary = comp_type in ('salary', 'both')
-
-        if needs_commission:
+        if comp_type == 'commission':
             scope = cleaned_data.get('commission_scope', 'both')
             rate_reg = cleaned_data.get('commission_rate_regular') or 0
             rate_prem = cleaned_data.get('commission_rate_premium') or 0
@@ -76,23 +63,22 @@ class CompensationForm(forms.ModelForm):
             if rate_prem > 100:
                 self.add_error('commission_rate_premium', 'Cannot exceed 100%.')
 
+            # Clear salary fields
+            cleaned_data['salary_amount'] = 0
+
             # Clear rates for non-applicable scopes
             if scope == 'regular':
                 cleaned_data['commission_rate_premium'] = 0
             elif scope == 'premium':
                 cleaned_data['commission_rate_regular'] = 0
-        else:
-            # Clear commission fields
-            cleaned_data['commission_rate_regular'] = 0
-            cleaned_data['commission_rate_premium'] = 0
 
-        if needs_salary:
+        elif comp_type == 'salary':
             amount = cleaned_data.get('salary_amount')
             if not amount or amount <= 0:
                 self.add_error('salary_amount', 'Salary amount is required and must be greater than 0.')
-        else:
-            # Clear salary fields
-            cleaned_data['salary_amount'] = 0
+            # Clear commission fields
+            cleaned_data['commission_rate_regular'] = 0
+            cleaned_data['commission_rate_premium'] = 0
 
         return cleaned_data
 
@@ -172,82 +158,3 @@ class PaymentDisbursementForm(forms.Form):
                 f'but payment is {s} {amount:,.2f}.',
             )
         return cleaned_data
-
-
-_input = {'class': 'form-control'}
-
-
-class AdvanceRequestForm(forms.ModelForm):
-    """Form for requesting a salary advance."""
-
-    class Meta:
-        model = AdvanceRequest
-        fields = ['amount', 'reason']
-        widgets = {
-            'amount': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Amount requested',
-                'min': '1',
-                'step': '0.01',
-            }),
-            'reason': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Reason for the advance request',
-            }),
-        }
-
-    def __init__(self, *args, salary_amount=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.salary_amount = salary_amount
-
-    def clean_amount(self):
-        amount = self.cleaned_data['amount']
-        if amount <= 0:
-            raise forms.ValidationError('Amount must be greater than zero.')
-        if self.salary_amount and amount > self.salary_amount:
-            from menu.models import RestaurantSettings
-            s = RestaurantSettings.load().currency_symbol
-            raise forms.ValidationError(
-                f'Cannot exceed salary of {s} {self.salary_amount:,.2f}.'
-            )
-        return amount
-
-
-class ManagerAdvanceRequestForm(AdvanceRequestForm):
-    """Form for Branch Managers submitting advance requests on behalf of attendants."""
-
-    employee = forms.ModelChoiceField(
-        queryset=None,
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        label='Employee',
-    )
-
-    class Meta(AdvanceRequestForm.Meta):
-        fields = ['employee', 'amount', 'reason']
-
-    def __init__(self, *args, branch=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        qs = User.objects.filter(
-            is_active=True,
-            compensation__isnull=False,
-            groups__name='Attendant',
-        )
-        if branch:
-            from branches.models import UserBranch
-            branch_ids = UserBranch.objects.filter(branch=branch).values_list('user_id', flat=True)
-            qs = qs.filter(pk__in=branch_ids)
-        self.fields['employee'].queryset = qs.distinct()
-
-
-class AdvanceReviewForm(forms.Form):
-    """Form for approving or rejecting an advance request."""
-    action = forms.ChoiceField(choices=[('approved', 'Approve'), ('rejected', 'Reject')])
-    review_notes = forms.CharField(
-        required=False,
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 2,
-            'placeholder': 'Notes (optional)',
-        }),
-    )

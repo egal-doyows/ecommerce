@@ -20,14 +20,6 @@ urlpatterns = [
     path('shift/<int:shift_id>/', views.shift_detail, name='shift-detail'),
     path('offline/', views.offline_view, name='offline'),
 
-    # Station display (Kitchen / Bar)
-    path('station/', views.station_display, name='station-display'),
-    path('station/api/orders/', views.station_api_orders, name='station-api-orders'),
-    path('station/api/update-item/', views.station_update_item, name='station-update-item'),
-    path('station/api/request/', views.station_create_request, name='station-create-request'),
-    path('station/request/<int:request_id>/respond/', views.respond_station_request, name='respond-station-request'),
-    path('station/acknowledge-ready/', views.acknowledge_ready_items, name='acknowledge-ready-items'),
-
     # JSON API for PWA offline support
     path('api/menu/', api.api_menu, name='api-menu'),
     path('api/tables/', api.api_tables, name='api-tables'),

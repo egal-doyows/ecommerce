@@ -9,7 +9,6 @@ urlpatterns = [
     path('<int:pk>/delete/', views.expense_delete, name='expense-delete'),
     path('<int:pk>/approve/', views.expense_approve, name='expense-approve'),
     path('<int:pk>/reject/', views.expense_reject, name='expense-reject'),
-    path('<int:pk>/cancel/', views.expense_cancel, name='expense-cancel'),
     path('<int:pk>/pdf/', views.expense_pdf, name='expense-pdf'),
     path('summary/', views.expense_summary, name='expense-summary'),
     path('categories/', views.category_list, name='expense-category-list'),

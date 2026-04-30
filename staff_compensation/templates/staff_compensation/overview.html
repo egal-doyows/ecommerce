@@ -1,4 +1,4 @@
-{% extends base_template|default:"menu/base.html" %}
+{% extends "menu/base.html" %}
 {% load humanize %}
 
 {% block content %}
@@ -146,18 +146,9 @@
     <div class="sc-header">
         <div>
             <h2><i class="fa-solid fa-wallet" style="color: var(--pos-accent); margin-right: 8px;"></i>Staff Compensation</h2>
-            <p class="sc-header-sub">{% if is_overall %}All staff compensation (salary, commission &amp; earnings){% else %}Commission &amp; earnings for Front Service, Attendant &amp; Marketing staff{% endif %}</p>
+            <p class="sc-header-sub">Commission &amp; earnings for Front Service, Attendant &amp; Marketing staff</p>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-            <span class="sc-month-label"><i class="fa-solid fa-calendar"></i> {{ current_month }}</span>
-            <form method="post" action="{% url 'payroll-generate' %}" style="margin:0;" onsubmit="return confirm('Generate payroll for {{ current_month }}?');">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="compensation-overview">
-                <button type="submit" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;background:var(--pos-accent, #7c83ff);color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all .2s;">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> Generate Payroll
-                </button>
-            </form>
-        </div>
+        <span class="sc-month-label"><i class="fa-solid fa-calendar"></i> {{ current_month }}</span>
     </div>
 
     <div class="sc-nav">
@@ -167,16 +158,12 @@
         <a href="{% url 'payment-list' %}" class="sc-nav-link">
             <i class="fa-solid fa-file-invoice-dollar"></i> Payments
         </a>
-        <a href="{% url 'payroll-list' %}" class="sc-nav-link">
-            <i class="fa-solid fa-receipt"></i> Payroll
-        </a>
     </div>
 
     <table class="sc-table">
         <thead>
             <tr>
                 <th>Staff Member</th>
-                {% if is_overall %}<th>Branch</th>{% endif %}
                 <th>Role</th>
                 <th>Type</th>
                 <th>Rate / Amount</th>
@@ -187,19 +174,11 @@
         </thead>
         <tbody>
             {% for item in staff_data %}
-            {% ifchanged item.branch_name %}{% if is_overall %}
-            <tr>
-                <td colspan="{% if is_overall %}8{% else %}7{% endif %}" style="background:#f0f0ff;padding:10px 18px;font-weight:700;font-size:13px;color:var(--pos-accent);border-bottom:2px solid var(--pos-accent);">
-                    <i class="fa-solid fa-store" style="margin-right:6px;font-size:11px;"></i> {{ item.branch_name|default:"No Branch" }}
-                </td>
-            </tr>
-            {% endif %}{% endifchanged %}
             <tr>
                 <td>
                     <span class="sc-staff-name">{{ item.user.username|capfirst }}</span>
                     {% if item.user.email %}<br><span style="font-size:12px; color:var(--pos-muted);">{{ item.user.email }}</span>{% endif %}
                 </td>
-                {% if is_overall %}<td style="font-size:12px; color:var(--pos-muted); white-space:nowrap;">{{ item.branch_name|default:"—" }}</td>{% endif %}
                 <td>
                     {% for g in item.user.groups.all %}
                         <span class="sc-badge" style="{% if g.name == 'Attendant' %}background:#fef3c7;color:#92400e;{% elif g.name == 'Marketing' %}background:#dcfce7;color:#166534;{% else %}background:#e0e7ff;color:#4338ca;{% endif %}">{{ g.name }}</span>
@@ -208,9 +187,6 @@
                 <td>
                     {% if item.compensation %}
                         {% if item.compensation.compensation_type == 'commission' %}
-                            <span class="sc-badge sc-badge-commission">Commission</span>
-                        {% elif item.compensation.compensation_type == 'both' %}
-                            <span class="sc-badge sc-badge-salary">Salary</span>
                             <span class="sc-badge sc-badge-commission">Commission</span>
                         {% else %}
                             <span class="sc-badge sc-badge-salary">Salary</span>
@@ -221,7 +197,7 @@
                 </td>
                 <td>
                     {% if item.compensation %}
-                        {% if item.compensation.earns_commission %}
+                        {% if item.compensation.compensation_type == 'commission' %}
                             {% if item.compensation.commission_scope == 'regular' %}
                                 <span class="sc-detail-value">{{ item.compensation.commission_rate_regular }}%</span> on regular
                             {% elif item.compensation.commission_scope == 'premium' %}
@@ -229,9 +205,6 @@
                             {% else %}
                                 <span class="sc-detail-value">{{ item.compensation.commission_rate_regular }}%</span> reg /
                                 <span class="sc-detail-value">{{ item.compensation.commission_rate_premium }}%</span> prem
-                            {% endif %}
-                            {% if item.compensation.earns_salary %}
-                                <br><span style="font-size:12px;color:var(--pos-muted);">+ {{ restaurant.currency_symbol }} {{ item.compensation.salary_amount|floatformat:2|intcomma }} / {{ item.compensation.get_payment_frequency_display }}</span>
                             {% endif %}
                         {% else %}
                             <span class="sc-detail-value">{{ restaurant.currency_symbol }} {{ item.compensation.salary_amount|floatformat:2|intcomma }}</span>
@@ -245,7 +218,7 @@
                     {% if item.current_month_commission is not None %}
                         <span class="sc-commission-value">{{ restaurant.currency_symbol }} {{ item.current_month_commission|floatformat:2|intcomma }}</span>
                         <br><span style="font-size:11px; color:var(--pos-muted);">Sales: {{ restaurant.currency_symbol }} {{ item.current_month_sales|floatformat:2|intcomma }}</span>
-                    {% elif item.compensation and item.compensation.earns_salary %}
+                    {% elif item.compensation and item.compensation.compensation_type == 'salary' %}
                         <span class="sc-detail-value">{{ restaurant.currency_symbol }} {{ item.compensation.salary_amount|floatformat:2|intcomma }}</span>
                     {% else %}
                         <span style="color:var(--pos-muted);">&mdash;</span>
@@ -271,7 +244,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="{% if is_overall %}8{% else %}7{% endif %}" style="text-align:center; padding:32px; color:var(--pos-muted);">
+                <td colspan="7" style="text-align:center; padding:32px; color:var(--pos-muted);">
                     No staff members found.
                 </td>
             </tr>

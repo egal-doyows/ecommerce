@@ -185,7 +185,7 @@
     {% for order in orders %}
     <a href="{% url 'order-detail' order.id %}" class="sd-order sd-order-{{ order.status }}">
         <div class="sd-order-body">
-            <div class="sd-order-id">{{ order.order_number }}</div>
+            <div class="sd-order-id">#{{ order.id }}</div>
             <div class="sd-order-info">
                 <strong>{{ order.table }}</strong>
                 {{ order.created_at|date:"h:i A" }} &middot; {{ order.get_item_count }} items

@@ -1,15 +1,40 @@
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
 
-from core.permissions import (
-    manager_required,
-    full_access_required as superuser_only,
-)
 from .models import Debtor, DebtorTransaction, DebtorPaymentAllocation
 from .forms import DebtorForm, DebtorTransactionForm
+
+
+def _is_manager(user):
+    return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Manager').exists())
+
+
+def manager_required(view_func):
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        if not _is_manager(request.user):
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    wrapper.__doc__ = view_func.__doc__
+    return wrapper
+
+
+def superuser_only(view_func):
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_superuser:
+            messages.error(request, 'Only the administrator can perform this action.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    wrapper.__doc__ = view_func.__doc__
+    return wrapper
 
 
 # ── Debtor list ──────────────────────────────────────────────────────
@@ -17,17 +42,13 @@ from .forms import DebtorForm, DebtorTransactionForm
 @manager_required
 def debtor_list(request):
     show = request.GET.get('show', 'active')
-    qs = Debtor.objects.filter(branch=request.branch).select_related('branch')
-
-    if show != 'all':
-        qs = qs.filter(is_active=True)
-
+    if show == 'all':
+        debtors = Debtor.objects.all()
+    else:
+        debtors = Debtor.objects.filter(is_active=True)
     return render(request, 'debtor/debtor_list.html', {
-        'debtors': qs,
+        'debtors': debtors,
         'show': show,
-        'is_overall': False,
-        'branches': [],
-        'branch_filter': '',
     })
 
 
@@ -35,13 +56,10 @@ def debtor_list(request):
 
 @superuser_only
 def debtor_create(request):
-    from branches.utils import resolve_branch
     if request.method == 'POST':
         form = DebtorForm(request.POST)
         if form.is_valid():
-            debtor = form.save(commit=False)
-            debtor.branch = resolve_branch(request)
-            debtor.save()
+            form.save()
             messages.success(request, 'Debtor created.')
             return redirect('debtor-list')
     else:
@@ -71,11 +89,7 @@ def debtor_edit(request, pk):
 
 @manager_required
 def debtor_detail(request, pk):
-    is_overall = request.user.is_superuser or request.user.groups.filter(name='Overall Manager').exists()
-    if is_overall:
-        debtor = get_object_or_404(Debtor, pk=pk)
-    else:
-        debtor = get_object_or_404(Debtor, pk=pk, branch=request.branch)
+    debtor = get_object_or_404(Debtor, pk=pk)
     transactions = debtor.transactions.all()
 
     txn_type = request.GET.get('type')
@@ -143,9 +157,6 @@ def receive_payment(request, pk):
             messages.error(request, 'Payment amount must be greater than zero.')
             return redirect('debtor-receive-payment', pk=debtor.pk)
 
-        from branches.utils import resolve_branch
-        target_branch = resolve_branch(request)
-
         with transaction.atomic():
             # Create the payment (credit) transaction
             payment_txn = DebtorTransaction.objects.create(
@@ -174,7 +185,7 @@ def receive_payment(request, pk):
 
             # Credit the cash account
             from administration.models import Account, Transaction as AcctTransaction
-            cash_account = Account.get_by_type('cash', branch=target_branch)
+            cash_account = Account.get_by_type('cash')
             AcctTransaction.objects.create(
                 account=cash_account,
                 transaction_type='credit',
@@ -183,7 +194,6 @@ def receive_payment(request, pk):
                 reference_type='debtor_payment',
                 reference_id=payment_txn.id,
                 created_by=request.user,
-                branch=target_branch,
             )
 
         from menu.models import RestaurantSettings

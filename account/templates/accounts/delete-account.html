@@ -91,23 +91,8 @@
         </div>
         <h3>Delete Account</h3>
         <p><strong>{{ user|capfirst }}</strong>, this action is permanent and cannot be undone. All your data will be lost.</p>
-
-        {% if messages %}
-        {% for message in messages %}
-        <div style="background:#fff5f5; color:#c0392b; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; text-align:left;">
-            <i class="fa fa-exclamation-circle"></i> {{ message }}
-        </div>
-        {% endfor %}
-        {% endif %}
-
         <form method="POST">
             {% csrf_token %}
-            <div style="margin-bottom:16px; text-align:left;">
-                <label for="password" style="display:block; font-size:13px; font-weight:600; color:var(--pos-text); margin-bottom:6px;">Confirm your password</label>
-                <input type="password" name="password" id="password" required
-                       style="width:100%; padding:10px 14px; border:2px solid var(--pos-border); border-radius:10px; font-size:14px;"
-                       placeholder="Enter your password to confirm">
-            </div>
             <button type="submit" class="delete-confirm-btn">Yes, Delete My Account</button>
         </form>
         <a href="{% url 'profile-management' %}" class="delete-cancel-btn">

@@ -1,4 +1,4 @@
-{% extends base_template|default:"menu/base.html" %}
+{% extends "menu/base.html" %}
 {% load humanize %}
 
 {% block content %}
@@ -304,7 +304,7 @@
     const amountInput = document.querySelector('input[name="amount"]');
     const btnLabel = document.getElementById('btnLabel');
 
-    const currencySymbol = '{{ restaurant.currency_symbol|escapejs }}';
+    const currencySymbol = '{{ restaurant.currency_symbol }}';
 
     function formatCurrency(n) {
         return currencySymbol + ' ' + Number(n).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});

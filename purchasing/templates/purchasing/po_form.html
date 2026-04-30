@@ -17,7 +17,6 @@
 <div class="adm-card" style="max-width:600px;">
     <form method="POST">
         {% csrf_token %}
-        {% include "administration/_branch_field.html" %}
         {% for field in form %}
         <div class="adm-form-group">
             <label class="adm-form-label">{{ field.label }}</label>

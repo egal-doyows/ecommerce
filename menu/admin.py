@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import RestaurantSettings, Station, Category, InventoryItem, MenuItem, Recipe, Table, Order, OrderItem, Shift, StationRequest
+from .models import RestaurantSettings, Category, InventoryItem, MenuItem, Recipe, Table, Order, OrderItem, Shift
 
 
 @admin.register(RestaurantSettings)
@@ -14,17 +14,9 @@ class RestaurantSettingsAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(Station)
-class StationAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-    search_fields = ('name',)
-
-
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'icon', 'station')
-    list_filter = ('station',)
-    list_editable = ('station',)
+    list_display = ('name', 'slug', 'icon')
     prepopulated_fields = {'slug': ('name',)}
 
 
@@ -145,10 +137,3 @@ class ShiftAdmin(admin.ModelAdmin):
     def get_order_count(self, obj):
         return obj.get_order_count()
     get_order_count.short_description = 'Orders'
-
-
-@admin.register(StationRequest)
-class StationRequestAdmin(admin.ModelAdmin):
-    list_display = ('order_item', 'request_type', 'status', 'requested_by', 'created_at')
-    list_filter = ('request_type', 'status')
-    readonly_fields = ('created_at',)

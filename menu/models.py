@@ -1,11 +1,8 @@
 from decimal import Decimal
 
-from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.urls import reverse
 from django.contrib.auth.models import User
-
-from core.models import SoftDeleteModel, BranchScopedManager
 
 
 class RestaurantSettings(models.Model):
@@ -43,27 +40,10 @@ class RestaurantSettings(models.Model):
         return CURRENCY_SYMBOLS.get(self.currency, self.currency)
 
 
-class Station(models.Model):
-    """Preparation station — e.g. Kitchen, Bar. Used to route order items
-    to the correct display screen."""
-    name = models.CharField(max_length=100, unique=True)
-
-    class Meta:
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-
 class Category(models.Model):
     name = models.CharField(max_length=250, db_index=True)
     slug = models.SlugField(max_length=250, unique=True)
     icon = models.CharField(max_length=50, blank=True, help_text="Font Awesome icon class, e.g. fa-coffee")
-    station = models.ForeignKey(
-        Station, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='categories',
-        help_text="Which preparation station handles items in this category",
-    )
 
     class Meta:
         verbose_name_plural = 'categories'
@@ -96,10 +76,9 @@ class InventoryItem(models.Model):
         ('bunch', 'Bunches'),
     ]
 
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='inventory_items')
     name = models.CharField(max_length=250)
     unit = models.CharField(max_length=10, choices=UNIT_CHOICES, default='piece')
-    stock_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0'))])
+    stock_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     buying_price = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
         help_text="Cost per unit for profit tracking",
@@ -113,13 +92,8 @@ class InventoryItem(models.Model):
         null=True, blank=True, related_name='inventory_items',
     )
 
-    objects = BranchScopedManager()
-
     class Meta:
         ordering = ['name']
-        indexes = [
-            models.Index(fields=['branch', 'name']),
-        ]
 
     def __str__(self):
         return f"{self.name} ({self.stock_quantity} {self.get_unit_display()})"
@@ -167,7 +141,7 @@ class MenuItem(models.Model):
     title = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250)
     description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=7, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    price = models.DecimalField(max_digits=7, decimal_places=2)
     image = models.ImageField(upload_to='images/', blank=True)
     is_available = models.BooleanField(default=True)
     item_tier = models.CharField(
@@ -184,10 +158,6 @@ class MenuItem(models.Model):
     class Meta:
         verbose_name_plural = 'menu items'
         ordering = ['category', 'title']
-        indexes = [
-            models.Index(fields=['slug']),
-            models.Index(fields=['category', 'is_available']),
-        ]
 
     def __str__(self):
         return self.title
@@ -208,13 +178,10 @@ class MenuItem(models.Model):
         """
         Deduct inventory when this item is ordered.
         Atomic — either everything deducts or nothing does.
-        Raises _InsufficientStock if any ingredient/item has insufficient stock.
-        Returns True on success for untracked items.
+        Returns True on success, False if any ingredient is insufficient.
         """
         if self.is_direct_sale:
-            if not self.inventory_item.deduct(quantity):
-                raise _InsufficientStock(self.inventory_item.name)
-            return True
+            return self.inventory_item.deduct(quantity)
 
         ingredients = self.recipe_items.select_related('inventory_item').all()
         if not ingredients:
@@ -280,21 +247,18 @@ class Table(models.Model):
         ('reserved', 'Reserved'),
     ]
 
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='tables')
-    number = models.PositiveIntegerField()
+    number = models.PositiveIntegerField(unique=True)
     capacity = models.PositiveIntegerField(default=4)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='available')
 
     class Meta:
         ordering = ['number']
-        unique_together = ('branch', 'number')
 
     def __str__(self):
         return f"Space {self.number}"
 
 
 class Shift(models.Model):
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='shifts')
     waiter = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shifts')
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
@@ -302,14 +266,8 @@ class Shift(models.Model):
     starting_cash = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     notes = models.TextField(blank=True)
 
-    objects = BranchScopedManager()
-
     class Meta:
         ordering = ['-started_at']
-        indexes = [
-            models.Index(fields=['waiter', 'is_active', 'branch']),
-            models.Index(fields=['branch', 'is_active']),
-        ]
 
     def __str__(self):
         return f"Shift #{self.id} — {self.waiter.username} ({self.started_at.strftime('%d %b %H:%M')})"
@@ -329,15 +287,10 @@ class Shift(models.Model):
         return self.orders.count()
 
     def get_total_sales(self):
-        from django.db.models import Sum, F
-        result = self.orders.filter(status='paid').aggregate(
-            total=Sum(F('items__unit_price') * F('items__quantity'))
-        )['total']
-        return result or 0
+        return sum(order.get_total() for order in self.orders.filter(status='paid'))
 
     def get_total_items(self):
-        from django.db.models import Sum
-        return self.orders.aggregate(total=Sum('items__quantity'))['total'] or 0
+        return sum(order.get_item_count() for order in self.orders.all())
 
 
 class Order(models.Model):
@@ -354,7 +307,6 @@ class Order(models.Model):
         ('credit', 'Credit (Debtor)'),
     ]
 
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, related_name='orders')
     table = models.ForeignKey(Table, on_delete=models.SET_NULL, null=True, related_name='orders')
     waiter = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='orders')
     created_by = models.ForeignKey(
@@ -373,57 +325,12 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
-    tax_rate = models.DecimalField(
-        max_digits=5, decimal_places=2, default=0,
-        help_text='Tax rate applied at time of order',
-    )
-    tax_amount = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0,
-        help_text='Tax amount calculated at time of order',
-    )
-    tax_type = models.CharField(
-        max_length=10, blank=True,
-        help_text='inclusive or exclusive at time of order',
-    )
-
-    order_number = models.CharField(
-        max_length=20, blank=True, db_index=True,
-        help_text='Daily sequential order number, e.g. ORD-20260319-001',
-    )
-
-    objects = BranchScopedManager()
 
     class Meta:
         ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['branch', 'status', 'created_at']),
-            models.Index(fields=['branch', 'created_at']),
-            models.Index(fields=['waiter', 'status']),
-            models.Index(fields=['status', 'created_at']),
-        ]
 
     def __str__(self):
-        return f"Order {self.order_number or self.id} - Space {self.table.number if self.table else 'N/A'}"
-
-    def save(self, *args, **kwargs):
-        if not self.order_number:
-            self.order_number = self._generate_order_number()
-        super().save(*args, **kwargs)
-
-    @staticmethod
-    def _generate_order_number():
-        from django.utils import timezone as tz
-        today = tz.localdate()
-        date_str = today.strftime('%y%m%d')
-        prefix = f'{date_str}-'
-        last = Order.objects.filter(
-            order_number__startswith=prefix,
-        ).order_by('-order_number').values_list('order_number', flat=True).first()
-        if last:
-            seq = int(last.rsplit('-', 1)[-1]) + 1
-        else:
-            seq = 1
-        return f'{prefix}{seq:03d}'
+        return f"Order #{self.id} - Space {self.table.number if self.table else 'N/A'}"
 
     def delete(self, *args, **kwargs):
         table = self.table
@@ -432,113 +339,22 @@ class Order(models.Model):
             table.status = 'available'
             table.save()
 
-    def get_subtotal(self):
-        """Sum of item prices (before any tax adjustment)."""
-        # Use prefetched cache if available, otherwise aggregate in DB
-        if 'items' in self.__dict__.get('_prefetched_objects_cache', {}):
-            return sum(item.get_subtotal() for item in self.items.all())
-        from django.db.models import Sum, F
-        return self.items.aggregate(
-            total=Sum(F('unit_price') * F('quantity'))
-        )['total'] or 0
-
     def get_total(self):
-        """Final amount including tax. For exclusive tax, adds tax on top."""
-        subtotal = self.get_subtotal()
-        if self.tax_type == 'exclusive' and self.tax_amount:
-            return subtotal + self.tax_amount
-        return subtotal
+        return sum(item.get_subtotal() for item in self.items.all())
 
     def get_item_count(self):
-        if 'items' in self.__dict__.get('_prefetched_objects_cache', {}):
-            return sum(item.quantity for item in self.items.all())
-        from django.db.models import Sum
-        return self.items.aggregate(total=Sum('quantity'))['total'] or 0
+        return sum(item.quantity for item in self.items.all())
 
 
 class OrderItem(models.Model):
-    PREP_STATUS_CHOICES = [
-        ('preparing', 'Preparing'),
-        ('ready', 'Ready'),
-    ]
-
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=7, decimal_places=2, default=0)
     notes = models.CharField(max_length=250, blank=True, help_text="Special requests")
-    preparation_status = models.CharField(
-        max_length=10, choices=PREP_STATUS_CHOICES, default='preparing',
-    )
-    ready_acknowledged = models.BooleanField(default=False)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['order', 'preparation_status']),
-        ]
 
     def __str__(self):
         return f"{self.quantity}x {self.menu_item.title}"
 
     def get_subtotal(self):
         return self.unit_price * self.quantity
-
-
-class StationRequest(models.Model):
-    """Request from kitchen/bar staff to the waiter — e.g. edit or cancel an item."""
-    TYPE_CHOICES = [
-        ('edit', 'Edit Request'),
-        ('cancel', 'Cancel Request'),
-    ]
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('accepted', 'Accepted'),
-        ('rejected', 'Rejected'),
-    ]
-
-    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name='station_requests')
-    request_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
-    message = models.TextField(help_text="Reason or details for the request")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    requested_by = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='station_requests_made',
-    )
-    responded_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='station_requests_responded',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    responded_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"{self.get_request_type_display()} — {self.order_item}"
-
-
-class BranchMenuAvailability(models.Model):
-    """Per-branch availability override for menu items.
-
-    If no row exists for a branch+item, the item's global ``is_available``
-    flag is used.  When a row exists, ``is_available`` on this model takes
-    precedence for that branch.
-    """
-
-    branch = models.ForeignKey(
-        'branches.Branch', on_delete=models.CASCADE,
-        related_name='menu_availability',
-    )
-    menu_item = models.ForeignKey(
-        MenuItem, on_delete=models.CASCADE,
-        related_name='branch_availability',
-    )
-    is_available = models.BooleanField(default=True)
-
-    class Meta:
-        unique_together = ('branch', 'menu_item')
-        verbose_name_plural = 'branch menu availability'
-
-    def __str__(self):
-        status = 'available' if self.is_available else 'unavailable'
-        return f"{self.menu_item.title} @ {self.branch.name}: {status}"

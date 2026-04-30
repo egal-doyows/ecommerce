@@ -76,7 +76,6 @@
             {% if unpaid_invoices %}
             <form method="POST">
                 {% csrf_token %}
-                {% include "administration/_branch_field.html" %}
                 <div class="adm-form-group">
                     <label class="adm-form-label">Payment Amount</label>
                     <input type="number" name="payment_amount" class="adm-input" step="0.01" min="0.01"
@@ -104,7 +103,7 @@
             </form>
 
             <script>
-                const currencySymbol = '{{ currency_symbol|escapejs }}';
+                const currencySymbol = '{{ currency_symbol }}';
                 const amountInput = document.getElementById('paymentAmount');
                 const btnLabel = document.getElementById('btnLabel');
                 amountInput.addEventListener('input', function() {

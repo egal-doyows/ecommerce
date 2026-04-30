@@ -18,13 +18,10 @@ def cart_add(request):
     cart = Cart(request)
 
     if request.POST.get('action') == 'post':
-        try:
-            product_id = int(request.POST.get('product_id'))
-            product_quantity = int(request.POST.get('product_quantity'))
-        except (TypeError, ValueError):
-            return JsonResponse({'error': 'Invalid input'}, status=400)
-
+        product_id = int(request.POST.get('product_id'))
+        product_quantity = int(request.POST.get('product_quantity'))
         product = get_object_or_404(MenuItem, id=product_id)
+
         cart.add(product=product, product_qty=product_quantity)
 
         cart_quantity = cart.__len__()
@@ -38,10 +35,7 @@ def cart_update(request):
 
     if request.POST.get('action') == 'post':
         cart_key = request.POST.get('cart_key', '')
-        try:
-            product_quantity = int(request.POST.get('product_quantity'))
-        except (TypeError, ValueError):
-            return JsonResponse({'error': 'Invalid quantity'}, status=400)
+        product_quantity = int(request.POST.get('product_quantity'))
 
         # Support legacy product_id param
         if not cart_key:

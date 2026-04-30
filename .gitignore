@@ -3,12 +3,4 @@ __pycache__/
 *.pyc
 db.sqlite3
 .env
-.env.local
 .DS_Store
-*.log
-logs/
-staticfiles/
-*.swp
-*.swo
-.vscode/
-.idea/
