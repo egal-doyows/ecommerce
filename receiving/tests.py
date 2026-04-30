@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from branches.models import Branch
 from menu.models import InventoryItem
 from purchasing.models import PurchaseOrder, PurchaseOrderItem
 from supplier.models import Supplier, SupplierTransaction
@@ -12,19 +11,16 @@ from supplier.models import Supplier, SupplierTransaction
 
 class ReceivingFlowTests(TestCase):
     def setUp(self):
-        self.branch, _ = Branch.objects.get_or_create(
-            code='main', defaults={'name': 'Main'},
-        )
         self.user = User.objects.create_superuser(
             username='boss', email='boss@example.com', password='pw',
         )
         self.supplier = Supplier.objects.create(name='Acme Foods')
         self.inv = InventoryItem.objects.create(
-            branch=self.branch, name='Tomato', unit='kg',
+            name='Tomato', unit='kg',
             stock_quantity=Decimal('0'), buying_price=Decimal('50'),
         )
         self.po = PurchaseOrder.objects.create(
-            branch=self.branch, supplier=self.supplier,
+            supplier=self.supplier,
             status='approved', created_by=self.user,
         )
         self.po_item = PurchaseOrderItem.objects.create(
