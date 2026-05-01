@@ -239,6 +239,42 @@ class _InsufficientStock(Exception):
     pass
 
 
+class StockAdjustment(models.Model):
+    """
+    Audit trail for explicit stock changes outside the normal sale/restock flow.
+    Each row records the delta and who made it; InventoryItem.stock_quantity is
+    the running total it should equal when summed.
+    """
+
+    SOURCE_CHOICES = [
+        ('count', 'Physical count'),
+        ('manual', 'Manual adjustment'),
+        ('write_off', 'Write-off'),
+    ]
+
+    inventory_item = models.ForeignKey(
+        InventoryItem, on_delete=models.CASCADE, related_name='stock_adjustments',
+    )
+    qty_delta = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text='Positive = added, negative = removed',
+    )
+    reason = models.CharField(max_length=250, blank=True)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='count')
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stock_adjustments',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        sign = '+' if self.qty_delta >= 0 else ''
+        return f'{self.inventory_item.name} {sign}{self.qty_delta} ({self.get_source_display()})'
+
+
 class Recipe(models.Model):
     """
     Links a prepared MenuItem to the InventoryItems it consumes.
