@@ -7,6 +7,7 @@ from django.shortcuts import render
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 
 from menu.models import InventoryItem, Order, OrderItem, RestaurantSettings, Shift
 from waste.models import WasteItem
@@ -513,5 +514,151 @@ def z_report_detail(request, shift_id):
         'counted_cash': counted_cash,
         'variance': variance,
         'top_items': top_items,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── #2 Daily Sales Summary ─────────────────────────────────────────────
+
+def _daily_sales_for(date):
+    """Aggregate sales metrics for a single calendar date."""
+    paid_orders = list(
+        Order.objects
+        .filter(status='paid', is_comp=False, created_at__date=date)
+        .prefetch_related('items__menu_item__category')
+    )
+    cancelled = Order.objects.filter(status='cancelled', created_at__date=date)
+    comped = Order.objects.filter(status='paid', is_comp=True, created_at__date=date)
+
+    revenue = sum((o.get_total() for o in paid_orders), Decimal('0'))
+    txn_count = len(paid_orders)
+    avg_ticket = (revenue / txn_count) if txn_count else Decimal('0')
+
+    # Payment-method split.
+    pm_totals = {pm: Decimal('0') for pm, _ in Order.PAYMENT_CHOICES}
+    pm_counts = {pm: 0 for pm, _ in Order.PAYMENT_CHOICES}
+    for o in paid_orders:
+        if o.payment_method in pm_totals:
+            pm_totals[o.payment_method] += o.get_total()
+            pm_counts[o.payment_method] += 1
+
+    # By hour.
+    hourly = {h: {'count': 0, 'revenue': Decimal('0')} for h in range(24)}
+    for o in paid_orders:
+        local_hour = timezone.localtime(o.created_at).hour
+        hourly[local_hour]['count'] += 1
+        hourly[local_hour]['revenue'] += o.get_total()
+
+    # Top items by qty and by revenue.
+    item_totals = {}
+    cat_totals = {}
+    for o in paid_orders:
+        for oi in o.items.all():
+            mi = oi.menu_item
+            d = item_totals.setdefault(mi.id, {'name': mi.title, 'qty': 0, 'revenue': Decimal('0')})
+            d['qty'] += oi.quantity
+            d['revenue'] += oi.get_subtotal()
+            cname = mi.category.name if mi.category else 'Uncategorised'
+            cat_totals[cname] = cat_totals.get(cname, Decimal('0')) + oi.get_subtotal()
+    top_qty = sorted(item_totals.values(), key=lambda x: x['qty'], reverse=True)[:10]
+    top_rev = sorted(item_totals.values(), key=lambda x: x['revenue'], reverse=True)[:10]
+    by_category = sorted(
+        ({'name': k, 'revenue': v} for k, v in cat_totals.items()),
+        key=lambda x: x['revenue'], reverse=True,
+    )
+
+    # By waiter.
+    waiter_totals = {}
+    for o in paid_orders:
+        if not o.waiter_id:
+            continue
+        w = waiter_totals.setdefault(o.waiter_id, {
+            'username': o.waiter.username, 'count': 0, 'revenue': Decimal('0'),
+        })
+        w['count'] += 1
+        w['revenue'] += o.get_total()
+    for w in waiter_totals.values():
+        w['avg_ticket'] = (w['revenue'] / w['count']) if w['count'] else Decimal('0')
+    by_waiter = sorted(waiter_totals.values(), key=lambda x: x['revenue'], reverse=True)
+
+    return {
+        'revenue': revenue,
+        'txn_count': txn_count,
+        'avg_ticket': avg_ticket,
+        'pm_totals': pm_totals,
+        'pm_counts': pm_counts,
+        'hourly': [
+            {'hour': h, 'count': hourly[h]['count'], 'revenue': hourly[h]['revenue']}
+            for h in range(24)
+        ],
+        'top_qty': top_qty,
+        'top_rev': top_rev,
+        'by_category': by_category,
+        'by_waiter': by_waiter,
+        'voids_count': cancelled.filter(payment_method='').count(),
+        'refunds_count': cancelled.exclude(payment_method='').count(),
+        'comps_count': comped.count(),
+    }
+
+
+@manager_required
+def daily_sales(request):
+    from django.utils import timezone
+
+    target = timezone.localdate() - timedelta(days=1)
+    date_param = request.GET.get('date')
+    if date_param:
+        try:
+            target = timezone.datetime.strptime(date_param, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+
+    today_data = _daily_sales_for(target)
+    last_week = target - timedelta(days=7)
+    last_week_data = _daily_sales_for(last_week)
+
+    revenue_change = _pct_change(today_data['revenue'], last_week_data['revenue'])
+
+    # Payment-method percentages — guarded against zero revenue.
+    pm_pct = {}
+    if today_data['revenue']:
+        for pm, total in today_data['pm_totals'].items():
+            pm_pct[pm] = (total / today_data['revenue'] * 100)
+    else:
+        pm_pct = {pm: Decimal('0') for pm in today_data['pm_totals']}
+
+    if request.GET.get('format') == 'csv':
+        rows = [
+            ['Revenue', today_data['revenue']],
+            ['Transactions', today_data['txn_count']],
+            ['Average ticket', today_data['avg_ticket']],
+            ['Voids', today_data['voids_count']],
+            ['Refunds', today_data['refunds_count']],
+            ['Comps', today_data['comps_count']],
+        ]
+        for pm, total in today_data['pm_totals'].items():
+            rows.append([f'Payments — {dict(Order.PAYMENT_CHOICES).get(pm, pm)}', total])
+        return csv_response(
+            f'daily_sales_{target.isoformat()}.csv',
+            ['Metric', 'Value'], rows,
+        )
+
+    pm_rows = [
+        {
+            'method': dict(Order.PAYMENT_CHOICES).get(pm, pm),
+            'amount': today_data['pm_totals'][pm],
+            'count': today_data['pm_counts'][pm],
+            'pct': pm_pct[pm],
+        }
+        for pm, _ in Order.PAYMENT_CHOICES
+    ]
+
+    return render(request, 'reports/daily_sales.html', {
+        'date': target,
+        'last_week': last_week,
+        'today': today_data,
+        'last_week_data': last_week_data,
+        'revenue_change': revenue_change,
+        'pm_rows': pm_rows,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })

@@ -453,3 +453,90 @@ class ZReportTests(TestCase):
         self.assertEqual(resp.context['refunds']['count'], 1)
         self.assertEqual(resp.context['comps']['count'], 1)
         self.assertEqual(resp.context['discounts']['count'], 1)
+
+
+class DailySalesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+        cls.waiter = User.objects.create_user('waiter', password='pw')
+
+    def _make_paid_order_at(self, when, total, payment_method='cash'):
+        from menu.models import Category, MenuItem, Order, OrderItem
+        cat, _ = Category.objects.get_or_create(name='C', slug='c')
+        mi, _ = MenuItem.objects.get_or_create(
+            category=cat, title='I', slug='i', defaults={'price': Decimal('1')},
+        )
+        order = Order.objects.create(
+            waiter=self.waiter, status='paid', payment_method=payment_method,
+        )
+        OrderItem.objects.create(
+            order=order, menu_item=mi, quantity=1, unit_price=Decimal(str(total)),
+        )
+        # Override created_at after the fact so we can target arbitrary dates.
+        Order.objects.filter(pk=order.pk).update(created_at=when)
+        order.refresh_from_db()
+        return order
+
+    def test_empty_day_no_division_by_zero(self):
+        """A day with zero orders renders cleanly with all zeros."""
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-daily-sales'), {'date': '2020-01-01'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['today']['revenue'], Decimal('0'))
+        self.assertEqual(resp.context['today']['avg_ticket'], Decimal('0'))
+        self.assertContains(resp, 'No sales recorded')
+
+    def test_payment_pcts_sum_to_100(self):
+        from django.utils import timezone as tz
+        target = tz.now() - timedelta(days=1)
+        self._make_paid_order_at(target.replace(hour=10), Decimal('300'), 'cash')
+        self._make_paid_order_at(target.replace(hour=11), Decimal('200'), 'mpesa')
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-daily-sales'), {
+            'date': target.date().isoformat(),
+        })
+        total_pct = sum(r['pct'] for r in resp.context['pm_rows'])
+        # Within a small rounding window — should be ~100.
+        self.assertAlmostEqual(float(total_pct), 100.0, places=1)
+
+    def test_same_day_last_week_uses_date_arithmetic(self):
+        """Acceptance: last-week comparison is exactly 7 days back; works across DST/months."""
+        from django.utils import timezone as tz
+        target_date = (tz.now() - timedelta(days=1)).date()
+        last_week_date = target_date - timedelta(days=7)
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-daily-sales'), {
+            'date': target_date.isoformat(),
+        })
+        self.assertEqual(resp.context['last_week'], last_week_date)
+
+    def test_comp_excluded_from_revenue(self):
+        """is_comp=True should not contribute to revenue."""
+        from menu.models import Category, MenuItem, Order, OrderItem
+        from django.utils import timezone as tz
+        target = tz.now() - timedelta(days=1)
+
+        cat, _ = Category.objects.get_or_create(name='C', slug='c')
+        mi, _ = MenuItem.objects.get_or_create(
+            category=cat, title='I', slug='i', defaults={'price': Decimal('1')},
+        )
+        # Real sale of 100
+        self._make_paid_order_at(target.replace(hour=12), Decimal('100'), 'cash')
+        # Comped order — same paid status but is_comp=True
+        comped = Order.objects.create(
+            waiter=self.waiter, status='paid', payment_method='cash', is_comp=True,
+        )
+        OrderItem.objects.create(order=comped, menu_item=mi, quantity=1, unit_price=Decimal('500'))
+        Order.objects.filter(pk=comped.pk).update(created_at=target.replace(hour=13))
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-daily-sales'), {
+            'date': target.date().isoformat(),
+        })
+        self.assertEqual(resp.context['today']['revenue'], Decimal('100'))
+        self.assertEqual(resp.context['today']['comps_count'], 1)

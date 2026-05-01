@@ -1,0 +1,158 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Daily Sales &middot; {{ date|date:"d M Y" }}{% endblock %}
+{% block report_breadcrumb %}Daily Sales{% endblock %}
+
+{% block report_actions %}
+<a href="?date={{ date|date:'Y-m-d' }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block period_selector %}
+<form method="get" class="adm-card" style="display:flex;gap:12px;align-items:flex-end;margin-bottom:16px;">
+    <div>
+        <label class="adm-form-label">Date</label>
+        <input type="date" name="date" value="{{ date|date:'Y-m-d' }}" style="padding:6px 10px;">
+    </div>
+    <button type="submit" class="adm-btn adm-btn-primary">Apply</button>
+    <div style="margin-left:auto;color:var(--adm-muted);font-size:12px;">
+        vs same day last week ({{ last_week|date:"d M Y" }})
+    </div>
+</form>
+{% endblock %}
+
+{% block report_body %}
+{% if not today.txn_count %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-receipt" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No sales recorded on {{ date|date:"d M Y" }}.</p>
+</div>
+{% else %}
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+    <div class="adm-card">
+        <div style="color:var(--adm-muted);font-size:12px;">Revenue</div>
+        <div style="font-size:22px;font-weight:700;">{{ currency_symbol }} {{ today.revenue|floatformat:2|intcomma }}</div>
+        <div style="color:var(--adm-muted);font-size:12px;">
+            Last week: {{ currency_symbol }} {{ last_week_data.revenue|floatformat:2|intcomma }}
+            {% if revenue_change is not None %}
+            <span style="{% if revenue_change >= 0 %}color:var(--adm-success);{% else %}color:var(--adm-danger);{% endif %};font-weight:500;">
+                ({{ revenue_change|floatformat:1 }}%)
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="adm-card">
+        <div style="color:var(--adm-muted);font-size:12px;">Transactions</div>
+        <div style="font-size:22px;font-weight:700;">{{ today.txn_count }}</div>
+        <div style="color:var(--adm-muted);font-size:12px;">Last week: {{ last_week_data.txn_count }}</div>
+    </div>
+    <div class="adm-card">
+        <div style="color:var(--adm-muted);font-size:12px;">Average ticket</div>
+        <div style="font-size:22px;font-weight:700;">{{ currency_symbol }} {{ today.avg_ticket|floatformat:2|intcomma }}</div>
+        <div style="color:var(--adm-muted);font-size:12px;">Last week: {{ currency_symbol }} {{ last_week_data.avg_ticket|floatformat:2|intcomma }}</div>
+    </div>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Payment methods</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead><tr><th>Method</th><th style="text-align:right;">Count</th><th style="text-align:right;">Amount</th><th style="text-align:right;">% of revenue</th></tr></thead>
+        <tbody>
+            {% for pm in pm_rows %}
+            <tr>
+                <td>{{ pm.method }}</td>
+                <td style="text-align:right;">{{ pm.count }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ pm.amount|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ pm.pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Sales by hour</h3>
+    <table class="adm-table" style="width:100%;font-size:12px;">
+        <thead><tr><th>Hour</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Revenue</th></tr></thead>
+        <tbody>
+            {% for h in today.hourly %}
+                {% if h.count %}
+                <tr>
+                    <td>{{ h.hour }}:00 – {{ h.hour }}:59</td>
+                    <td style="text-align:right;">{{ h.count }}</td>
+                    <td style="text-align:right;">{{ currency_symbol }} {{ h.revenue|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="adm-card">
+        <h3 style="margin:0 0 12px;font-size:14px;">Top items by quantity</h3>
+        <table class="adm-table" style="width:100%;">
+            <thead><tr><th>Item</th><th style="text-align:right;">Qty</th></tr></thead>
+            <tbody>
+                {% for it in today.top_qty %}
+                <tr><td>{{ it.name }}</td><td style="text-align:right;">{{ it.qty }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="adm-card">
+        <h3 style="margin:0 0 12px;font-size:14px;">Top items by revenue</h3>
+        <table class="adm-table" style="width:100%;">
+            <thead><tr><th>Item</th><th style="text-align:right;">Revenue</th></tr></thead>
+            <tbody>
+                {% for it in today.top_rev %}
+                <tr><td>{{ it.name }}</td><td style="text-align:right;">{{ currency_symbol }} {{ it.revenue|floatformat:2|intcomma }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Sales by category</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead><tr><th>Category</th><th style="text-align:right;">Revenue</th></tr></thead>
+        <tbody>
+            {% for c in today.by_category %}
+            <tr><td>{{ c.name }}</td><td style="text-align:right;">{{ currency_symbol }} {{ c.revenue|floatformat:2|intcomma }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Sales by waiter</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead><tr><th>Waiter</th><th style="text-align:right;">Orders</th><th style="text-align:right;">Revenue</th><th style="text-align:right;">Avg ticket</th></tr></thead>
+        <tbody>
+            {% for w in today.by_waiter %}
+            <tr>
+                <td>{{ w.username }}</td>
+                <td style="text-align:right;">{{ w.count }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ w.revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ w.avg_ticket|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="adm-card">
+    <h3 style="margin:0 0 12px;font-size:14px;">Loss prevention</h3>
+    <div style="display:flex;gap:24px;">
+        <div><span style="color:var(--adm-muted);font-size:12px;">Voids:</span> <strong>{{ today.voids_count }}</strong></div>
+        <div><span style="color:var(--adm-muted);font-size:12px;">Refunds:</span> <strong>{{ today.refunds_count }}</strong></div>
+        <div><span style="color:var(--adm-muted);font-size:12px;">Comps:</span> <strong>{{ today.comps_count }}</strong></div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
