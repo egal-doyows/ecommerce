@@ -5,7 +5,10 @@ from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce
 from django.shortcuts import render
 
-from menu.models import InventoryItem, Order, RestaurantSettings
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect
+
+from menu.models import InventoryItem, Order, OrderItem, RestaurantSettings, Shift
 from waste.models import WasteItem
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
@@ -350,4 +353,165 @@ def audit_trail(request):
         'action_choices': list(ACTION_LABELS.values()),
         'models': models,
         'users': users,
+    })
+
+
+# ── #1 Z-Report (End-of-Shift Close) ───────────────────────────────────
+
+def _is_manager(user):
+    return user.is_superuser or user.groups.filter(name='Manager').exists()
+
+
+@login_required(login_url='my-login')
+def z_report_list(request):
+    """
+    Pick a shift to z-report. Managers see all shifts; cashiers see their own.
+    """
+    shifts = Shift.objects.select_related('waiter').order_by('-started_at')
+    if not _is_manager(request.user):
+        shifts = shifts.filter(waiter=request.user)
+    return render(request, 'reports/z_report_list.html', {
+        'shifts': shifts[:50],
+        'is_manager': _is_manager(request.user),
+    })
+
+
+def _classify_order(order):
+    """
+    Map an order onto a loss-prevention category.
+
+    Priority: comp > discount > refund > void > sale.
+    A cancelled order is a 'refund' if it had been paid (payment_method set),
+    otherwise a 'void'.
+    """
+    if order.is_comp:
+        return 'comp'
+    if order.status == 'cancelled':
+        return 'refund' if order.payment_method else 'void'
+    if order.discount_amount and order.discount_amount > 0:
+        return 'discount'
+    return 'sale'
+
+
+@login_required(login_url='my-login')
+def z_report_detail(request, shift_id):
+    shift = get_object_or_404(Shift.objects.select_related('waiter'), pk=shift_id)
+    if not _is_manager(request.user) and shift.waiter_id != request.user.id:
+        return redirect('admin-dashboard')
+
+    orders = list(
+        shift.orders.prefetch_related('items')
+        .order_by('created_at')
+    )
+
+    # Categorise each order, then compute totals.
+    categorised = {'sale': [], 'void': [], 'refund': [], 'discount': [], 'comp': []}
+    for o in orders:
+        categorised[_classify_order(o)].append(o)
+
+    paid_sales = [o for o in categorised['sale']]
+    gross_sales = sum((o.get_total() for o in paid_sales), Decimal('0'))
+    txn_count = len(paid_sales)
+    avg_ticket = (gross_sales / txn_count) if txn_count else Decimal('0')
+
+    # Payment method breakdown across paid sales.
+    pm_breakdown = {pm: {'count': 0, 'amount': Decimal('0')} for pm, _ in Order.PAYMENT_CHOICES}
+    for o in paid_sales:
+        if o.payment_method in pm_breakdown:
+            pm_breakdown[o.payment_method]['count'] += 1
+            pm_breakdown[o.payment_method]['amount'] += o.get_total()
+
+    def _category_total(orders_in_cat, use_discount=False):
+        return sum(
+            ((o.discount_amount if use_discount else o.get_total()) for o in orders_in_cat),
+            Decimal('0'),
+        )
+
+    voids = {'count': len(categorised['void']), 'amount': _category_total(categorised['void'])}
+    refunds = {'count': len(categorised['refund']), 'amount': _category_total(categorised['refund'])}
+    discounts = {
+        'count': len(categorised['discount']),
+        'amount': _category_total(categorised['discount'], use_discount=True),
+    }
+    comps = {'count': len(categorised['comp']), 'amount': _category_total(categorised['comp'])}
+
+    cash_sales = pm_breakdown['cash']['amount']
+    cash_refunds = sum(
+        (o.get_total() for o in categorised['refund'] if o.payment_method == 'cash'),
+        Decimal('0'),
+    )
+    expected_cash = (shift.starting_cash or Decimal('0')) + cash_sales - cash_refunds
+
+    counted_cash = shift.counted_cash
+    variance = (counted_cash - expected_cash) if counted_cash is not None else None
+
+    # Top 5 items sold during shift (paid sales only).
+    item_totals = {}
+    for o in paid_sales:
+        for oi in o.items.all():
+            key = oi.menu_item_id
+            d = item_totals.setdefault(key, {'name': oi.menu_item.title, 'qty': 0, 'revenue': Decimal('0')})
+            d['qty'] += oi.quantity
+            d['revenue'] += oi.get_subtotal()
+    top_items = sorted(item_totals.values(), key=lambda x: x['qty'], reverse=True)[:5]
+
+    duration = None
+    if shift.ended_at:
+        delta = shift.ended_at - shift.started_at
+        hours, remainder = divmod(int(delta.total_seconds()), 3600)
+        minutes = remainder // 60
+        duration = f"{hours}h {minutes}m"
+
+    if request.GET.get('format') == 'csv':
+        rows = [
+            ['Section', 'Metric', 'Value'],
+            ['Shift', 'Cashier', shift.waiter.username if shift.waiter else ''],
+            ['Shift', 'Opened', shift.started_at.isoformat()],
+            ['Shift', 'Closed', shift.ended_at.isoformat() if shift.ended_at else ''],
+            ['Shift', 'Opening float', shift.starting_cash],
+            ['Sales', 'Gross sales', gross_sales],
+            ['Sales', 'Transactions', txn_count],
+            ['Sales', 'Average ticket', avg_ticket],
+        ]
+        for pm, data in pm_breakdown.items():
+            rows.append(['Payments', dict(Order.PAYMENT_CHOICES).get(pm, pm),
+                         f'{data["count"]} / {data["amount"]}'])
+        rows += [
+            ['Loss prevention', 'Voids', f'{voids["count"]} / {voids["amount"]}'],
+            ['Loss prevention', 'Refunds', f'{refunds["count"]} / {refunds["amount"]}'],
+            ['Loss prevention', 'Discounts', f'{discounts["count"]} / {discounts["amount"]}'],
+            ['Loss prevention', 'Comps', f'{comps["count"]} / {comps["amount"]}'],
+            ['Cash', 'Expected', expected_cash],
+            ['Cash', 'Counted', counted_cash if counted_cash is not None else ''],
+            ['Cash', 'Variance', variance if variance is not None else ''],
+        ]
+        return csv_response(
+            f'z_report_shift_{shift.id}.csv',
+            ['Section', 'Metric', 'Value'],
+            rows[1:],
+        )
+
+    return render(request, 'reports/z_report_detail.html', {
+        'shift': shift,
+        'duration': duration,
+        'gross_sales': gross_sales,
+        'txn_count': txn_count,
+        'avg_ticket': avg_ticket,
+        'pm_breakdown': [
+            {
+                'method': dict(Order.PAYMENT_CHOICES).get(pm, pm),
+                'count': data['count'],
+                'amount': data['amount'],
+            }
+            for pm, data in pm_breakdown.items()
+        ],
+        'voids': voids,
+        'refunds': refunds,
+        'discounts': discounts,
+        'comps': comps,
+        'expected_cash': expected_cash,
+        'counted_cash': counted_cash,
+        'variance': variance,
+        'top_items': top_items,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
     })

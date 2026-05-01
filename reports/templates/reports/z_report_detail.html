@@ -1,0 +1,108 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Z-Report &middot; Shift #{{ shift.id }}{% endblock %}
+{% block report_breadcrumb %}<a href="{% url 'reports-z-report' %}" style="color:var(--adm-accent);text-decoration:none;">Z-Report</a> / Shift #{{ shift.id }}{% endblock %}
+
+{% block report_actions %}
+<a href="?format=csv" class="adm-btn adm-btn-outline"><i class="fa-solid fa-download"></i> CSV</a>
+{% endblock %}
+
+{% block period_selector %}{% endblock %}
+
+{% block report_body %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="adm-card">
+        <h3 style="margin:0 0 12px;font-size:14px;">Shift</h3>
+        <table style="width:100%;font-size:14px;">
+            <tr><td style="color:var(--adm-muted);">Cashier</td><td style="text-align:right;font-weight:500;">{{ shift.waiter.username|default:"—" }}</td></tr>
+            <tr><td style="color:var(--adm-muted);">Opened</td><td style="text-align:right;">{{ shift.started_at|date:"d M Y H:i" }}</td></tr>
+            <tr><td style="color:var(--adm-muted);">Closed</td><td style="text-align:right;">{% if shift.ended_at %}{{ shift.ended_at|date:"d M Y H:i" }}{% else %}<span style="color:var(--adm-warning);">open</span>{% endif %}</td></tr>
+            <tr><td style="color:var(--adm-muted);">Duration</td><td style="text-align:right;">{{ duration|default:"—" }}</td></tr>
+            <tr><td style="color:var(--adm-muted);">Opening float</td><td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ shift.starting_cash|floatformat:2|intcomma }}</td></tr>
+        </table>
+    </div>
+    <div class="adm-card">
+        <h3 style="margin:0 0 12px;font-size:14px;">Sales</h3>
+        <table style="width:100%;font-size:14px;">
+            <tr><td style="color:var(--adm-muted);">Gross sales</td><td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ gross_sales|floatformat:2|intcomma }}</td></tr>
+            <tr><td style="color:var(--adm-muted);">Transactions</td><td style="text-align:right;">{{ txn_count }}</td></tr>
+            <tr><td style="color:var(--adm-muted);">Average ticket</td><td style="text-align:right;">{{ currency_symbol }} {{ avg_ticket|floatformat:2|intcomma }}</td></tr>
+        </table>
+    </div>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Payment methods</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead><tr><th>Method</th><th style="text-align:right;">Count</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>
+            {% for pm in pm_breakdown %}
+            <tr>
+                <td>{{ pm.method }}</td>
+                <td style="text-align:right;">{{ pm.count }}</td>
+                <td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ pm.amount|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Loss prevention</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead><tr><th>Type</th><th style="text-align:right;">Count</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>
+            <tr><td>Voids</td><td style="text-align:right;">{{ voids.count }}</td><td style="text-align:right;">{{ currency_symbol }} {{ voids.amount|floatformat:2|intcomma }}</td></tr>
+            <tr><td>Refunds</td><td style="text-align:right;">{{ refunds.count }}</td><td style="text-align:right;">{{ currency_symbol }} {{ refunds.amount|floatformat:2|intcomma }}</td></tr>
+            <tr><td>Discounts</td><td style="text-align:right;">{{ discounts.count }}</td><td style="text-align:right;">{{ currency_symbol }} {{ discounts.amount|floatformat:2|intcomma }}</td></tr>
+            <tr><td>Comps</td><td style="text-align:right;">{{ comps.count }}</td><td style="text-align:right;">{{ currency_symbol }} {{ comps.amount|floatformat:2|intcomma }}</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Cash drawer</h3>
+    <table style="width:100%;font-size:14px;">
+        <tr><td style="color:var(--adm-muted);">Expected</td><td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ expected_cash|floatformat:2|intcomma }}</td></tr>
+        <tr>
+            <td style="color:var(--adm-muted);">Counted</td>
+            <td style="text-align:right;font-weight:500;">
+                {% if counted_cash is not None %}{{ currency_symbol }} {{ counted_cash|floatformat:2|intcomma }}
+                {% else %}<span style="color:var(--adm-muted);">not counted</span>{% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="color:var(--adm-muted);">Variance</td>
+            <td style="text-align:right;font-weight:600;">
+                {% if variance is None %}—
+                {% elif variance == 0 %}<span style="color:var(--adm-success);">{{ currency_symbol }} 0.00</span>
+                {% elif variance > 0 %}<span style="color:var(--adm-warning);">+{{ currency_symbol }} {{ variance|floatformat:2|intcomma }} (over)</span>
+                {% else %}<span style="color:var(--adm-danger);">{{ currency_symbol }} {{ variance|floatformat:2|intcomma }} (short)</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+</div>
+
+{% if top_items %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">Top 5 items</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead><tr><th>Item</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Revenue</th></tr></thead>
+        <tbody>
+            {% for item in top_items %}
+            <tr><td>{{ item.name }}</td><td style="text-align:right;">{{ item.qty }}</td><td style="text-align:right;">{{ currency_symbol }} {{ item.revenue|floatformat:2|intcomma }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if shift.notes %}
+<div class="adm-card">
+    <h3 style="margin:0 0 12px;font-size:14px;">Notes</h3>
+    <p style="white-space:pre-wrap;color:var(--adm-text);margin:0;">{{ shift.notes }}</p>
+</div>
+{% endif %}
+{% endblock %}

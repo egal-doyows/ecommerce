@@ -1,0 +1,42 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Z-Report{% endblock %}
+{% block report_breadcrumb %}Pick a shift{% endblock %}
+{% block period_selector %}{% endblock %}
+
+{% block report_body %}
+{% if not shifts %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-clock" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No shifts to report on.</p>
+</div>
+{% else %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Shift</th>
+                <th>Cashier</th>
+                <th>Opened</th>
+                <th>Closed</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in shifts %}
+            <tr>
+                <td>#{{ s.id }}</td>
+                <td>{{ s.waiter.username|default:"—" }}</td>
+                <td>{{ s.started_at|date:"d M Y H:i" }}</td>
+                <td>{% if s.ended_at %}{{ s.ended_at|date:"d M Y H:i" }}{% else %}<span style="color:var(--adm-warning);">open</span>{% endif %}</td>
+                <td>{% if s.is_active %}<span style="color:var(--adm-success);">active</span>{% else %}<span style="color:var(--adm-muted);">closed</span>{% endif %}</td>
+                <td><a href="{% url 'reports-z-report-detail' s.id %}" class="adm-btn adm-btn-sm adm-btn-outline">View</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -8,4 +8,6 @@ urlpatterns = [
     path('stock-on-hand/', views.stock_on_hand, name='reports-stock-on-hand'),
     path('aged-receivables/', views.aged_receivables, name='reports-aged-receivables'),
     path('audit-trail/', views.audit_trail, name='reports-audit-trail'),
+    path('z-report/', views.z_report_list, name='reports-z-report'),
+    path('z-report/<int:shift_id>/', views.z_report_detail, name='reports-z-report-detail'),
 ]
