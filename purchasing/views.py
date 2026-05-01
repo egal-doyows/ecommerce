@@ -106,9 +106,6 @@ def po_list(request):
         'status_filter': status_filter,
         'date_from': date_from,
         'date_to': date_to,
-        'is_overall': False,
-        'branches': [],
-        'branch_filter': '',
     })
 
 

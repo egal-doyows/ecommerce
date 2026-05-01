@@ -164,14 +164,10 @@ def waiter_login(request):
             code = form.cleaned_data['code']
             try:
                 waiter_code = WaiterCode.objects.get(code=code, is_active=True)
-                if waiter_code.is_locked():
-                    auth_logger.warning('Login attempt on locked waiter code user=%s from IP=%s', waiter_code.user.username, request.META.get('REMOTE_ADDR'))
-                    error = 'Account temporarily locked due to too many failed attempts. Please try again later.'
-                elif not waiter_code.user.is_active:
+                if not waiter_code.user.is_active:
                     error = 'This account is not active.'
                 else:
                     user = waiter_code.user
-                    waiter_code.reset_failed_attempts()
                     auth.login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                     return _get_post_login_redirect(request)
             except WaiterCode.DoesNotExist:
@@ -222,50 +218,11 @@ def dashboard(request):
         total=Sum(F('items__unit_price') * F('items__quantity'))
     )['total'] or 0
 
-    from staff_compensation.models import AdvanceRequest, PayrollLine
-    from hr.models import LeaveRequest
-    pending_advances = AdvanceRequest.objects.filter(employee=user, status='pending').count()
-    pending_leaves = LeaveRequest.objects.filter(employee__user=user, status='pending').count()
-
-    is_staff_user = not (
-        user.is_superuser
-        or user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
-    )
-
-    context = {
+    return render(request, 'accounts/dashboard.html', {
         'active_shift': active_shift,
         'today_order_count': today_orders.count(),
         'today_sales': today_sales,
-        'pending_advances': pending_advances,
-        'pending_leaves': pending_leaves,
-        'is_staff_user': is_staff_user,
-    }
-
-    # Extra context for non-manager staff
-    if is_staff_user:
-        compensation = getattr(user, 'compensation', None)
-        context['compensation'] = compensation
-
-        # Latest payslips
-        latest_payslips = PayrollLine.objects.filter(
-            employee=user,
-        ).select_related('payroll').order_by('-payroll__year', '-payroll__month')[:3]
-        context['latest_payslips'] = latest_payslips
-
-        # Outstanding balance (unpaid payment records)
-        from staff_compensation.models import PaymentRecord
-        outstanding = PaymentRecord.objects.filter(
-            staff=user, status='pending',
-        ).aggregate(total=Sum('amount'))['total'] or 0
-        context['outstanding_balance'] = outstanding
-
-        # Total advances taken
-        total_advances = AdvanceRequest.objects.filter(
-            employee=user, status__in=['approved', 'disbursed'],
-        ).aggregate(total=Sum('amount'))['total'] or 0
-        context['total_advances'] = total_advances
-
-    return render(request, 'accounts/dashboard.html', context)
+    })
 
 
 def user_logout(request):
