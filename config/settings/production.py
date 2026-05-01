@@ -36,6 +36,11 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Gunicorn runs on a Unix socket, so REMOTE_ADDR is empty. nginx sets
+# X-Real-IP via 'proxy_set_header X-Real-IP $remote_addr;' (and overwrites
+# any client-supplied value), so this header is safe to trust here.
+RATELIMIT_IP_META_KEY = 'HTTP_X_REAL_IP'
+
 
 # ── CSRF trusted origins ──────────────────────────────────────────────────
 # Django 4+ requires HTTPS POSTs to come from an origin in this list.
