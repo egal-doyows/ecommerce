@@ -1,10 +1,12 @@
 from django.db import migrations
 
 
-SQL = [
-    'DROP INDEX IF EXISTS "supplier_suppliertransaction_branch_id_d5acb92c";',
-    'ALTER TABLE "supplier_suppliertransaction" DROP COLUMN "branch_id";',
-]
+def forward(apps, schema_editor):
+    cur = schema_editor.connection.cursor()
+    cur.execute('DROP INDEX IF EXISTS "supplier_suppliertransaction_branch_id_d5acb92c"')
+    cur.execute("SELECT 1 FROM pragma_table_info('supplier_suppliertransaction') WHERE name='branch_id'")
+    if cur.fetchone():
+        cur.execute('ALTER TABLE "supplier_suppliertransaction" DROP COLUMN "branch_id"')
 
 
 class Migration(migrations.Migration):
@@ -14,5 +16,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(sql=SQL, reverse_sql=migrations.RunSQL.noop),
+        migrations.RunPython(forward, reverse_code=migrations.RunPython.noop),
     ]
