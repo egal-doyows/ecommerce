@@ -2,10 +2,14 @@ from django.db import migrations
 
 
 def forward(apps, schema_editor):
-    cur = schema_editor.connection.cursor()
+    connection = schema_editor.connection
+    cur = connection.cursor()
+
+    def has_col(table, col):
+        return col in {c.name for c in connection.introspection.get_table_description(cur, table)}
+
     cur.execute('DROP INDEX IF EXISTS "hr_employee_branch_id_07bbf862"')
-    cur.execute("SELECT 1 FROM pragma_table_info('hr_employee') WHERE name='branch_id'")
-    if cur.fetchone():
+    if has_col('hr_employee', 'branch_id'):
         cur.execute('ALTER TABLE "hr_employee" DROP COLUMN "branch_id"')
     # hr_transferrequest — orphaned table (TransferRequest model removed)
     cur.execute('DROP TABLE IF EXISTS "hr_transferrequest"')

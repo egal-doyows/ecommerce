@@ -1,0 +1,61 @@
+WARNING 2026-04-01 20:27:05,341 base Session data corrupted
+WARNING 2026-04-01 20:27:05,349 base Session data corrupted
+INFO 2026-04-01 20:28:40,107 views Successful login for user=musa from IP=127.0.0.1
+INFO 2026-04-30 09:08:53,798 views Successful login for user=egaldoyows from IP=127.0.0.1
+INFO 2026-04-30 09:11:00,089 views Successful login for user=egaldoyows from IP=127.0.0.1
+INFO 2026-04-30 09:35:18,487 views Successful login for user=egaldoyows from IP=127.0.0.1
+WARNING 2026-04-30 11:03:33,557 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:03:33,585 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:03:33,588 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:03:33,591 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:03:33,595 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:05:49,315 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:05:49,336 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:05:49,340 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:05:49,344 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:05:49,348 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:08:17,944 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:08:17,964 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:08:17,970 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:08:17,974 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 11:08:17,979 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:06:24,666 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:12:27,040 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:12:27,064 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:12:27,068 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:12:27,071 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:12:27,074 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:16:26,008 base Session data corrupted
+WARNING 2026-04-30 16:16:26,072 base Session data corrupted
+WARNING 2026-04-30 16:23:37,405 log Forbidden (CSRF cookie not set.): /account/waiter-login
+WARNING 2026-04-30 16:35:34,347 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:34,366 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:34,370 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:34,373 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:34,376 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:47,341 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:47,355 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:47,358 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:47,362 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:47,365 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:58,430 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:58,448 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:58,453 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:58,456 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:35:58,459 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:13,793 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:13,810 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:13,814 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:13,820 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:13,823 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:23,156 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:23,170 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:23,173 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:23,177 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:23,180 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:36,735 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:36,753 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:36,757 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:36,760 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-04-30 16:36:36,764 views Failed waiter login attempt with invalid code from IP=127.0.0.1
+WARNING 2026-05-01 17:19:06,789 views Failed waiter login attempt with invalid code from IP=127.0.0.1

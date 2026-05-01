@@ -2,7 +2,11 @@ from django.db import migrations
 
 
 def forward(apps, schema_editor):
-    cur = schema_editor.connection.cursor()
+    connection = schema_editor.connection
+    cur = connection.cursor()
+
+    def has_col(table, col):
+        return col in {c.name for c in connection.introspection.get_table_description(cur, table)}
 
     # Repoint every transaction to the canonical account (lowest id per type).
     # No-op when there are no rows / no duplicates (fresh DB).
@@ -27,15 +31,13 @@ def forward(apps, schema_editor):
 
     cur.execute('DROP INDEX IF EXISTS "administration_account_branch_id_142f8570"')
     cur.execute('DROP INDEX IF EXISTS "administration_account_branch_id_account_type_2c6f58cc_uniq"')
-    cur.execute("SELECT 1 FROM pragma_table_info('administration_account') WHERE name='branch_id'")
-    if cur.fetchone():
+    if has_col('administration_account', 'branch_id'):
         cur.execute('ALTER TABLE "administration_account" DROP COLUMN "branch_id"')
     cur.execute('CREATE UNIQUE INDEX IF NOT EXISTS "administration_account_account_type_uniq" ON "administration_account" ("account_type")')
 
     cur.execute('DROP INDEX IF EXISTS "administration_transaction_branch_id_ed8fc06b"')
     cur.execute('DROP INDEX IF EXISTS "administrat_branch__10536f_idx"')
-    cur.execute("SELECT 1 FROM pragma_table_info('administration_transaction') WHERE name='branch_id'")
-    if cur.fetchone():
+    if has_col('administration_transaction', 'branch_id'):
         cur.execute('ALTER TABLE "administration_transaction" DROP COLUMN "branch_id"')
 
 

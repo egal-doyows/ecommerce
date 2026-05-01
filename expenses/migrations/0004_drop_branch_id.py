@@ -2,10 +2,14 @@ from django.db import migrations
 
 
 def forward(apps, schema_editor):
-    cur = schema_editor.connection.cursor()
+    connection = schema_editor.connection
+    cur = connection.cursor()
+
+    def has_col(table, col):
+        return col in {c.name for c in connection.introspection.get_table_description(cur, table)}
+
     cur.execute('DROP INDEX IF EXISTS "expenses_expense_branch_id_8a762cc5"')
-    cur.execute("SELECT 1 FROM pragma_table_info('expenses_expense') WHERE name='branch_id'")
-    if cur.fetchone():
+    if has_col('expenses_expense', 'branch_id'):
         cur.execute('ALTER TABLE "expenses_expense" DROP COLUMN "branch_id"')
 
 

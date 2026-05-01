@@ -7,11 +7,11 @@ def forward(apps, schema_editor):
     operation checks for existence so the migration is a no-op against a
     fresh DB where the drift never occurred.
     """
-    cur = schema_editor.connection.cursor()
+    connection = schema_editor.connection
+    cur = connection.cursor()
 
     def has_col(table, col):
-        cur.execute(f"SELECT 1 FROM pragma_table_info('{table}') WHERE name=?", [col])
-        return cur.fetchone() is not None
+        return col in {c.name for c in connection.introspection.get_table_description(cur, table)}
 
     # DROP INDEX/TABLE IF EXISTS are natively idempotent.
     for sql in [
