@@ -1,0 +1,69 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Stock On Hand &amp; Valuation{% endblock %}
+{% block report_breadcrumb %}Stock On Hand{% endblock %}
+
+{% block report_actions %}
+<a href="?{% if low_stock_only %}low_stock=1&{% endif %}format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV (for counting)
+</a>
+{% endblock %}
+
+{% block period_selector %}
+<form method="get" class="adm-card" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;">
+    <label style="display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" name="low_stock" value="1" {% if low_stock_only %}checked{% endif %} onchange="this.form.submit()">
+        Low-stock only
+    </label>
+    <div style="margin-left:auto;color:var(--adm-muted);font-size:12px;">
+        Snapshot as of now &middot; {{ item_count }} item{{ item_count|pluralize }}
+    </div>
+</form>
+{% endblock %}
+
+{% block report_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-boxes-stacked" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>{% if low_stock_only %}No items below their low-stock threshold.{% else %}No inventory items.{% endif %}</p>
+</div>
+{% else %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Stock</th>
+                <th style="text-align:right;">Unit Cost</th>
+                <th style="text-align:right;">Value</th>
+                <th>Preferred Supplier</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr {% if r.low_stock %}style="background:#fff3cd;"{% endif %}>
+                <td style="font-weight:500;">
+                    {{ r.name }}
+                    {% if r.low_stock %}<span style="color:var(--adm-warning);font-size:11px;margin-left:6px;">LOW</span>{% endif %}
+                </td>
+                <td style="color:var(--adm-muted);">{{ r.unit }}</td>
+                <td style="text-align:right;">{{ r.stock|floatformat:2 }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ r.value|floatformat:2|intcomma }}</td>
+                <td style="color:var(--adm-muted);">{{ r.supplier|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td colspan="4" style="text-align:right;font-weight:700;">Total Inventory Value</td>
+                <td style="text-align:right;font-weight:700;font-size:16px;">{{ currency_symbol }} {{ total_value|floatformat:2|intcomma }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -129,3 +129,69 @@ class ProfitLossTests(TestCase):
         self.assertEqual(ctx['revenue'], Decimal('300'))   # 2 × 150
         self.assertEqual(ctx['cogs'], Decimal('100'))      # 2 × 50, NOT 2 × 999
         self.assertEqual(ctx['gross_profit'], Decimal('200'))
+
+
+class StockOnHandTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+
+    def test_empty_renders(self):
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-stock-on-hand'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['total_value'], Decimal('0'))
+
+    def test_total_value_equals_sum_of_stock_times_cost(self):
+        from menu.models import InventoryItem
+        InventoryItem.objects.create(
+            name='A', unit='kg', stock_quantity=Decimal('10'), buying_price=Decimal('5'),
+        )
+        InventoryItem.objects.create(
+            name='B', unit='piece', stock_quantity=Decimal('3'), buying_price=Decimal('20'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-stock-on-hand'))
+        self.assertEqual(resp.context['total_value'], Decimal('110'))  # 10×5 + 3×20
+
+    def test_changing_buying_price_changes_total(self):
+        from menu.models import InventoryItem
+        item = InventoryItem.objects.create(
+            name='A', unit='kg', stock_quantity=Decimal('10'), buying_price=Decimal('5'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-stock-on-hand'))
+        self.assertEqual(resp.context['total_value'], Decimal('50'))
+
+        item.buying_price = Decimal('8')
+        item.save()
+        resp = self.client.get(reverse('reports-stock-on-hand'))
+        self.assertEqual(resp.context['total_value'], Decimal('80'))
+
+    def test_csv_has_counted_column(self):
+        from menu.models import InventoryItem
+        InventoryItem.objects.create(
+            name='A', unit='kg', stock_quantity=Decimal('10'), buying_price=Decimal('5'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-stock-on-hand'), {'format': 'csv'})
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn('counted', body.split('\n')[0])
+
+    def test_low_stock_only_filter(self):
+        from menu.models import InventoryItem
+        InventoryItem.objects.create(
+            name='High', unit='kg', stock_quantity=Decimal('100'),
+            buying_price=Decimal('5'), low_stock_threshold=Decimal('10'),
+        )
+        InventoryItem.objects.create(
+            name='Low', unit='kg', stock_quantity=Decimal('1'),
+            buying_price=Decimal('5'), low_stock_threshold=Decimal('10'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-stock-on-hand'), {'low_stock': '1'})
+        names = [r['name'] for r in resp.context['rows']]
+        self.assertEqual(names, ['Low'])

@@ -5,7 +5,7 @@ from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce
 from django.shortcuts import render
 
-from menu.models import Order, RestaurantSettings
+from menu.models import InventoryItem, Order, RestaurantSettings
 from waste.models import WasteItem
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
@@ -126,5 +126,52 @@ def profit_loss(request):
         'current': current,
         'previous': previous,
         'deltas': deltas,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── #6 Stock On Hand & Valuation ───────────────────────────────────────
+
+@manager_required
+def stock_on_hand(request):
+    """Snapshot of current inventory + valuation. Not date-ranged."""
+    low_stock_only = request.GET.get('low_stock') == '1'
+
+    items = InventoryItem.objects.select_related('preferred_supplier').order_by('name')
+    if low_stock_only:
+        items = [i for i in items if i.is_low_stock]
+    else:
+        items = list(items)
+
+    rows = []
+    total_value = Decimal('0')
+    for it in items:
+        line_value = (it.stock_quantity or Decimal('0')) * (it.buying_price or Decimal('0'))
+        total_value += line_value
+        rows.append({
+            'name': it.name,
+            'unit': it.get_unit_display(),
+            'stock': it.stock_quantity,
+            'cost': it.buying_price,
+            'value': line_value,
+            'supplier': it.preferred_supplier.name if it.preferred_supplier else '',
+            'low_stock': it.is_low_stock,
+        })
+
+    if request.GET.get('format') == 'csv':
+        # 'counted' column is intentionally blank — for offline physical counting,
+        # to be re-uploaded into the variance report.
+        header = ['name', 'unit', 'stock', 'counted', 'cost', 'value', 'supplier']
+        csv_rows = [
+            [r['name'], r['unit'], r['stock'], '', r['cost'], r['value'], r['supplier']]
+            for r in rows
+        ]
+        return csv_response('stock_on_hand.csv', header, csv_rows)
+
+    return render(request, 'reports/stock_on_hand.html', {
+        'rows': rows,
+        'total_value': total_value,
+        'low_stock_only': low_stock_only,
+        'item_count': len(rows),
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
