@@ -53,6 +53,7 @@ urlpatterns = [
     path('waste/', include('waste.urls')),
     path('expenses/', include('expenses.urls')),
     path('hr/', include('hr.urls')),
+    path('reports/', include('reports.urls')),
 ]
 
 if settings.DEBUG:

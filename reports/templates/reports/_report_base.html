@@ -1,0 +1,47 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{% block report_title %}Report{% endblock %}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'reports-index' %}" style="color:var(--adm-accent);text-decoration:none;">Reports</a>
+            / {% block report_breadcrumb %}{% endblock %}
+        </div>
+    </div>
+    <div>{% block report_actions %}{% endblock %}</div>
+</div>
+
+{% block period_selector %}
+<form method="get" class="adm-card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:16px;">
+    <div>
+        <label class="adm-form-label">Period</label>
+        <select name="preset" onchange="document.getElementById('custom-range').style.display = this.value === 'custom' ? 'flex' : 'none';" style="padding:6px 10px;">
+            <option value="today" {% if preset == 'today' %}selected{% endif %}>Today</option>
+            <option value="yesterday" {% if preset == 'yesterday' %}selected{% endif %}>Yesterday</option>
+            <option value="week" {% if preset == 'week' %}selected{% endif %}>This week</option>
+            <option value="month" {% if preset == 'month' %}selected{% endif %}>This month</option>
+            <option value="custom" {% if preset == 'custom' %}selected{% endif %}>Custom range</option>
+        </select>
+    </div>
+    <div id="custom-range" style="display:{% if preset == 'custom' %}flex{% else %}none{% endif %};gap:12px;align-items:flex-end;">
+        <div>
+            <label class="adm-form-label">From</label>
+            <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" style="padding:6px 10px;">
+        </div>
+        <div>
+            <label class="adm-form-label">To</label>
+            <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" style="padding:6px 10px;">
+        </div>
+    </div>
+    <button type="submit" class="adm-btn adm-btn-primary">Apply</button>
+    {% block extra_filters %}{% endblock %}
+    <div style="margin-left:auto;color:var(--adm-muted);font-size:12px;">
+        {{ start|date:"d M Y" }} — {{ end|date:"d M Y" }}
+    </div>
+</form>
+{% endblock %}
+
+{% block report_body %}{% endblock %}
+{% endblock %}

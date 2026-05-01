@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'waste',
     'expenses',
     'hr',
+    'reports',
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
