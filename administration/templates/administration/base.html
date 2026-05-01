@@ -494,7 +494,7 @@
             <i class="fa-solid fa-chart-pie"></i> Dashboard
         </a>
         {% if is_manager %}
-        <a href="{% url 'admin-reports' %}" class="adm-nav-link {% active_nav 'admin-reports' %}">
+        <a href="{% url 'reports-index' %}" class="adm-nav-link {% active_nav 'reports-index' 'reports-profit-loss' 'reports-stock-on-hand' 'reports-aged-receivables' 'reports-audit-trail' 'reports-z-report' 'reports-z-report-detail' 'reports-daily-sales' 'reports-voids-log' 'reports-cash-drawer' 'reports-stock-variance' %}">
             <i class="fa-solid fa-chart-bar"></i> Reports
         </a>
         <a href="{% url 'admin-accounts' %}" class="adm-nav-link {% active_nav 'admin-accounts' 'admin-account-detail' %}">

@@ -5,7 +5,82 @@
 {% block period_selector %}{% endblock %}
 
 {% block report_body %}
-<div class="adm-card">
-    <p style="color:var(--adm-muted);">Available reports will appear here as they are built.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:16px;">
+
+    <a href="{% url 'reports-z-report' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-cash-register" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Z-Report</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">End-of-shift close: sales, payment breakdown, voids/refunds, expected vs counted cash with variance.</p>
+    </a>
+
+    <a href="{% url 'reports-daily-sales' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-receipt" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Daily Sales</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Morning-after summary: revenue, hourly, top items, by category, by waiter, vs last week.</p>
+    </a>
+
+    <a href="{% url 'reports-voids-log' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-shield-halved" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Voids, Refunds &amp; Discounts</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Loss-prevention log with attribution. Flags waiters with &gt; 3 events in the period.</p>
+    </a>
+
+    <a href="{% url 'reports-cash-drawer' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-wallet" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Cash Drawer Reconciliation</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-shift expected vs counted cash. Cashier trend table flags chronic shortages.</p>
+    </a>
+
+    <a href="{% url 'reports-profit-loss' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-chart-line" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Profit &amp; Loss</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Revenue, COGS (frozen), waste, expenses, staff comp. Side-by-side previous period.</p>
+    </a>
+
+    <a href="{% url 'reports-stock-on-hand' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-boxes-stacked" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Stock On Hand &amp; Valuation</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-item stock × cost with total inventory value. CSV export for offline counting.</p>
+    </a>
+
+    <a href="{% url 'reports-stock-variance' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-clipboard-check" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Stock Variance</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Physical-count entry, variance preview, post adjustments to reconcile system to reality.</p>
+    </a>
+
+    <a href="{% url 'reports-aged-receivables' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-hand-holding-dollar" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Aged Receivables</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-debtor outstanding balance bucketed 0–30, 31–60, 61–90, 90+ days.</p>
+    </a>
+
+    {% if request.user.is_superuser %}
+    <a href="{% url 'reports-audit-trail' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;border-left:3px solid var(--adm-warning);">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-clipboard-list" style="font-size:20px;color:var(--adm-warning);"></i>
+            <strong>Audit Trail</strong>
+            <span style="margin-left:auto;font-size:11px;color:var(--adm-muted);">Owner only</span>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Every model change with timestamp, actor, IP, and diff. Filter by user, action, model.</p>
+    </a>
+    {% endif %}
+
 </div>
 {% endblock %}
