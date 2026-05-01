@@ -125,7 +125,9 @@ STATICFILES_DIRS = [BASE_DIR / 'static/']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'static/media'
+# Keep user uploads OUT of STATICFILES_DIRS so collectstatic doesn't ship
+# them, and so the served path is not also reachable under /static/media/.
+MEDIA_ROOT = BASE_DIR / 'media'
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

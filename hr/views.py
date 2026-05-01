@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from decimal import Decimal
 from functools import wraps
@@ -10,6 +11,7 @@ from django.db import models
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.text import get_valid_filename
 
 from menu.models import RestaurantSettings
 
@@ -509,15 +511,35 @@ def emergency_contact_delete(request, pk):
 # Documents
 # ---------------------------------------------------------------------------
 
+ALLOWED_DOCUMENT_EXTENSIONS = {
+    '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp',
+    '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt',
+}
+MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
 @manager_only
 def document_upload(request, emp_pk):
     emp = get_object_or_404(Employee, pk=emp_pk)
     if request.method == 'POST' and request.FILES.get('file'):
+        upload = request.FILES['file']
+        ext = os.path.splitext(upload.name)[1].lower()
+        if ext not in ALLOWED_DOCUMENT_EXTENSIONS:
+            messages.error(
+                request,
+                f'File type "{ext or "unknown"}" not allowed. '
+                f'Use PDF, image, or office documents.',
+            )
+            return redirect('hr-employee-detail', pk=emp_pk)
+        if upload.size > MAX_DOCUMENT_SIZE_BYTES:
+            messages.error(request, 'File too large (max 10 MB).')
+            return redirect('hr-employee-detail', pk=emp_pk)
+        upload.name = get_valid_filename(os.path.basename(upload.name))
         Document.objects.create(
             employee=emp,
-            title=request.POST.get('title', '').strip() or request.FILES['file'].name,
+            title=request.POST.get('title', '').strip() or upload.name,
             category=request.POST.get('category', 'other'),
-            file=request.FILES['file'],
+            file=upload,
             notes=request.POST.get('notes', '').strip(),
             uploaded_by=request.user,
         )

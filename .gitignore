@@ -11,4 +11,5 @@ db.sqlite3.bak*
 .DS_Store
 logs/
 staticfiles/
+media/
 static/media/

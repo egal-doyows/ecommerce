@@ -181,7 +181,7 @@ echo "==> App setup as $DEPLOY_USER..."
 sudo -u "$DEPLOY_USER" bash <<EOF
 set -euo pipefail
 cd "$APP_DIR"
-mkdir -p logs run static/media staticfiles
+mkdir -p logs run media staticfiles
 if [ ! -d "$VENV_DIR" ]; then
     $PYTHON_BIN -m venv "$VENV_DIR"
 fi

@@ -10,7 +10,7 @@ VENV_DIR=$APP_DIR/.venv
 cd "$APP_DIR"
 
 echo "==> Ensuring runtime dirs exist..."
-mkdir -p logs run static/media staticfiles
+mkdir -p logs run media staticfiles
 
 if [ ! -d "$VENV_DIR" ]; then
     echo "==> Creating venv..."

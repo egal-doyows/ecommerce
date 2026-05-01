@@ -25,7 +25,7 @@ PGPASSWORD="$POSTGRES_PASSWORD" pg_dump \
     | gzip > "$BACKUP_DIR/db-$TIMESTAMP.sql.gz"
 
 # Media tarball.
-tar -czf "$BACKUP_DIR/media-$TIMESTAMP.tar.gz" -C "$APP_DIR" static/media
+tar -czf "$BACKUP_DIR/media-$TIMESTAMP.tar.gz" -C "$APP_DIR" media
 
 # Prune old.
 find "$BACKUP_DIR" -name "*.gz" -mtime +"$KEEP_DAYS" -delete
