@@ -1,0 +1,100 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Audit Trail{% endblock %}
+{% block report_breadcrumb %}Audit Trail{% endblock %}
+
+{% block report_actions %}
+<a href="?{% if preset != 'today' %}preset={{ preset }}&{% endif %}{% if preset == 'custom' %}start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&{% endif %}{% if action_filter %}action={{ action_filter }}&{% endif %}{% if user_filter %}user={{ user_filter }}&{% endif %}{% if model_filter %}model={{ model_filter }}&{% endif %}format=csv"
+   class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block extra_filters %}
+<div>
+    <label class="adm-form-label">Action</label>
+    <select name="action" style="padding:6px 10px;">
+        <option value="">All</option>
+        {% for a in action_choices %}
+        <option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div>
+    <label class="adm-form-label">User</label>
+    <select name="user" style="padding:6px 10px;">
+        <option value="">All</option>
+        {% for u in users %}
+        <option value="{{ u.pk }}" {% if user_filter == u.pk|stringformat:'s' %}selected{% endif %}>{{ u.username }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div>
+    <label class="adm-form-label">Model</label>
+    <select name="model" style="padding:6px 10px;">
+        <option value="">All</option>
+        {% for m in models %}
+        <option value="{{ m.value }}" {% if model_filter == m.value %}selected{% endif %}>{{ m.label }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block report_body %}
+{% if not entries %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-clipboard-list" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No audit log entries match the selected filters.</p>
+</div>
+{% else %}
+<div class="adm-card" style="overflow-x:auto;">
+    <table class="adm-table" style="width:100%;font-size:13px;">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Changes</th>
+                <th>IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in entries %}
+            <tr>
+                <td style="white-space:nowrap;color:var(--adm-muted);">{{ e.timestamp|date:"d M Y H:i:s" }}</td>
+                <td>{{ e.actor.username|default:"system" }}</td>
+                <td>
+                    {% if e.action == 'create' %}<span style="color:var(--adm-success);">create</span>
+                    {% elif e.action == 'delete' %}<span style="color:var(--adm-danger);">delete</span>
+                    {% else %}<span style="color:var(--adm-muted);">update</span>{% endif %}
+                </td>
+                <td>
+                    <div style="font-weight:500;">{{ e.object_repr|truncatechars:60 }}</div>
+                    <div style="color:var(--adm-muted);font-size:11px;">
+                        {% if e.content_type %}{{ e.content_type.app_label }}.{{ e.content_type.model }}{% endif %}
+                        {% if e.object_pk %}#{{ e.object_pk }}{% endif %}
+                    </div>
+                </td>
+                <td style="font-family:monospace;font-size:11px;color:var(--adm-muted);">{{ e.changes|truncatechars:120 }}</td>
+                <td style="color:var(--adm-muted);">{{ e.remote_addr|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div style="display:flex;justify-content:center;gap:8px;margin-top:16px;">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if preset != 'today' %}&preset={{ preset }}{% endif %}{% if preset == 'custom' %}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if user_filter %}&user={{ user_filter }}{% endif %}{% if model_filter %}&model={{ model_filter }}{% endif %}" class="adm-btn adm-btn-outline">Previous</a>
+    {% endif %}
+    <span style="padding:8px 12px;color:var(--adm-muted);">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if preset != 'today' %}&preset={{ preset }}{% endif %}{% if preset == 'custom' %}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% endif %}{% if action_filter %}&action={{ action_filter }}{% endif %}{% if user_filter %}&user={{ user_filter }}{% endif %}{% if model_filter %}&model={{ model_filter }}{% endif %}" class="adm-btn adm-btn-outline">Next</a>
+    {% endif %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -11,7 +11,7 @@ from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
 from debtor.models import Debtor, DebtorTransaction
 
-from .utils import manager_required, parse_date_range, csv_response
+from .utils import manager_required, parse_date_range, csv_response, superuser_only
 
 
 @manager_required
@@ -253,4 +253,101 @@ def aged_receivables(request):
         'totals': totals,
         'as_of': as_of,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── #10 Audit Trail (Owner-only) ───────────────────────────────────────
+
+ACTION_LABELS = {0: 'create', 1: 'update', 2: 'delete'}
+ACTION_BY_NAME = {v: k for k, v in ACTION_LABELS.items()}
+
+
+@superuser_only
+def audit_trail(request):
+    from auditlog.models import LogEntry
+    from django.contrib.auth.models import User as AuthUser
+    from django.contrib.contenttypes.models import ContentType
+    from django.core.paginator import Paginator
+
+    start, end, preset = parse_date_range(request)
+
+    qs = (
+        LogEntry.objects
+        .filter(timestamp__date__gte=start, timestamp__date__lte=end)
+        .select_related('actor', 'content_type')
+        .order_by('-timestamp')
+    )
+
+    action_filter = request.GET.get('action', '')
+    if action_filter in ACTION_BY_NAME:
+        qs = qs.filter(action=ACTION_BY_NAME[action_filter])
+
+    user_filter = request.GET.get('user', '')
+    if user_filter:
+        qs = qs.filter(actor_id=user_filter)
+
+    model_filter = request.GET.get('model', '')
+    if model_filter:
+        qs = qs.filter(content_type__model=model_filter)
+
+    if request.GET.get('format') == 'csv':
+        header = ['timestamp', 'user', 'action', 'target', 'object_id', 'changes', 'ip']
+        rows = (
+            [
+                e.timestamp.isoformat(),
+                e.actor.username if e.actor else '',
+                ACTION_LABELS.get(e.action, str(e.action)),
+                f'{e.content_type.app_label}.{e.content_type.model}' if e.content_type else '',
+                e.object_pk,
+                e.changes,
+                e.remote_addr or '',
+            ]
+            for e in qs.iterator(chunk_size=500)
+        )
+        return csv_response(
+            f'audit_trail_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, rows,
+        )
+
+    paginator = Paginator(qs, 50)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    # Decorate entries with a friendly action label.
+    entries = [
+        {
+            'timestamp': e.timestamp,
+            'actor': e.actor,
+            'action': ACTION_LABELS.get(e.action, str(e.action)),
+            'content_type': e.content_type,
+            'object_pk': e.object_pk,
+            'object_repr': e.object_repr,
+            'changes': e.changes,
+            'remote_addr': e.remote_addr,
+        }
+        for e in page_obj.object_list
+    ]
+
+    # Filter dropdown data — only models that actually appear in the log + active users.
+    distinct_models = (
+        LogEntry.objects
+        .values_list('content_type__app_label', 'content_type__model')
+        .distinct()
+        .order_by('content_type__app_label', 'content_type__model')
+    )
+    models = [
+        {'value': m, 'label': f'{a}.{m}'}
+        for a, m in distinct_models if m
+    ]
+    users = AuthUser.objects.filter(logentry__isnull=False).distinct().order_by('username')
+
+    return render(request, 'reports/audit_trail.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'entries': entries,
+        'page_obj': page_obj,
+        'action_filter': action_filter,
+        'user_filter': user_filter,
+        'model_filter': model_filter,
+        'action_choices': list(ACTION_LABELS.values()),
+        'models': models,
+        'users': users,
     })

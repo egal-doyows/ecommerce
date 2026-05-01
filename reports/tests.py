@@ -274,3 +274,66 @@ class AgedReceivablesTests(TestCase):
         row = resp.context['rows'][0]
         self.assertEqual(row['b31_60'], Decimal('300'))
         self.assertEqual(row['total'], Decimal('300'))
+
+
+class AuditTrailTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+        cls.superuser = User.objects.create_superuser('boss', 'b@x.com', 'pw')
+
+    def test_manager_cannot_access(self):
+        """Audit trail is owner-only — even managers are blocked."""
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-audit-trail'))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_superuser_can_access(self):
+        self.client.force_login(self.superuser)
+        resp = self.client.get(reverse('reports-audit-trail'))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_empty_state_renders(self):
+        """A date range with no entries shows the empty state."""
+        self.client.force_login(self.superuser)
+        resp = self.client.get(reverse('reports-audit-trail'), {
+            'preset': 'custom', 'start': '2020-01-01', 'end': '2020-01-01',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'No audit log entries')
+
+    def test_five_known_actions_produce_five_entries(self):
+        """Acceptance: take five known actions, assert exactly five new audit log entries."""
+        from auditlog.models import LogEntry
+        from debtor.models import Debtor
+        before = LogEntry.objects.count()
+
+        d1 = Debtor.objects.create(name='One')        # 1
+        d2 = Debtor.objects.create(name='Two')        # 2
+        d1.name = 'One updated'
+        d1.save()                                     # 3
+        d2.name = 'Two updated'
+        d2.save()                                     # 4
+        d1.delete()                                   # 5
+
+        self.assertEqual(LogEntry.objects.count() - before, 5)
+
+        self.client.force_login(self.superuser)
+        resp = self.client.get(reverse('reports-audit-trail'))
+        self.assertEqual(resp.status_code, 200)
+        # Page list should show all 5 (under the 50/page paginator).
+        self.assertGreaterEqual(len(resp.context['entries']), 5)
+
+    def test_action_filter_narrows_results(self):
+        from debtor.models import Debtor
+        d = Debtor.objects.create(name='X')   # create
+        d.name = 'Y'
+        d.save()                              # update
+        d.delete()                            # delete
+
+        self.client.force_login(self.superuser)
+        resp = self.client.get(reverse('reports-audit-trail'), {'action': 'delete'})
+        actions = {e['action'] for e in resp.context['entries']}
+        self.assertEqual(actions, {'delete'})
