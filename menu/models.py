@@ -292,6 +292,10 @@ class Shift(models.Model):
     ended_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     starting_cash = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    counted_cash = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Cash actually counted in the drawer at shift close",
+    )
     notes = models.TextField(blank=True)
 
     class Meta:
@@ -350,6 +354,23 @@ class Order(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     payment_method = models.CharField(max_length=10, choices=PAYMENT_CHOICES, blank=True)
     mpesa_code = models.CharField(max_length=4, blank=True, help_text="Last 4 characters of M-Pesa transaction code")
+    discount_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Manager-authorised discount on this order, in base currency",
+    )
+    is_comp = models.BooleanField(
+        default=False,
+        help_text="Order was comped (free) — counted as a loss-prevention event, not revenue",
+    )
+    authorized_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='authorised_orders',
+        help_text="Manager who approved a void/discount/comp on this order",
+    )
+    authorization_reason = models.TextField(
+        blank=True,
+        help_text="Reason given when the order was voided, discounted, or comped",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
