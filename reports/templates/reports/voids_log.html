@@ -1,0 +1,98 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Voids, Refunds &amp; Discounts{% endblock %}
+{% block report_breadcrumb %}Voids Log{% endblock %}
+
+{% block report_actions %}
+<a href="?{% if preset != 'today' %}preset={{ preset }}&{% endif %}{% if preset == 'custom' %}start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&{% endif %}{% if type_filter %}type={{ type_filter }}&{% endif %}{% if waiter_filter %}waiter={{ waiter_filter }}&{% endif %}{% if auth_filter %}authorizer={{ auth_filter }}&{% endif %}format=csv"
+   class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block extra_filters %}
+<div>
+    <label class="adm-form-label">Type</label>
+    <select name="type" style="padding:6px 10px;">
+        <option value="">All</option>
+        <option value="void" {% if type_filter == 'void' %}selected{% endif %}>void</option>
+        <option value="refund" {% if type_filter == 'refund' %}selected{% endif %}>refund</option>
+        <option value="discount" {% if type_filter == 'discount' %}selected{% endif %}>discount</option>
+        <option value="comp" {% if type_filter == 'comp' %}selected{% endif %}>comp</option>
+    </select>
+</div>
+<div>
+    <label class="adm-form-label">Waiter</label>
+    <select name="waiter" style="padding:6px 10px;">
+        <option value="">All</option>
+        {% for w in waiters %}
+        <option value="{{ w.pk }}" {% if waiter_filter == w.pk|stringformat:'s' %}selected{% endif %}>{{ w.username }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div>
+    <label class="adm-form-label">Authorized by</label>
+    <select name="authorizer" style="padding:6px 10px;">
+        <option value="">All</option>
+        {% for a in authorizers %}
+        <option value="{{ a.pk }}" {% if auth_filter == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.username }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block report_body %}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;">
+    <div class="adm-card"><div style="color:var(--adm-muted);font-size:12px;">Voids</div><div style="font-size:20px;font-weight:700;">{{ counts.void }}</div><div style="color:var(--adm-muted);font-size:12px;">{{ currency_symbol }} {{ amounts.void|floatformat:2|intcomma }}</div></div>
+    <div class="adm-card"><div style="color:var(--adm-muted);font-size:12px;">Refunds</div><div style="font-size:20px;font-weight:700;">{{ counts.refund }}</div><div style="color:var(--adm-muted);font-size:12px;">{{ currency_symbol }} {{ amounts.refund|floatformat:2|intcomma }}</div></div>
+    <div class="adm-card"><div style="color:var(--adm-muted);font-size:12px;">Discounts</div><div style="font-size:20px;font-weight:700;">{{ counts.discount }}</div><div style="color:var(--adm-muted);font-size:12px;">{{ currency_symbol }} {{ amounts.discount|floatformat:2|intcomma }}</div></div>
+    <div class="adm-card"><div style="color:var(--adm-muted);font-size:12px;">Comps</div><div style="font-size:20px;font-weight:700;">{{ counts.comp }}</div><div style="color:var(--adm-muted);font-size:12px;">{{ currency_symbol }} {{ amounts.comp|floatformat:2|intcomma }}</div></div>
+</div>
+
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-shield-halved" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No void, refund, discount, or comp events in this period.</p>
+</div>
+{% else %}
+<div class="adm-card" style="overflow-x:auto;">
+    <table class="adm-table" style="width:100%;font-size:13px;">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Order</th>
+                <th>Type</th>
+                <th>Items</th>
+                <th style="text-align:right;">Amount</th>
+                <th>Waiter</th>
+                <th>Authorized by</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr {% if r.flag_pattern %}style="background:#fff3cd;"{% endif %}>
+                <td style="white-space:nowrap;color:var(--adm-muted);">{{ r.timestamp|date:"d M H:i" }}</td>
+                <td>#{{ r.order_id }}</td>
+                <td>
+                    {% if r.type == 'void' %}<span style="color:var(--adm-warning);">{{ r.type }}</span>
+                    {% elif r.type == 'refund' %}<span style="color:var(--adm-danger);">{{ r.type }}</span>
+                    {% elif r.type == 'comp' %}<span style="color:var(--adm-muted);">{{ r.type }}</span>
+                    {% else %}{{ r.type }}{% endif %}
+                </td>
+                <td>{{ r.items|truncatechars:60 }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.amount|floatformat:2|intcomma }}</td>
+                <td>
+                    {{ r.waiter.username|default:"—" }}
+                    {% if r.flag_pattern %}<span style="color:var(--adm-danger);font-size:11px;margin-left:4px;" title="More than 3 events in period">⚠</span>{% endif %}
+                </td>
+                <td>{{ r.authorized_by.username|default:"—" }}</td>
+                <td style="color:var(--adm-muted);">{{ r.reason|truncatechars:80|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -662,3 +662,109 @@ def daily_sales(request):
         'pm_rows': pm_rows,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
+
+
+# ── #3 Voids, Refunds & Discounts Log ──────────────────────────────────
+
+@manager_required
+def voids_log(request):
+    from django.contrib.auth.models import User as AuthUser
+    from django.db.models import Q
+
+    start, end, preset = parse_date_range(request)
+
+    # Pull every order with any loss-prevention event.
+    qs = (
+        Order.objects.filter(created_at__date__gte=start, created_at__date__lte=end)
+        .filter(
+            Q(status='cancelled') | Q(is_comp=True) | Q(discount_amount__gt=0)
+        )
+        .select_related('waiter', 'authorized_by')
+        .prefetch_related('items__menu_item')
+        .order_by('-created_at')
+    )
+
+    type_filter = request.GET.get('type', '')
+    waiter_filter = request.GET.get('waiter', '')
+    auth_filter = request.GET.get('authorizer', '')
+
+    rows = []
+    counts = {'void': 0, 'refund': 0, 'discount': 0, 'comp': 0}
+    amounts = {'void': Decimal('0'), 'refund': Decimal('0'), 'discount': Decimal('0'), 'comp': Decimal('0')}
+    waiter_event_counts = {}  # waiter_id → number of events in period
+
+    for o in qs:
+        kind = _classify_order(o)
+        if kind == 'sale':
+            continue
+        if type_filter and kind != type_filter:
+            continue
+        if waiter_filter and str(o.waiter_id) != waiter_filter:
+            continue
+        if auth_filter and str(o.authorized_by_id) != auth_filter:
+            continue
+
+        if kind == 'discount':
+            amount = o.discount_amount or Decimal('0')
+        else:
+            amount = o.get_total()
+
+        items = ', '.join(f'{oi.quantity}× {oi.menu_item.title}' for oi in o.items.all())
+
+        rows.append({
+            'timestamp': o.created_at,
+            'order_id': o.id,
+            'type': kind,
+            'items': items or '—',
+            'amount': amount,
+            'waiter': o.waiter,
+            'authorized_by': o.authorized_by,
+            'reason': o.authorization_reason,
+        })
+
+        # Tallies (computed against the un-filtered set in the period would be misleading;
+        # we tally over the displayed set so the summary matches the visible rows).
+        counts[kind] += 1
+        amounts[kind] += amount
+        if o.waiter_id:
+            waiter_event_counts[o.waiter_id] = waiter_event_counts.get(o.waiter_id, 0) + 1
+
+    high_volume_waiters = {wid for wid, n in waiter_event_counts.items() if n > 3}
+    for r in rows:
+        r['flag_pattern'] = r['waiter'] and r['waiter'].id in high_volume_waiters
+
+    if request.GET.get('format') == 'csv':
+        csv_rows = [
+            [
+                r['timestamp'].isoformat(),
+                r['order_id'],
+                r['type'],
+                r['items'],
+                r['amount'],
+                r['waiter'].username if r['waiter'] else '',
+                r['authorized_by'].username if r['authorized_by'] else '',
+                r['reason'],
+            ]
+            for r in rows
+        ]
+        return csv_response(
+            f'voids_log_{start.isoformat()}_to_{end.isoformat()}.csv',
+            ['timestamp', 'order_id', 'type', 'items', 'amount', 'waiter', 'authorized_by', 'reason'],
+            csv_rows,
+        )
+
+    waiters = AuthUser.objects.filter(orders__isnull=False).distinct().order_by('username')
+    authorizers = AuthUser.objects.filter(authorised_orders__isnull=False).distinct().order_by('username')
+
+    return render(request, 'reports/voids_log.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'counts': counts,
+        'amounts': amounts,
+        'type_filter': type_filter,
+        'waiter_filter': waiter_filter,
+        'auth_filter': auth_filter,
+        'waiters': waiters,
+        'authorizers': authorizers,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })

@@ -540,3 +540,66 @@ class DailySalesTests(TestCase):
         })
         self.assertEqual(resp.context['today']['revenue'], Decimal('100'))
         self.assertEqual(resp.context['today']['comps_count'], 1)
+
+
+class VoidsLogTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+        cls.waiter_a = User.objects.create_user('a', password='pw')
+        cls.waiter_b = User.objects.create_user('b', password='pw')
+
+    def _make(self, waiter, status='cancelled', payment_method='', discount=Decimal('0'), comp=False, total=Decimal('100')):
+        from menu.models import Category, MenuItem, Order, OrderItem
+        cat, _ = Category.objects.get_or_create(name='C', slug='c')
+        mi, _ = MenuItem.objects.get_or_create(
+            category=cat, title='I', slug='i', defaults={'price': total},
+        )
+        o = Order.objects.create(
+            waiter=waiter, status=status, payment_method=payment_method,
+            discount_amount=discount, is_comp=comp,
+        )
+        OrderItem.objects.create(order=o, menu_item=mi, quantity=1, unit_price=total)
+        return o
+
+    def test_empty_renders(self):
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-voids-log'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'No void, refund, discount, or comp')
+
+    def test_voids_attributed_to_waiter(self):
+        self._make(self.waiter_a, status='cancelled')
+        self._make(self.waiter_b, status='cancelled')
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-voids-log'))
+        self.assertEqual(resp.context['counts']['void'], 2)
+        usernames = {r['waiter'].username for r in resp.context['rows']}
+        self.assertEqual(usernames, {'a', 'b'})
+
+    def test_filter_by_waiter_narrows_results(self):
+        self._make(self.waiter_a, status='cancelled')
+        self._make(self.waiter_b, status='cancelled')
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-voids-log'), {'waiter': self.waiter_a.id})
+        usernames = {r['waiter'].username for r in resp.context['rows']}
+        self.assertEqual(usernames, {'a'})
+
+    def test_filter_by_type(self):
+        self._make(self.waiter_a, status='cancelled')                         # void
+        self._make(self.waiter_a, status='cancelled', payment_method='cash')  # refund
+        self._make(self.waiter_a, status='paid', payment_method='cash', comp=True)  # comp
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-voids-log'), {'type': 'refund'})
+        types = {r['type'] for r in resp.context['rows']}
+        self.assertEqual(types, {'refund'})
+
+    def test_more_than_three_events_flags_waiter(self):
+        for _ in range(4):
+            self._make(self.waiter_a, status='cancelled')
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-voids-log'))
+        self.assertTrue(all(r['flag_pattern'] for r in resp.context['rows']))
