@@ -14,30 +14,20 @@ SOURCE_REPO="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DEPLOY_USER=deploy
 APP_DIR=/home/$DEPLOY_USER/ecommerce
 VENV_DIR=$APP_DIR/.venv
-PYTHON_BIN=python3.12
 
 [ "$EUID" -eq 0 ] || { echo "Run as root: sudo bash $0" >&2; exit 1; }
 
-# ─── 1. OS detection + Python 3.12 source ────────────────────────────────────
+# ─── 1. OS check (system Python; Django 5.2 supports 3.10+) ──────────────────
 . /etc/os-release
 case "${VERSION_ID:-}" in
-    22.04)
-        echo "==> Ubuntu 22.04 detected — adding deadsnakes PPA for Python 3.12..."
-        if [ ! -f /etc/apt/sources.list.d/deadsnakes.list ]; then
-            curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776" \
-                -o /etc/apt/trusted.gpg.d/deadsnakes.asc
-            echo "deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu jammy main" \
-                > /etc/apt/sources.list.d/deadsnakes.list
-        fi
-        ;;
-    24.04|24.10|25.*)
-        echo "==> Ubuntu $VERSION_ID — Python 3.12 in default repos."
-        ;;
-    *)
-        echo "Unsupported Ubuntu version: ${VERSION_ID:-unknown}" >&2
-        exit 1
-        ;;
+    22.04|24.04|24.10|25.*) ;;
+    *) echo "Unsupported Ubuntu version: ${VERSION_ID:-unknown}" >&2; exit 1 ;;
 esac
+
+# Clean up any half-installed deadsnakes config from earlier attempts —
+# this droplet can't reach ppa.launchpadcontent.net and the leftover sources
+# file makes apt update fail.
+rm -f /etc/apt/sources.list.d/deadsnakes.list /etc/apt/trusted.gpg.d/deadsnakes.asc
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -48,7 +38,7 @@ apt-get upgrade -y
 
 echo "==> Installing system dependencies..."
 apt-get install -y \
-    python3.12 python3.12-venv python3.12-dev python3-pip \
+    python3 python3-venv python3-dev python3-pip \
     postgresql postgresql-contrib \
     redis-server \
     nginx \
@@ -57,6 +47,21 @@ apt-get install -y \
     libpq-dev build-essential \
     libjpeg-dev zlib1g-dev \
     libpango-1.0-0 libpangoft2-1.0-0
+
+# Pick the newest Python >= 3.10 that's installed (3.10 on 22.04, 3.12 on 24.04).
+PYTHON_BIN=""
+for cand in python3.13 python3.12 python3.11 python3.10 python3; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        ver=$("$cand" -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+        major=${ver%.*}; minor=${ver#*.}
+        if [ "$major" -eq 3 ] && [ "$minor" -ge 10 ]; then
+            PYTHON_BIN="$cand"
+            break
+        fi
+    fi
+done
+[ -n "$PYTHON_BIN" ] || { echo "No Python >= 3.10 found." >&2; exit 1; }
+echo "==> Using $PYTHON_BIN ($($PYTHON_BIN --version))"
 
 # ─── 3. Firewall ─────────────────────────────────────────────────────────────
 echo "==> Configuring firewall..."
