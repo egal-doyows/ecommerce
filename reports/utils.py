@@ -46,9 +46,10 @@ def parse_date_range(request):
     """
     Resolve the requested period.
 
-    Reads `?preset=today|yesterday|week|month|custom` plus `?start=YYYY-MM-DD`
-    and `?end=YYYY-MM-DD` for custom ranges. Returns (start_date, end_date,
-    preset_label). Always returns date objects, inclusive of both endpoints.
+    Reads `?preset=today|yesterday|week|last_week|month|last_month|year|
+    last_year|custom` plus `?start=YYYY-MM-DD` and `?end=YYYY-MM-DD` for
+    custom ranges. Returns (start_date, end_date, preset_label). Always
+    returns date objects, inclusive of both endpoints.
     """
     today = timezone.localdate()
     preset = request.GET.get('preset', 'today')
@@ -60,6 +61,14 @@ def parse_date_range(request):
             return datetime.strptime(s, '%Y-%m-%d').date()
         except (ValueError, TypeError):
             return None
+
+    def _month_bounds(d):
+        start = d.replace(day=1)
+        if start.month == 12:
+            next_first = start.replace(year=start.year + 1, month=1)
+        else:
+            next_first = start.replace(month=start.month + 1)
+        return start, next_first - timedelta(days=1)
 
     if preset == 'custom' and (start_param or end_param):
         start = _parse(start_param) or today
@@ -77,14 +86,31 @@ def parse_date_range(request):
         end = start + timedelta(days=6)
         return start, end, 'week'
 
+    if preset == 'last_week':
+        this_monday = today - timedelta(days=today.weekday())
+        start = this_monday - timedelta(days=7)
+        end = this_monday - timedelta(days=1)
+        return start, end, 'last_week'
+
     if preset == 'month':
-        start = today.replace(day=1)
-        if start.month == 12:
-            next_first = start.replace(year=start.year + 1, month=1)
-        else:
-            next_first = start.replace(month=start.month + 1)
-        end = next_first - timedelta(days=1)
+        start, end = _month_bounds(today)
         return start, end, 'month'
+
+    if preset == 'last_month':
+        first_of_this_month = today.replace(day=1)
+        last_of_prev = first_of_this_month - timedelta(days=1)
+        start, end = _month_bounds(last_of_prev)
+        return start, end, 'last_month'
+
+    if preset == 'year':
+        start = today.replace(month=1, day=1)
+        end = today.replace(month=12, day=31)
+        return start, end, 'year'
+
+    if preset == 'last_year':
+        start = today.replace(year=today.year - 1, month=1, day=1)
+        end = today.replace(year=today.year - 1, month=12, day=31)
+        return start, end, 'last_year'
 
     return today, today, 'today'
 
