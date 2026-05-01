@@ -102,7 +102,7 @@
   // ── Data Caching ───────────────────────────────────
   async function cacheMenuData() {
     try {
-      const resp = await fetch('/api/menu/');
+      const resp = await fetch('/restpos/api/menu/');
       if (resp.ok) {
         const data = await resp.json();
         await dbClear(STORES.MENU);
@@ -117,7 +117,7 @@
 
   async function cacheTablesData() {
     try {
-      const resp = await fetch('/api/tables/');
+      const resp = await fetch('/restpos/api/tables/');
       if (resp.ok) {
         const data = await resp.json();
         await dbClear(STORES.TABLES);
@@ -130,7 +130,7 @@
 
   async function cacheOrdersData() {
     try {
-      const resp = await fetch('/api/orders/');
+      const resp = await fetch('/restpos/api/orders/');
       if (resp.ok) {
         const data = await resp.json();
         await dbClear(STORES.ORDERS);
@@ -232,7 +232,7 @@
   window.POS.placeOrder = async function (orderData) {
     if (navigator.onLine) {
       try {
-        const resp = await fetch('/api/place-order/', {
+        const resp = await fetch('/restpos/api/place-order/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -254,7 +254,7 @@
     }
 
     // Offline: queue the order
-    const offlineId = await addToSyncQueue('/api/place-order/', orderData);
+    const offlineId = await addToSyncQueue('/restpos/api/place-order/', orderData);
 
     // Also store as a local order for display
     const localOrder = {
@@ -437,7 +437,7 @@
   async function registerSW() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        const registration = await navigator.serviceWorker.register('/restpos/sw.js', { scope: '/restpos/' });
         console.log('SW registered:', registration.scope);
 
         // Check for updates periodically

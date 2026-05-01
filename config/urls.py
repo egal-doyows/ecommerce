@@ -37,23 +37,32 @@ def health_check(request):
 
 
 urlpatterns = [
+    # Public marketing site lives at the root.
+    path('', include('public_site.urls')),
+
+    # Health check stays at the root so nginx / uptime monitors don't need
+    # to know about the app prefix.
     path('health/', health_check, name='health-check'),
     path('healthz/', health_check, name='healthz'),
-    path('sw.js', service_worker_view, name='service-worker'),
-    path('admin/', admin.site.urls),
-    path('', include('menu.urls')),
-    path('cart/', include('cart.urls')),
-    path('account/', include('account.urls')),
-    path('compensation/', include('staff_compensation.urls')),
-    path('manage/', include('administration.urls')),
-    path('suppliers/', include('supplier.urls')),
-    path('debtors/', include('debtor.urls')),
-    path('purchasing/', include('purchasing.urls')),
-    path('receiving/', include('receiving.urls')),
-    path('waste/', include('waste.urls')),
-    path('expenses/', include('expenses.urls')),
-    path('hr/', include('hr.urls')),
-    path('reports/', include('reports.urls')),
+
+    # The full POS / back-office app lives under /restpos/.
+    path('restpos/', include([
+        path('sw.js', service_worker_view, name='service-worker'),
+        path('admin/', admin.site.urls),
+        path('', include('menu.urls')),
+        path('cart/', include('cart.urls')),
+        path('account/', include('account.urls')),
+        path('compensation/', include('staff_compensation.urls')),
+        path('manage/', include('administration.urls')),
+        path('suppliers/', include('supplier.urls')),
+        path('debtors/', include('debtor.urls')),
+        path('purchasing/', include('purchasing.urls')),
+        path('receiving/', include('receiving.urls')),
+        path('waste/', include('waste.urls')),
+        path('expenses/', include('expenses.urls')),
+        path('hr/', include('hr.urls')),
+        path('reports/', include('reports.urls')),
+    ])),
 ]
 
 if settings.DEBUG:

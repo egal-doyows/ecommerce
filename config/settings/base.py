@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'crispy_forms',
     'django_celery_beat',
     # Local apps
+    'public_site',
     'menu',
     'cart',
     'account',

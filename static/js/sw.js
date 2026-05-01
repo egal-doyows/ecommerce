@@ -1,12 +1,12 @@
 const CACHE_VERSION = 'pos-v1';
 const STATIC_CACHE = `static-${CACHE_VERSION}`;
 const DATA_CACHE = `data-${CACHE_VERSION}`;
-const OFFLINE_PAGE = '/offline/';
+const OFFLINE_PAGE = '/restpos/offline/';
 
 // Static assets to pre-cache
 const PRECACHE_URLS = [
-  '/',
-  '/offline/',
+  '/restpos/',
+  '/restpos/offline/',
   '/static/css/styles.css',
   '/static/manifest.json',
   '/static/js/pwa.js',
@@ -24,15 +24,15 @@ const PRECACHE_URLS = [
 
 // API endpoints to cache for offline reads
 const API_CACHE_PATTERNS = [
-  '/api/menu/',
-  '/api/tables/',
-  '/api/orders/',
+  '/restpos/api/menu/',
+  '/restpos/api/tables/',
+  '/restpos/api/orders/',
 ];
 
 // POST endpoints that can be queued offline
 const SYNC_ENDPOINTS = [
-  '/api/place-order/',
-  '/api/orders/',  // for status updates
+  '/restpos/api/place-order/',
+  '/restpos/api/orders/',  // for status updates
 ];
 
 // ── Install ──────────────────────────────────────────
