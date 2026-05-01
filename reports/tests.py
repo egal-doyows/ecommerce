@@ -195,3 +195,82 @@ class StockOnHandTests(TestCase):
         resp = self.client.get(reverse('reports-stock-on-hand'), {'low_stock': '1'})
         names = [r['name'] for r in resp.context['rows']]
         self.assertEqual(names, ['Low'])
+
+
+class AgedReceivablesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+
+    def _make_invoice(self, debtor, amount, days_old, paid=Decimal('0')):
+        from debtor.models import DebtorTransaction
+        return DebtorTransaction.objects.create(
+            debtor=debtor,
+            transaction_type='debit',
+            amount=Decimal(str(amount)),
+            amount_paid=paid,
+            description='inv',
+            date=timezone.localdate() - timedelta(days=days_old),
+        )
+
+    def test_empty_renders(self):
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-aged-receivables'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['totals']['total'], Decimal('0'))
+
+    def test_buckets_split_at_30_60_90(self):
+        """Acceptance: invoice 60 days old falls into 31-60; 61 days into 61-90."""
+        from debtor.models import Debtor
+        d = Debtor.objects.create(name='Acme')
+        self._make_invoice(d, 100, days_old=15)   # 0-30
+        self._make_invoice(d, 200, days_old=60)   # 31-60
+        self._make_invoice(d, 400, days_old=61)   # 61-90
+        self._make_invoice(d, 800, days_old=120)  # 90+
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-aged-receivables'))
+        row = resp.context['rows'][0]
+        self.assertEqual(row['b0_30'], Decimal('100'))
+        self.assertEqual(row['b31_60'], Decimal('200'))
+        self.assertEqual(row['b61_90'], Decimal('400'))
+        self.assertEqual(row['b90_plus'], Decimal('800'))
+        self.assertEqual(row['total'], Decimal('1500'))
+
+    def test_buckets_sum_to_row_total(self):
+        from debtor.models import Debtor
+        d = Debtor.objects.create(name='X')
+        self._make_invoice(d, 100, days_old=10)
+        self._make_invoice(d, 50, days_old=45)
+        self._make_invoice(d, 25, days_old=200)
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-aged-receivables'))
+        row = resp.context['rows'][0]
+        self.assertEqual(
+            row['b0_30'] + row['b31_60'] + row['b61_90'] + row['b90_plus'],
+            row['total'],
+        )
+
+    def test_paid_invoices_excluded(self):
+        from debtor.models import Debtor
+        d = Debtor.objects.create(name='Paid Up')
+        self._make_invoice(d, 500, days_old=15, paid=Decimal('500'))  # fully paid
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-aged-receivables'))
+        self.assertEqual(resp.context['rows'], [])
+
+    def test_partial_payment_only_outstanding_aged(self):
+        from debtor.models import Debtor
+        d = Debtor.objects.create(name='Partial')
+        # 1000 invoice, 700 paid, 300 outstanding, 45 days old → 31-60 bucket
+        self._make_invoice(d, 1000, days_old=45, paid=Decimal('700'))
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-aged-receivables'))
+        row = resp.context['rows'][0]
+        self.assertEqual(row['b31_60'], Decimal('300'))
+        self.assertEqual(row['total'], Decimal('300'))

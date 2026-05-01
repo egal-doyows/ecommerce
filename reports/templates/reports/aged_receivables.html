@@ -1,0 +1,76 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Aged Receivables{% endblock %}
+{% block report_breadcrumb %}Aged Receivables{% endblock %}
+
+{% block report_actions %}
+<a href="?as_of={{ as_of|date:'Y-m-d' }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block period_selector %}
+<form method="get" class="adm-card" style="display:flex;gap:12px;align-items:flex-end;margin-bottom:16px;">
+    <div>
+        <label class="adm-form-label">As of</label>
+        <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}" style="padding:6px 10px;">
+    </div>
+    <button type="submit" class="adm-btn adm-btn-primary">Apply</button>
+    <div style="margin-left:auto;color:var(--adm-muted);font-size:12px;">
+        Aging from invoice date &middot; {{ rows|length }} debtor{{ rows|length|pluralize }}
+    </div>
+</form>
+{% endblock %}
+
+{% block report_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-circle-check" style="font-size:32px;margin-bottom:12px;color:var(--adm-success);"></i>
+    <p>No outstanding receivables as of {{ as_of|date:"d M Y" }}.</p>
+</div>
+{% else %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Debtor</th>
+                <th style="text-align:right;">0–30 days</th>
+                <th style="text-align:right;">31–60</th>
+                <th style="text-align:right;">61–90</th>
+                <th style="text-align:right;color:var(--adm-danger);">90+</th>
+                <th style="text-align:right;">Total Outstanding</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>
+                    <a href="{% url 'debtor-detail' r.debtor.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:500;">
+                        {{ r.debtor.name }}
+                    </a>
+                </td>
+                <td style="text-align:right;">{% if r.b0_30 %}{{ currency_symbol }} {{ r.b0_30|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                <td style="text-align:right;">{% if r.b31_60 %}{{ currency_symbol }} {{ r.b31_60|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                <td style="text-align:right;">{% if r.b61_90 %}{{ currency_symbol }} {{ r.b61_90|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                <td style="text-align:right;{% if r.b90_plus %}color:var(--adm-danger);font-weight:500;{% endif %}">
+                    {% if r.b90_plus %}{{ currency_symbol }} {{ r.b90_plus|floatformat:2|intcomma }}{% else %}—{% endif %}
+                </td>
+                <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ r.total|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td style="font-weight:700;">Total</td>
+                <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ totals.b0_30|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ totals.b31_60|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ totals.b61_90|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:600;color:var(--adm-danger);">{{ currency_symbol }} {{ totals.b90_plus|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;font-size:16px;">{{ currency_symbol }} {{ totals.total|floatformat:2|intcomma }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

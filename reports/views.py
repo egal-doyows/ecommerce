@@ -9,6 +9,7 @@ from menu.models import InventoryItem, Order, RestaurantSettings
 from waste.models import WasteItem
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
+from debtor.models import Debtor, DebtorTransaction
 
 from .utils import manager_required, parse_date_range, csv_response
 
@@ -173,5 +174,83 @@ def stock_on_hand(request):
         'total_value': total_value,
         'low_stock_only': low_stock_only,
         'item_count': len(rows),
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── #8 Aged Receivables ────────────────────────────────────────────────
+
+def _bucket_age(age_days):
+    """Map an age-in-days to one of the four aging buckets."""
+    if age_days <= 30:
+        return 'b0_30'
+    if age_days <= 60:
+        return 'b31_60'
+    if age_days <= 90:
+        return 'b61_90'
+    return 'b90_plus'
+
+
+@manager_required
+def aged_receivables(request):
+    """Per-debtor outstanding balance bucketed by invoice age."""
+    from django.utils import timezone
+
+    as_of = timezone.localdate()
+    custom_as_of = request.GET.get('as_of')
+    if custom_as_of:
+        try:
+            as_of = timezone.datetime.strptime(custom_as_of, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+
+    open_invoices = (
+        DebtorTransaction.objects
+        .filter(transaction_type='debit')
+        .filter(date__lte=as_of)
+        .select_related('debtor')
+    )
+
+    by_debtor = {}
+    for inv in open_invoices:
+        outstanding = (inv.amount or Decimal('0')) - (inv.amount_paid or Decimal('0'))
+        if outstanding <= 0:
+            continue
+        age = (as_of - inv.date).days
+        bucket = _bucket_age(age)
+        d = by_debtor.setdefault(inv.debtor_id, {
+            'debtor': inv.debtor,
+            'b0_30': Decimal('0'),
+            'b31_60': Decimal('0'),
+            'b61_90': Decimal('0'),
+            'b90_plus': Decimal('0'),
+            'total': Decimal('0'),
+        })
+        d[bucket] += outstanding
+        d['total'] += outstanding
+
+    rows = sorted(by_debtor.values(), key=lambda r: r['total'], reverse=True)
+
+    totals = {
+        'b0_30': sum((r['b0_30'] for r in rows), Decimal('0')),
+        'b31_60': sum((r['b31_60'] for r in rows), Decimal('0')),
+        'b61_90': sum((r['b61_90'] for r in rows), Decimal('0')),
+        'b90_plus': sum((r['b90_plus'] for r in rows), Decimal('0')),
+        'total': sum((r['total'] for r in rows), Decimal('0')),
+    }
+
+    if request.GET.get('format') == 'csv':
+        header = ['debtor', '0-30', '31-60', '61-90', '90+', 'total']
+        csv_rows = [
+            [r['debtor'].name, r['b0_30'], r['b31_60'], r['b61_90'], r['b90_plus'], r['total']]
+            for r in rows
+        ]
+        csv_rows.append(['TOTAL', totals['b0_30'], totals['b31_60'], totals['b61_90'], totals['b90_plus'], totals['total']])
+        return csv_response(f'aged_receivables_{as_of.isoformat()}.csv', header, csv_rows)
+
+    return render(request, 'reports/aged_receivables.html', {
+        'rows': rows,
+        'totals': totals,
+        'as_of': as_of,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
