@@ -179,6 +179,7 @@ def place_order(request):
                     menu_item=product,
                     quantity=qty,
                     unit_price=item['price'],
+                    unit_cost=product.current_unit_cost(),
                 )
                 try:
                     product.deduct_stock(qty)
@@ -259,6 +260,7 @@ def order_edit_item(request, order_id):
             menu_item=menu_item,
             quantity=1,
             unit_price=menu_item.price,
+            unit_cost=menu_item.current_unit_cost(),
         )
 
     return redirect('order-detail', order_id=order.id)

@@ -149,6 +149,7 @@ def api_place_order(request):
                     menu_item=product,
                     quantity=qty,
                     unit_price=cart_item['price'],
+                    unit_cost=product.current_unit_cost(),
                 )
                 product.deduct_stock(qty)
             table.status = 'occupied'

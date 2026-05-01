@@ -231,7 +231,7 @@ class TableForm(forms.ModelForm):
 class RestaurantSettingsForm(forms.ModelForm):
     class Meta:
         model = RestaurantSettings
-        fields = ['name', 'tagline', 'phone', 'website', 'logo', 'currency']
+        fields = ['name', 'tagline', 'phone', 'website', 'logo', 'currency', 'default_markup_percent']
         widgets = {
             'name': forms.TextInput(attrs=_input),
             'tagline': forms.TextInput(attrs=_input),
@@ -239,6 +239,7 @@ class RestaurantSettingsForm(forms.ModelForm):
             'website': forms.TextInput(attrs=_input),
             'logo': forms.ClearableFileInput(attrs=_file),
             'currency': forms.Select(attrs=_select),
+            'default_markup_percent': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0'}),
         }
 
     def __init__(self, *args, **kwargs):

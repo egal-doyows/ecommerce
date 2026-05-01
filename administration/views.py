@@ -338,8 +338,12 @@ def menu_item_edit(request, pk):
     else:
         form = MenuItemForm(instance=item)
     recipes = item.recipe_items.select_related('inventory_item').all()
+    settings = RestaurantSettings.load()
     return render(request, 'administration/menu_item_form.html', {
         'form': form, 'title': f'Edit {item.title}', 'menu_item': item, 'recipes': recipes,
+        'current_unit_cost': item.current_unit_cost(),
+        'default_markup_percent': settings.default_markup_percent,
+        'currency_symbol': settings.currency_symbol,
     })
 
 

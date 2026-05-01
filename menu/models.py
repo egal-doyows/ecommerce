@@ -16,6 +16,10 @@ class RestaurantSettings(models.Model):
         default='KES',
         help_text='Currency code (e.g. KES, USD, EUR)',
     )
+    default_markup_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('50'),
+        help_text='Default markup applied to cost when suggesting menu prices',
+    )
 
     class Meta:
         verbose_name = 'Restaurant Settings'
@@ -205,6 +209,30 @@ class MenuItem(models.Model):
             needed = ingredient.quantity_required * Decimal(str(quantity))
             ingredient.inventory_item.restore(needed)
 
+    def current_unit_cost(self):
+        """
+        Cost-of-goods for one unit, computed from current inventory buying_prices.
+        Returns Decimal('0') for untracked items (no inventory_item, no recipe).
+        Snapshot this at order time — buying_price drifts on every receipt.
+        """
+        if self.is_direct_sale:
+            return self.inventory_item.buying_price
+        cost = Decimal('0')
+        for r in self.recipe_items.select_related('inventory_item').all():
+            cost += r.quantity_required * r.inventory_item.buying_price
+        return cost
+
+    def suggested_price(self, markup_percent):
+        """
+        Suggested selling price = cost × (1 + markup%/100), rounded to 2dp.
+        Returns None when cost is 0 (untracked item — nothing to mark up).
+        """
+        cost = self.current_unit_cost()
+        if cost <= 0:
+            return None
+        multiplier = Decimal('1') + (Decimal(str(markup_percent)) / Decimal('100'))
+        return (cost * multiplier).quantize(Decimal('0.01'))
+
 
 class _InsufficientStock(Exception):
     """Raised inside atomic block to trigger rollback."""
@@ -351,6 +379,10 @@ class OrderItem(models.Model):
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    unit_cost = models.DecimalField(
+        max_digits=10, decimal_places=4, default=0,
+        help_text="COGS per unit, snapshotted at order time",
+    )
     notes = models.CharField(max_length=250, blank=True, help_text="Special requests")
 
     def __str__(self):
@@ -358,3 +390,6 @@ class OrderItem(models.Model):
 
     def get_subtotal(self):
         return self.unit_price * self.quantity
+
+    def get_cost_subtotal(self):
+        return self.unit_cost * self.quantity
