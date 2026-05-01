@@ -665,3 +665,82 @@ class CashDrawerTests(TestCase):
         resp = self.client.get(reverse('reports-cash-drawer'))
         self.assertIsNone(resp.context['rows'][0]['variance'])
         self.assertContains(resp, 'not counted')
+
+
+class StockVarianceTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+
+    def test_get_renders_form(self):
+        from menu.models import InventoryItem
+        InventoryItem.objects.create(
+            name='X', unit='kg', stock_quantity=Decimal('10'), buying_price=Decimal('5'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-stock-variance'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['phase'], 'enter')
+
+    def test_post_without_confirm_shows_preview(self):
+        from menu.models import InventoryItem
+        item = InventoryItem.objects.create(
+            name='X', unit='kg', stock_quantity=Decimal('10'), buying_price=Decimal('5'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.post(reverse('reports-stock-variance'), {
+            f'count_{item.id}': '7',  # variance -3
+        })
+        self.assertEqual(resp.context['phase'], 'preview')
+        # System stock unchanged at preview phase
+        item.refresh_from_db()
+        self.assertEqual(item.stock_quantity, Decimal('10'))
+        self.assertEqual(resp.context['total_shrinkage'], Decimal('-15'))  # -3 × 5
+
+    def test_post_with_confirm_creates_adjustment_and_updates_stock(self):
+        """Acceptance: -5 variance posted creates adjustment; system stock drops by 5."""
+        from menu.models import InventoryItem, StockAdjustment
+        item = InventoryItem.objects.create(
+            name='X', unit='kg', stock_quantity=Decimal('10'), buying_price=Decimal('5'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.post(reverse('reports-stock-variance'), {
+            f'count_{item.id}': '5',
+            'confirm': '1',
+        })
+        self.assertEqual(resp.status_code, 200)
+
+        item.refresh_from_db()
+        self.assertEqual(item.stock_quantity, Decimal('5'))
+
+        adjs = StockAdjustment.objects.filter(inventory_item=item)
+        self.assertEqual(adjs.count(), 1)
+        self.assertEqual(adjs.first().qty_delta, Decimal('-5'))
+        self.assertEqual(adjs.first().source, 'count')
+        self.assertEqual(adjs.first().created_by, self.manager)
+
+    def test_no_variance_no_adjustment(self):
+        from menu.models import InventoryItem, StockAdjustment
+        item = InventoryItem.objects.create(
+            name='X', unit='kg', stock_quantity=Decimal('10'), buying_price=Decimal('5'),
+        )
+        self.client.force_login(self.manager)
+        self.client.post(reverse('reports-stock-variance'), {
+            f'count_{item.id}': '10',
+            'confirm': '1',
+        })
+        self.assertEqual(StockAdjustment.objects.count(), 0)
+
+    def test_over_5pct_flagged(self):
+        from menu.models import InventoryItem
+        # 100 stock, count 90 → 10% variance, should flag
+        item = InventoryItem.objects.create(
+            name='X', unit='kg', stock_quantity=Decimal('100'), buying_price=Decimal('1'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.post(reverse('reports-stock-variance'), {
+            f'count_{item.id}': '90',
+        })
+        self.assertTrue(resp.context['rows'][0]['flagged'])

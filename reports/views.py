@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
-from menu.models import InventoryItem, Order, OrderItem, RestaurantSettings, Shift
+from menu.models import InventoryItem, Order, OrderItem, RestaurantSettings, Shift, StockAdjustment
 from waste.models import WasteItem
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
@@ -866,5 +866,120 @@ def cash_drawer(request):
         'cashier_summary': cashier_summary,
         'cashiers': cashiers,
         'cashier_filter': cashier_filter,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── #7 Stock Variance Report ───────────────────────────────────────────
+
+def _parse_count(raw):
+    try:
+        return Decimal(str(raw).strip())
+    except Exception:
+        return None
+
+
+@manager_required
+def stock_variance(request):
+    from django.contrib import messages
+    from django.db import transaction
+
+    items = list(InventoryItem.objects.all().order_by('name'))
+    by_id = {i.id: i for i in items}
+
+    # GET → blank form, system stock pre-filled.
+    if request.method != 'POST':
+        rows = [
+            {'item': i, 'system': i.stock_quantity, 'counted': i.stock_quantity,
+             'variance': Decimal('0'), 'variance_value': Decimal('0'),
+             'variance_pct': Decimal('0'), 'flagged': False}
+            for i in items
+        ]
+        return render(request, 'reports/stock_variance.html', {
+            'rows': rows,
+            'phase': 'enter',
+            'total_shrinkage': Decimal('0'),
+            'currency_symbol': RestaurantSettings.load().currency_symbol,
+        })
+
+    # POST — parse the submitted counts.
+    counts = {}
+    for key, value in request.POST.items():
+        if not key.startswith('count_'):
+            continue
+        try:
+            item_id = int(key[len('count_'):])
+        except ValueError:
+            continue
+        if item_id not in by_id:
+            continue
+        parsed = _parse_count(value)
+        if parsed is not None:
+            counts[item_id] = parsed
+
+    rows = []
+    total_shrinkage = Decimal('0')
+    nonzero_variances = []
+    for i in items:
+        counted = counts.get(i.id, i.stock_quantity)
+        variance = counted - (i.stock_quantity or Decimal('0'))
+        cost = i.buying_price or Decimal('0')
+        variance_value = variance * cost
+        if i.stock_quantity:
+            variance_pct = (variance / i.stock_quantity * 100)
+        else:
+            variance_pct = None
+        flagged = variance_pct is not None and abs(variance_pct) > 5
+        rows.append({
+            'item': i,
+            'system': i.stock_quantity,
+            'counted': counted,
+            'variance': variance,
+            'variance_value': variance_value,
+            'variance_pct': variance_pct,
+            'flagged': flagged,
+        })
+        total_shrinkage += variance_value
+        if variance != 0:
+            nonzero_variances.append((i, counted, variance))
+
+    confirm = request.POST.get('confirm') == '1'
+    posted_count = 0
+
+    if confirm and nonzero_variances:
+        with transaction.atomic():
+            for i, counted, variance in nonzero_variances:
+                StockAdjustment.objects.create(
+                    inventory_item=i,
+                    qty_delta=variance,
+                    reason='Physical count',
+                    source='count',
+                    created_by=request.user,
+                )
+                i.stock_quantity = counted
+                i.save(update_fields=['stock_quantity'])
+                posted_count += 1
+        messages.success(
+            request,
+            f'Posted {posted_count} stock adjustment(s); inventory now matches the count.',
+        )
+        return render(request, 'reports/stock_variance.html', {
+            'rows': [
+                {'item': i, 'system': i.stock_quantity, 'counted': i.stock_quantity,
+                 'variance': Decimal('0'), 'variance_value': Decimal('0'),
+                 'variance_pct': Decimal('0'), 'flagged': False}
+                for i in InventoryItem.objects.all().order_by('name')
+            ],
+            'phase': 'enter',
+            'total_shrinkage': Decimal('0'),
+            'posted_count': posted_count,
+            'currency_symbol': RestaurantSettings.load().currency_symbol,
+        })
+
+    return render(request, 'reports/stock_variance.html', {
+        'rows': rows,
+        'phase': 'preview',
+        'total_shrinkage': total_shrinkage,
+        'has_variances': bool(nonzero_variances),
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
