@@ -122,6 +122,9 @@ DJANGO_DEBUG=False
 DJANGO_ENV=production
 DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 CSRF_TRUSTED_ORIGINS=
+# Space-separated nginx server_name. Set to your domain(s) before running
+# certbot, e.g. "example.com www.example.com". Leave as "_" for catch-all.
+NGINX_SERVER_NAME=_
 DATABASE_URL=postgres://ecommerce:$DB_PASSWORD@localhost:5432/ecommerce
 POSTGRES_DB=ecommerce
 POSTGRES_USER=ecommerce
@@ -198,10 +201,18 @@ cp "$APP_DIR"/deployment/systemd/*.socket  /etc/systemd/system/
 systemctl daemon-reload
 
 # ─── 12. nginx site ─────────────────────────────────────────────────────────
-echo "==> Installing nginx site..."
-cp "$APP_DIR/deployment/nginx/ecommerce.conf" /etc/nginx/sites-available/ecommerce
-ln -sf /etc/nginx/sites-available/ecommerce /etc/nginx/sites-enabled/ecommerce
-rm -f /etc/nginx/sites-enabled/default
+# If certbot has already added a 443 server block, leave the live config alone —
+# re-installing would clobber the cert paths and force you to re-run certbot.
+NGINX_SITE=/etc/nginx/sites-available/ecommerce
+if [ -f "$NGINX_SITE" ] && grep -q 'listen 443' "$NGINX_SITE"; then
+    echo "==> nginx site already has SSL — leaving it alone."
+else
+    echo "==> Installing nginx site (server_name=${NGINX_SERVER_NAME:-_})..."
+    sed "s|__NGINX_SERVER_NAME__|${NGINX_SERVER_NAME:-_}|" \
+        "$APP_DIR/deployment/nginx/ecommerce.conf" > "$NGINX_SITE"
+    ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/ecommerce
+    rm -f /etc/nginx/sites-enabled/default
+fi
 nginx -t
 systemctl reload nginx
 
