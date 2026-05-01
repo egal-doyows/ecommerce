@@ -768,3 +768,103 @@ def voids_log(request):
         'authorizers': authorizers,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
+
+
+# ── #4 Cash Drawer Reconciliation ──────────────────────────────────────
+
+def _shift_cash_reconciliation(shift):
+    """
+    Compute expected drawer cash + counted + variance for one shift.
+
+    expected = opening + cash sales − cash refunds
+    (Cash deposits and payouts mid-shift are not modelled yet — assumed zero.)
+    """
+    cash_sales = Decimal('0')
+    cash_refunds = Decimal('0')
+    for o in shift.orders.all():
+        if o.payment_method != 'cash':
+            continue
+        total = o.get_total()
+        if o.status == 'paid' and not o.is_comp:
+            cash_sales += total
+        elif o.status == 'cancelled':
+            cash_refunds += total
+
+    expected = (shift.starting_cash or Decimal('0')) + cash_sales - cash_refunds
+    counted = shift.counted_cash
+    variance = (counted - expected) if counted is not None else None
+    return expected, counted, variance, cash_sales, cash_refunds
+
+
+@manager_required
+def cash_drawer(request):
+    cashier_filter = request.GET.get('cashier', '')
+    qs = (
+        Shift.objects.select_related('waiter')
+        .prefetch_related('orders')
+        .order_by('-started_at')
+    )
+    if cashier_filter:
+        qs = qs.filter(waiter_id=cashier_filter)
+    shifts = list(qs[:30])
+
+    rows = []
+    for s in shifts:
+        expected, counted, variance, cash_sales, cash_refunds = _shift_cash_reconciliation(s)
+        rows.append({
+            'shift': s,
+            'expected': expected,
+            'counted': counted,
+            'variance': variance,
+            'cash_sales': cash_sales,
+            'cash_refunds': cash_refunds,
+        })
+
+    # Per-cashier aggregate across the displayed shifts (only counted shifts).
+    by_cashier = {}
+    for r in rows:
+        if r['variance'] is None or not r['shift'].waiter_id:
+            continue
+        c = by_cashier.setdefault(r['shift'].waiter_id, {
+            'username': r['shift'].waiter.username,
+            'shift_count': 0,
+            'total_variance': Decimal('0'),
+            'shorts': 0,
+        })
+        c['shift_count'] += 1
+        c['total_variance'] += r['variance']
+        if r['variance'] < 0:
+            c['shorts'] += 1
+    for c in by_cashier.values():
+        c['avg_variance'] = (c['total_variance'] / c['shift_count']) if c['shift_count'] else Decimal('0')
+    cashier_summary = sorted(by_cashier.values(), key=lambda x: x['total_variance'])
+
+    if request.GET.get('format') == 'csv':
+        csv_rows = [
+            [
+                r['shift'].id,
+                r['shift'].waiter.username if r['shift'].waiter else '',
+                r['shift'].started_at.isoformat(),
+                r['shift'].ended_at.isoformat() if r['shift'].ended_at else '',
+                r['expected'],
+                r['counted'] if r['counted'] is not None else '',
+                r['variance'] if r['variance'] is not None else '',
+            ]
+            for r in rows
+        ]
+        return csv_response(
+            'cash_drawer.csv',
+            ['shift_id', 'cashier', 'opened', 'closed', 'expected', 'counted', 'variance'],
+            csv_rows,
+        )
+
+    from django.contrib.auth.models import User as AuthUser
+    cashiers = AuthUser.objects.filter(shifts__isnull=False).distinct().order_by('username')
+
+    return render(request, 'reports/cash_drawer.html', {
+        'rows': rows,
+        'cashier_summary': cashier_summary,
+        'cashiers': cashiers,
+        'cashier_filter': cashier_filter,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })

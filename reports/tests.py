@@ -603,3 +603,65 @@ class VoidsLogTests(TestCase):
         self.client.force_login(self.manager)
         resp = self.client.get(reverse('reports-voids-log'))
         self.assertTrue(all(r['flag_pattern'] for r in resp.context['rows']))
+
+
+class CashDrawerTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+        cls.cashier = User.objects.create_user('cashier', password='pw')
+
+    def _shift_with_cash_sale(self, starting=Decimal('1000'), cash_sale=Decimal('500')):
+        from menu.models import Category, MenuItem, Order, OrderItem, Shift
+        shift = Shift.objects.create(waiter=self.cashier, starting_cash=starting)
+        cat, _ = Category.objects.get_or_create(name='C', slug='c')
+        mi, _ = MenuItem.objects.get_or_create(
+            category=cat, title='I', slug='i', defaults={'price': cash_sale},
+        )
+        order = Order.objects.create(
+            shift=shift, waiter=self.cashier,
+            status='paid', payment_method='cash',
+        )
+        OrderItem.objects.create(order=order, menu_item=mi, quantity=1, unit_price=cash_sale)
+        return shift
+
+    def test_empty_renders(self):
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-cash-drawer'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'No shifts to reconcile')
+
+    def test_expected_formula(self):
+        """expected = opening + cash sales − cash refunds (zero deposits/payouts)."""
+        shift = self._shift_with_cash_sale(
+            starting=Decimal('1000'), cash_sale=Decimal('500'),
+        )
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-cash-drawer'))
+        row = resp.context['rows'][0]
+        self.assertEqual(row['expected'], Decimal('1500'))
+
+    def test_500_short_shows_red_in_template(self):
+        """Acceptance: simulate a KES 500 shortage, assert it appears in red."""
+        from menu.models import Shift
+        shift = self._shift_with_cash_sale(
+            starting=Decimal('1000'), cash_sale=Decimal('500'),
+        )
+        # Expected = 1500; counted = 1000 → −500 variance (short).
+        shift.counted_cash = Decimal('1000')
+        shift.save()
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-cash-drawer'))
+        row = resp.context['rows'][0]
+        self.assertEqual(row['variance'], Decimal('-500'))
+        self.assertContains(resp, 'var(--adm-danger)')
+
+    def test_uncounted_shift_shows_no_variance(self):
+        self._shift_with_cash_sale()
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-cash-drawer'))
+        self.assertIsNone(resp.context['rows'][0]['variance'])
+        self.assertContains(resp, 'not counted')
