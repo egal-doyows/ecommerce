@@ -184,6 +184,8 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 "$VENV_DIR/bin/pip" install --upgrade pip
 "$VENV_DIR/bin/pip" install -r requirements.txt
+# manage.py reads os.environ directly (no dotenv loader) — source .env here.
+set -a; . "$APP_DIR/.env"; set +a
 "$VENV_DIR/bin/python" manage.py migrate --noinput
 "$VENV_DIR/bin/python" manage.py collectstatic --noinput
 "$VENV_DIR/bin/python" manage.py setup_groups || true
