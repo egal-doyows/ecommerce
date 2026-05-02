@@ -29,6 +29,11 @@ ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'loca
 # ── Apps ──────────────────────────────────────────────────────────────────
 
 INSTALLED_APPS = [
+    # django-unfold must be listed BEFORE django.contrib.admin
+    # so its template overrides are picked up.
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -61,6 +66,96 @@ INSTALLED_APPS = [
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
+
+
+# ── Django admin theme (django-unfold) ────────────────────────────────────
+# Brand palette derived from the Bean & Bite primary mark:
+#   amber  E08E2A  (logo plinth)
+#   red    B83E1E  (wordmark — used as `primary`)
+#   espresso 2B1810
+# Unfold colours are space-separated RGB triplets (0–255).
+
+UNFOLD = {
+    'SITE_TITLE': 'Bean & Bite Admin',
+    'SITE_HEADER': 'Bean & Bite',
+    'SITE_SUBHEADER': 'Restaurant management',
+    'SITE_URL': '/',
+    'SITE_SYMBOL': 'restaurant',  # Material Symbols icon name
+    'SHOW_HISTORY': True,
+    'SHOW_VIEW_ON_SITE': True,
+    'THEME': None,                 # respect user's OS light/dark preference
+    'LOGIN': {
+        'image': lambda r: '/static/public_site/img/logo-on-red.png',
+    },
+    'COLORS': {
+        # Brand brick-red ramp (primary)
+        'primary': {
+            '50':  '251 244 232',   # cream
+            '100': '244 224 213',
+            '200': '233 192 171',
+            '300': '221 156 124',
+            '400': '209 120 84',
+            '500': '184 62 30',     # ← brand red #B83E1E
+            '600': '156 51 24',
+            '700': '142 44 18',     # red-deep
+            '800': '107 33 14',
+            '900': '74 24 9',
+            '950': '42 26 16',      # espresso
+        },
+        'font': {
+            'subtle-light': '107 82 64',
+            'subtle-dark':  '156 138 122',
+            'default-light': '42 26 16',
+            'default-dark':  '251 244 232',
+            'important-light': '42 26 16',
+            'important-dark':  '255 255 255',
+        },
+    },
+    'SIDEBAR': {
+        'show_search': True,
+        'show_all_applications': True,
+        'navigation': [
+            {
+                'title': 'Public site',
+                'separator': True,
+                'items': [
+                    {'title': 'Restaurant settings', 'icon': 'storefront',
+                     'link': lambda r: '/restpos/admin/menu/restaurantsettings/'},
+                    {'title': 'Menu items',          'icon': 'restaurant_menu',
+                     'link': lambda r: '/restpos/admin/menu/menuitem/'},
+                    {'title': 'Categories',          'icon': 'category',
+                     'link': lambda r: '/restpos/admin/menu/category/'},
+                    {'title': 'Job openings',        'icon': 'work',
+                     'link': lambda r: '/restpos/admin/careers/jobopening/'},
+                ],
+            },
+            {
+                'title': 'Operations',
+                'separator': True,
+                'items': [
+                    {'title': 'Orders',     'icon': 'receipt_long',
+                     'link': lambda r: '/restpos/admin/menu/order/'},
+                    {'title': 'Tables',     'icon': 'table_restaurant',
+                     'link': lambda r: '/restpos/admin/menu/table/'},
+                    {'title': 'Shifts',     'icon': 'schedule',
+                     'link': lambda r: '/restpos/admin/menu/shift/'},
+                    {'title': 'Inventory',  'icon': 'inventory_2',
+                     'link': lambda r: '/restpos/admin/menu/inventoryitem/'},
+                ],
+            },
+            {
+                'title': 'People',
+                'separator': True,
+                'items': [
+                    {'title': 'Users',  'icon': 'person',
+                     'link': lambda r: '/restpos/admin/auth/user/'},
+                    {'title': 'Groups', 'icon': 'groups',
+                     'link': lambda r: '/restpos/admin/auth/group/'},
+                ],
+            },
+        ],
+    },
+}
 
 
 # ── Middleware ────────────────────────────────────────────────────────────
