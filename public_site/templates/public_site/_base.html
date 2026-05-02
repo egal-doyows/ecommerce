@@ -3,18 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}{{ settings.name|default:"Bean & Bite" }}{% endblock %}</title>
-    <meta name="description" content="{% block description %}{{ settings.tagline|default:"Welcome to our restaurant" }}{% endblock %}">
+    <meta name="theme-color" content="#B83E1E">
+    <title>{% block title %}{{ settings.name|default:"Bean & Bite" }} — Coffee, food & a place to belong{% endblock %}</title>
+    <meta name="description" content="{% block description %}{{ settings.tagline|default:"Fresh-brewed coffee, hearty meals, and warm hospitality." }}{% endblock %}">
+    <link rel="icon" type="image/png" href="{% static 'public_site/img/logo.png' %}">
     <link rel="stylesheet" href="{% static 'public_site/css/public.css' %}">
 </head>
 <body>
 <header class="ps-header">
     <div class="ps-container ps-header-inner">
-        <a href="{% url 'public-home' %}" class="ps-brand">
-            {% if settings.logo %}<img src="{{ settings.logo.url }}" alt="" class="ps-brand-logo">{% endif %}
-            <span>{{ settings.name|default:"Bean &amp; Bite" }}</span>
+        <a href="{% url 'public-home' %}" class="ps-brand" aria-label="{{ settings.name|default:'Bean & Bite' }} home">
+            {% if settings.logo %}
+                <img src="{{ settings.logo.url }}" alt="{{ settings.name|default:'Bean & Bite' }}" class="ps-brand-logo">
+            {% else %}
+                <img src="{% static 'public_site/img/logo.png' %}" alt="Bean & Bite" class="ps-brand-logo">
+            {% endif %}
         </a>
-        <nav class="ps-nav">
+        <nav class="ps-nav" aria-label="Primary">
             <a href="{% url 'public-home' %}">Home</a>
             <a href="{% url 'public-menu' %}">Menu</a>
             <a href="/restpos/" class="ps-nav-staff">Staff Login</a>
@@ -25,13 +30,37 @@
 <main>{% block content %}{% endblock %}</main>
 
 <footer class="ps-footer">
-    <div class="ps-container ps-footer-inner">
-        <div>
-            <strong>{{ settings.name|default:"Bean &amp; Bite" }}</strong>
-            {% if settings.tagline %}<div class="ps-muted">{{ settings.tagline }}</div>{% endif %}
+    <div class="ps-container">
+        <div class="ps-footer-grid">
+            <div class="ps-footer-brand">
+                <img src="{% static 'public_site/img/logo-on-red.png' %}" alt="{{ settings.name|default:'Bean & Bite' }}" class="ps-footer-logo">
+                {% if settings.tagline %}
+                    <p>{{ settings.tagline }}</p>
+                {% else %}
+                    <p>Coffee, food, and a place to belong. Walk-ins always welcome.</p>
+                {% endif %}
+            </div>
+            <div>
+                <h4>Visit</h4>
+                <ul>
+                    {% if settings.address %}<li>{{ settings.address }}</li>{% endif %}
+                    <li>Mon – Fri · 7am – 9pm</li>
+                    <li>Sat – Sun · 8am – 10pm</li>
+                </ul>
+            </div>
+            <div>
+                <h4>Get in touch</h4>
+                <ul>
+                    {% if settings.phone %}<li><a href="tel:{{ settings.phone }}">{{ settings.phone }}</a></li>{% endif %}
+                    {% if settings.email %}<li><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></li>{% endif %}
+                    <li><a href="{% url 'public-menu' %}">Browse the menu</a></li>
+                </ul>
+            </div>
         </div>
-        {% if settings.phone %}<div><span class="ps-muted">Call:</span> <a href="tel:{{ settings.phone }}">{{ settings.phone }}</a></div>{% endif %}
-        <div class="ps-muted">&copy; {% now "Y" %} {{ settings.name|default:"Bean &amp; Bite" }}</div>
+        <div class="ps-footer-bar">
+            <div>&copy; {% now "Y" %} {{ settings.name|default:"Bean &amp; Bite" }}. All rights reserved.</div>
+            <div><a href="/restpos/">Staff portal</a></div>
+        </div>
     </div>
 </footer>
 </body>

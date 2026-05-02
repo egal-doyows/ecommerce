@@ -3,39 +3,92 @@
 {% block content %}
 <section class="ps-hero">
     <div class="ps-container ps-hero-inner">
-        <h1>{{ settings.name|default:"Bean &amp; Bite" }}</h1>
-        <p class="ps-hero-tagline">{{ settings.tagline|default:"Coffee, food, and a place to belong." }}</p>
-        <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-primary">View our menu</a>
+        <span class="ps-hero-eyebrow">Coffee · Kitchen · Community</span>
+        <h1>
+            {% if settings.name %}{{ settings.name }}{% else %}Bean <em>&amp;</em> Bite{% endif %}
+        </h1>
+        <p class="ps-hero-tagline">
+            {{ settings.tagline|default:"Slow-roasted coffee, hearty plates, and the kind of welcome that makes a place feel like home." }}
+        </p>
+        <div class="ps-hero-cta">
+            <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-primary">View our menu →</a>
+            {% if settings.phone %}
+                <a href="tel:{{ settings.phone }}" class="ps-btn ps-btn-outline">Call {{ settings.phone }}</a>
+            {% endif %}
+        </div>
     </div>
 </section>
 
 <section class="ps-section">
+    <div class="ps-container">
+        <div class="ps-section-head">
+            <h2>What we&rsquo;re about</h2>
+            <p>Three small promises we keep, every single morning.</p>
+        </div>
+        <div class="ps-highlights">
+            <div class="ps-highlight">
+                <div class="ps-highlight-icon">☕</div>
+                <h3>Brewed with care</h3>
+                <p>Single-origin beans, dialed-in shots, and baristas who actually know your name by visit two.</p>
+            </div>
+            <div class="ps-highlight">
+                <div class="ps-highlight-icon">🍳</div>
+                <h3>Kitchen-led menu</h3>
+                <p>Made-to-order plates from a small, seasonal menu — no warming lamps, no shortcuts.</p>
+            </div>
+            <div class="ps-highlight">
+                <div class="ps-highlight-icon">✦</div>
+                <h3>A place to linger</h3>
+                <p>Wi-Fi, slow afternoons, big tables for friends. Stay as long as the cup is warm.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="ps-section" style="padding-top: 24px;">
     <div class="ps-container ps-grid-2">
         <div>
-            <h2>Welcome</h2>
+            <h2>Welcome to the table.</h2>
             <p>
                 Step in for fresh-brewed coffee, hearty meals, and the kind of
-                hospitality that makes a place feel like home. Whether you're
-                grabbing a quick bite or settling in for the afternoon, we're
-                glad you're here.
+                hospitality that makes a place feel like home. Whether you&rsquo;re
+                grabbing a quick bite before work or settling in for the afternoon,
+                we&rsquo;re glad you&rsquo;re here.
             </p>
             <p>
-                Our menu changes with the seasons and what's fresh at the market —
-                check the latest below.
+                Our menu changes with the seasons and with what&rsquo;s fresh at the market —
+                see what we&rsquo;re serving today.
             </p>
-            <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-outline">Browse the menu</a>
+            <p style="margin-top: 28px;">
+                <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-outline">Browse the menu →</a>
+            </p>
         </div>
-        <div class="ps-info-card">
+        <aside class="ps-info-card">
             <h3>Visit us</h3>
+            {% if settings.address %}
+                <p><strong>Where:</strong><br>{{ settings.address|linebreaksbr }}</p>
+            {% endif %}
             {% if settings.phone %}
-            <p><strong>Phone:</strong> <a href="tel:{{ settings.phone }}">{{ settings.phone }}</a></p>
+                <p><strong>Phone:</strong> <a href="tel:{{ settings.phone }}">{{ settings.phone }}</a></p>
             {% endif %}
             <p><strong>Hours:</strong><br>
                 Monday – Friday · 7am – 9pm<br>
                 Saturday – Sunday · 8am – 10pm
             </p>
-            <p class="ps-muted">Walk-ins welcome. Call ahead for larger groups.</p>
+            <p class="ps-muted" style="margin-top: 18px; font-size: 14.5px;">
+                Walk-ins always welcome. Call ahead for groups of six or more.
+            </p>
+        </aside>
+    </div>
+</section>
+
+<section class="ps-cta-band">
+    <div class="ps-container ps-cta-band-inner">
+        <div>
+            <h2>Hungry yet?</h2>
+            <p>See today&rsquo;s menu — coffee, breakfast, lunch and the things we&rsquo;re proud of.</p>
         </div>
+        <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-primary">View the menu →</a>
     </div>
 </section>
 {% endblock %}

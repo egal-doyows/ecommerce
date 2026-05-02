@@ -1,38 +1,48 @@
 {% extends 'public_site/_base.html' %}
 {% load humanize %}
 
-{% block title %}Menu — {{ settings.name|default:"Bean &amp; Bite" }}{% endblock %}
+{% block title %}Menu — {{ settings.name|default:"Bean & Bite" }}{% endblock %}
 
 {% block content %}
 <section class="ps-page-header">
     <div class="ps-container">
         <h1>Our menu</h1>
-        <p class="ps-muted">Available today. Prices in {{ settings.currency|default:"KES" }}.</p>
+        <p class="ps-muted">Available today &middot; prices in {{ settings.currency|default:"KES" }}</p>
+        {% if grouped %}
+        <nav class="ps-cat-nav" aria-label="Menu categories">
+            {% for category, items in grouped %}
+                <a href="#cat-{{ category.id }}">{{ category.name }}</a>
+            {% endfor %}
+        </nav>
+        {% endif %}
     </div>
 </section>
 
 <section class="ps-section">
     <div class="ps-container">
     {% if not has_any_items %}
-        <p class="ps-muted">The menu is being updated. Please check back shortly.</p>
+        <p class="ps-empty">The menu is being updated. Please check back shortly.</p>
     {% else %}
         {% for category, items in grouped %}
-        <div class="ps-category">
-            <h2>{{ category.name }}</h2>
+        <div class="ps-category" id="cat-{{ category.id }}">
+            <div class="ps-category-head">
+                <h2>{{ category.name }}</h2>
+                <span class="ps-rule"></span>
+            </div>
             <div class="ps-menu-grid">
                 {% for item in items %}
                 <article class="ps-menu-item">
                     {% if item.image %}
-                    <div class="ps-menu-item-img" style="background-image: url('{{ item.image.url }}');"></div>
+                    <div class="ps-menu-item-img" style="background-image: url('{{ item.image.url }}');" role="img" aria-label="{{ item.title }}"></div>
                     {% else %}
-                    <div class="ps-menu-item-img ps-menu-item-noimg"></div>
+                    <div class="ps-menu-item-img ps-menu-item-noimg" aria-hidden="true">{{ item.title|slice:":1"|upper }}</div>
                     {% endif %}
                     <div class="ps-menu-item-body">
                         <div class="ps-menu-item-row">
-                            <h3>{{ item.name }}</h3>
+                            <h3>{{ item.title }}</h3>
                             <span class="ps-price">{{ settings.currency|default:"KES" }} {{ item.price|floatformat:2|intcomma }}</span>
                         </div>
-                        {% if item.description %}<p class="ps-muted">{{ item.description }}</p>{% endif %}
+                        {% if item.description %}<p>{{ item.description }}</p>{% endif %}
                     </div>
                 </article>
                 {% endfor %}

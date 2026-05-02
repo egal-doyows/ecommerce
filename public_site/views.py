@@ -21,7 +21,7 @@ def menu(request):
     )
     grouped = []
     for cat in categories:
-        items = list(cat.items.filter(is_available=True).order_by('name'))
+        items = list(cat.items.filter(is_available=True).order_by('title'))
         if items:
             grouped.append((cat, items))
     return render(request, 'public_site/menu.html', {
