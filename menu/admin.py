@@ -40,6 +40,7 @@ class RestaurantSettingsAdmin(admin.ModelAdmin):
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug', 'icon')
     prepopulated_fields = {'slug': ('name',)}
+    search_fields = ('name',)   # required so MenuItemAdmin can autocomplete on category
 
 
 @admin.register(InventoryItem)
@@ -71,7 +72,7 @@ class MenuItemAdmin(admin.ModelAdmin):
     search_fields = ('title',)
     prepopulated_fields = {'slug': ('title',)}
     list_editable = ('price', 'is_available', 'is_featured', 'item_tier')
-    autocomplete_fields = ('inventory_item',)
+    autocomplete_fields = ('category', 'inventory_item')
     inlines = [RecipeInline]
     fieldsets = (
         (None, {
