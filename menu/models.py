@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 
 
 class RestaurantSettings(models.Model):
-    name = models.CharField(max_length=150, default='RestoPOS')
+    name = models.CharField(max_length=150, default='Bean & Bite')
     tagline = models.CharField(max_length=250, blank=True, default='Your Favourite Restaurant')
     phone = models.CharField(max_length=30, blank=True)
     website = models.CharField(max_length=150, blank=True)
