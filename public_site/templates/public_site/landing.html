@@ -120,39 +120,37 @@
     </div>
 </section>
 
-<!-- ============== Signature brews ============== -->
+{% load humanize %}
+{% if featured %}
+<!-- ============== Signature brews (curated in admin) ============== -->
 <section class="ps-section">
     <div class="ps-container">
         <div class="ps-section-head">
             <span class="ps-script">what we&rsquo;re known for</span>
             <h2>Signature brews</h2>
-            <p>Pick your morning. Or come twice and try two.</p>
+            <p>A few favourites from today&rsquo;s menu. Curated by the bar.</p>
         </div>
         <div class="ps-brews-grid">
-            <div class="ps-brew-card">
-                <span class="ps-brew-emoji">☕</span>
-                <span class="ps-script">smooth &amp; bold</span>
-                <h3>The Bean House</h3>
-                <p>Our signature espresso blend — chocolatey, balanced, and built for milk drinks or straight up.</p>
-            </div>
-            <div class="ps-brew-card">
-                <span class="ps-brew-emoji">🥛</span>
-                <span class="ps-script">silky comfort</span>
-                <h3>Honey Oat Latte</h3>
-                <p>Double shot, steamed oat milk, a drizzle of local honey. The drink we hand most regulars on rainy days.</p>
-            </div>
-            <div class="ps-brew-card">
-                <span class="ps-brew-emoji">✦</span>
-                <span class="ps-script">bright &amp; clean</span>
-                <h3>Pour-Over of the Day</h3>
-                <p>Whatever&rsquo;s freshest from this week&rsquo;s roast — brewed slow, one cup at a time. Ask the bar.</p>
-            </div>
+            {% for item in featured %}
+            <article class="ps-brew-card">
+                {% if item.image %}
+                    <div class="ps-brew-img" style="background-image: url('{{ item.image.url }}');" role="img" aria-label="{{ item.title }}"></div>
+                {% else %}
+                    <div class="ps-brew-img ps-brew-img-noimg" aria-hidden="true">{{ item.title|slice:":1"|upper }}</div>
+                {% endif %}
+                <span class="ps-script">{{ item.category.name }}</span>
+                <h3>{{ item.title }}</h3>
+                {% if item.description %}<p>{{ item.description|truncatewords:22 }}</p>{% endif %}
+                <p class="ps-brew-price">{{ settings.currency|default:"KES" }} {{ item.price|floatformat:2|intcomma }}</p>
+            </article>
+            {% endfor %}
         </div>
         <div style="text-align:center; margin-top: 40px;">
             <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-outline">Browse the full menu →</a>
         </div>
     </div>
 </section>
+{% endif %}
 
 <!-- ============== Welcome / Visit ============== -->
 <section class="ps-section" style="padding-top: 0;">

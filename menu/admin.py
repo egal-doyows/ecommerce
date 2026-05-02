@@ -44,16 +44,24 @@ class RecipeInline(admin.TabularInline):
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'price', 'item_tier', 'is_available', 'preparation_time', 'stock_type', 'stock_info')
-    list_filter = ('category', 'is_available', 'item_tier')
+    list_display = ('title', 'category', 'price', 'item_tier', 'is_available', 'is_featured', 'preparation_time', 'stock_type', 'stock_info')
+    list_filter = ('category', 'is_available', 'is_featured', 'item_tier')
     search_fields = ('title',)
     prepopulated_fields = {'slug': ('title',)}
-    list_editable = ('price', 'is_available', 'item_tier')
+    list_editable = ('price', 'is_available', 'is_featured', 'item_tier')
     autocomplete_fields = ('inventory_item',)
     inlines = [RecipeInline]
     fieldsets = (
         (None, {
             'fields': ('category', 'title', 'slug', 'description', 'price', 'image', 'item_tier', 'is_available', 'preparation_time'),
+        }),
+        ('Public site', {
+            'description': (
+                'Tick <strong>Is featured</strong> to surface this item in the '
+                '"Signature brews" section on the public landing page. '
+                'Up to 3 featured items are shown.'
+            ),
+            'fields': ('is_featured',),
         }),
         ('Inventory', {
             'description': (

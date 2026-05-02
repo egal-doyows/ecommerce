@@ -148,6 +148,10 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=7, decimal_places=2)
     image = models.ImageField(upload_to='images/', blank=True)
     is_available = models.BooleanField(default=True)
+    is_featured = models.BooleanField(
+        default=False,
+        help_text="Show this item in the 'Signature brews' section on the public landing page (up to 3 are shown).",
+    )
     item_tier = models.CharField(
         max_length=10, choices=TIER_CHOICES, default='regular',
         help_text="Regular or Premium — affects staff commission eligibility",

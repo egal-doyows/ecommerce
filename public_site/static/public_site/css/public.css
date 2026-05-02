@@ -396,12 +396,40 @@ h1, h2, h3 {
     background: var(--bb-paper);
     border: 1px solid var(--bb-line);
     border-radius: var(--bb-radius);
-    padding: 32px 28px 30px;
+    padding: 0 0 30px;
     text-align: center;
     box-shadow: var(--bb-shadow-sm);
     transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
     position: relative;
     overflow: hidden;
+    display: flex; flex-direction: column;
+}
+.ps-brew-img {
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--bb-cream-2);
+    margin-bottom: 22px;
+}
+.ps-brew-img-noimg {
+    display: flex; align-items: center; justify-content: center;
+    background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55), transparent 55%),
+        linear-gradient(135deg, var(--bb-amber-soft) 0%, var(--bb-red-soft) 100%);
+    color: rgba(255,255,255,0.9);
+    font-family: var(--bb-serif);
+    font-size: 56px; font-weight: 700;
+}
+.ps-brew-card > .ps-script,
+.ps-brew-card > h3,
+.ps-brew-card > p { padding-left: 26px; padding-right: 26px; }
+.ps-brew-price {
+    font-family: var(--bb-serif);
+    font-weight: 700;
+    color: var(--bb-red);
+    font-size: 18px;
+    margin-top: auto !important;
+    padding-top: 12px;
 }
 .ps-brew-card::after {
     content: "";

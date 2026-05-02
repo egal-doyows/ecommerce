@@ -8,8 +8,14 @@ def _settings():
 
 
 def home(request):
+    featured = list(
+        MenuItem.objects
+        .filter(is_featured=True, is_available=True)
+        .select_related('category')[:3]
+    )
     return render(request, 'public_site/landing.html', {
         'settings': _settings(),
+        'featured': featured,
     })
 
 
