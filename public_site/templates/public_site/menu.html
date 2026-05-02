@@ -6,17 +6,22 @@
 {% block content %}
 <section class="ps-page-header">
     <div class="ps-container">
+        <span class="ps-script">today&rsquo;s menu</span>
         <h1>Our menu</h1>
         <p class="ps-muted">Available today &middot; prices in {{ settings.currency|default:"KES" }}</p>
-        {% if grouped %}
-        <nav class="ps-cat-nav" aria-label="Menu categories">
-            {% for category, items in grouped %}
-                <a href="#cat-{{ category.id }}">{{ category.name }}</a>
-            {% endfor %}
-        </nav>
-        {% endif %}
     </div>
 </section>
+
+{% if has_any_items and grouped %}
+<nav class="ps-cat-tabs" aria-label="Filter menu by category" id="ps-cat-tabs">
+    <div class="ps-cat-tabs-inner ps-container">
+        <button type="button" class="ps-cat-tab is-active" data-cat-target="all">All</button>
+        {% for category, items in grouped %}
+            <button type="button" class="ps-cat-tab" data-cat-target="{{ category.slug|default:category.id }}">{{ category.name }}</button>
+        {% endfor %}
+    </div>
+</nav>
+{% endif %}
 
 <section class="ps-section">
     <div class="ps-container">
@@ -24,18 +29,23 @@
         <p class="ps-empty">The menu is being updated. Please check back shortly.</p>
     {% else %}
         {% for category, items in grouped %}
-        <div class="ps-category" id="cat-{{ category.id }}">
+        <div class="ps-category"
+             id="cat-{{ category.slug|default:category.id }}"
+             data-cat-section="{{ category.slug|default:category.id }}">
             <div class="ps-category-head">
                 <h2>{{ category.name }}</h2>
                 <span class="ps-rule"></span>
+                <span class="ps-category-count">{{ items|length }} item{{ items|length|pluralize }}</span>
             </div>
             <div class="ps-menu-grid">
                 {% for item in items %}
                 <article class="ps-menu-item">
                     {% if item.image %}
-                    <div class="ps-menu-item-img" style="background-image: url('{{ item.image.url }}');" role="img" aria-label="{{ item.title }}"></div>
+                        <img src="{{ item.image.url }}" alt="{{ item.title }}"
+                             loading="lazy" decoding="async"
+                             class="ps-menu-item-img">
                     {% else %}
-                    <div class="ps-menu-item-img ps-menu-item-noimg" aria-hidden="true">{{ item.title|slice:":1"|upper }}</div>
+                        <div class="ps-menu-item-img ps-menu-item-noimg" aria-hidden="true">{{ item.title|slice:":1"|upper }}</div>
                     {% endif %}
                     <div class="ps-menu-item-body">
                         <div class="ps-menu-item-row">
@@ -49,7 +59,76 @@
             </div>
         </div>
         {% endfor %}
+        <p class="ps-cat-empty" id="ps-cat-empty" hidden>
+            Nothing in that category right now. Try another tab.
+        </p>
     {% endif %}
     </div>
 </section>
+
+{% if has_any_items and grouped %}
+<script>
+(function () {
+    'use strict';
+    var tabs     = document.querySelectorAll('[data-cat-target]');
+    var sections = document.querySelectorAll('[data-cat-section]');
+    var bar      = document.getElementById('ps-cat-tabs');
+    var empty    = document.getElementById('ps-cat-empty');
+    if (!tabs.length || !sections.length) return;
+
+    function known(target) {
+        if (target === 'all') return true;
+        for (var i = 0; i < sections.length; i++) {
+            if (sections[i].dataset.catSection === target) return true;
+        }
+        return false;
+    }
+
+    function activate(target, opts) {
+        opts = opts || {};
+        if (!known(target)) target = 'all';
+        var anyVisible = false;
+        sections.forEach(function (s) {
+            var match = (target === 'all') || (s.dataset.catSection === target);
+            s.hidden = !match;
+            if (match) anyVisible = true;
+        });
+        tabs.forEach(function (t) {
+            t.classList.toggle('is-active', t.dataset.catTarget === target);
+            t.setAttribute('aria-pressed', t.dataset.catTarget === target ? 'true' : 'false');
+        });
+        if (empty) empty.hidden = anyVisible;
+
+        if (opts.scroll && bar) {
+            // Scroll so the tab bar sits just under the sticky site header.
+            var rect = bar.getBoundingClientRect();
+            var top  = window.scrollY + rect.top - 8;
+            // Account for sticky bar's own height by not scrolling past it.
+            window.scrollTo({ top: Math.max(0, top - 88), behavior: 'smooth' });
+        }
+    }
+
+    function fromHash() {
+        var h = (window.location.hash || '').replace(/^#cat-/, '').replace(/^#/, '');
+        return h || 'all';
+    }
+
+    activate(fromHash(), { scroll: false });
+
+    tabs.forEach(function (t) {
+        t.addEventListener('click', function () {
+            var target = t.dataset.catTarget;
+            var newHash = (target === 'all') ? ' ' : '#cat-' + target;
+            // Use replaceState so the back button doesn't fill with menu noise.
+            history.replaceState(null, '', newHash === ' ' ? window.location.pathname : newHash);
+            activate(target, { scroll: true });
+        });
+    });
+
+    window.addEventListener('hashchange', function () {
+        activate(fromHash(), { scroll: false });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
