@@ -1,9 +1,10 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 from .models import StaffCompensation, StaffBankDetails, PaymentRecord
 
 
 @admin.register(StaffCompensation)
-class StaffCompensationAdmin(admin.ModelAdmin):
+class StaffCompensationAdmin(ModelAdmin):
     list_display = ('user', 'compensation_type', 'commission_scope', 'commission_rate_regular', 'commission_rate_premium', 'salary_amount', 'payment_frequency', 'updated_at')
     list_filter = ('compensation_type', 'commission_scope', 'payment_frequency')
     search_fields = ('user__username', 'user__email')
@@ -29,7 +30,7 @@ class StaffCompensationAdmin(admin.ModelAdmin):
 
 
 @admin.register(PaymentRecord)
-class PaymentRecordAdmin(admin.ModelAdmin):
+class PaymentRecordAdmin(ModelAdmin):
     list_display = ('staff', 'amount', 'eligible_sales', 'total_sales', 'payment_type', 'period_start', 'period_end', 'status', 'disbursement_method', 'paid_at')
     list_filter = ('status', 'payment_type', 'disbursement_method')
     search_fields = ('staff__username',)
@@ -44,6 +45,6 @@ class PaymentRecordAdmin(admin.ModelAdmin):
 
 
 @admin.register(StaffBankDetails)
-class StaffBankDetailsAdmin(admin.ModelAdmin):
+class StaffBankDetailsAdmin(ModelAdmin):
     list_display = ('user', 'bank_name', 'account_name', 'account_number', 'branch')
     search_fields = ('user__username', 'bank_name', 'account_number')

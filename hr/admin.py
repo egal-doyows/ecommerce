@@ -1,4 +1,5 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin, TabularInline
 
 from .models import (
     Department, Position, Employee, EmergencyContact,
@@ -7,22 +8,22 @@ from .models import (
 
 
 @admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
+class DepartmentAdmin(ModelAdmin):
     list_display = ('name', 'is_active')
 
 
 @admin.register(Position)
-class PositionAdmin(admin.ModelAdmin):
+class PositionAdmin(ModelAdmin):
     list_display = ('title', 'department', 'is_active')
 
 
-class EmergencyContactInline(admin.TabularInline):
+class EmergencyContactInline(TabularInline):
     model = EmergencyContact
     extra = 0
 
 
 @admin.register(Employee)
-class EmployeeAdmin(admin.ModelAdmin):
+class EmployeeAdmin(ModelAdmin):
     list_display = ('employee_id', 'user', 'department', 'position', 'status')
     list_filter = ('status', 'department', 'employment_type')
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'employee_id')
@@ -30,16 +31,16 @@ class EmployeeAdmin(admin.ModelAdmin):
 
 
 @admin.register(LeaveType)
-class LeaveTypeAdmin(admin.ModelAdmin):
+class LeaveTypeAdmin(ModelAdmin):
     list_display = ('name', 'days_allowed', 'is_paid', 'is_active')
 
 
 @admin.register(LeaveRequest)
-class LeaveRequestAdmin(admin.ModelAdmin):
+class LeaveRequestAdmin(ModelAdmin):
     list_display = ('employee', 'leave_type', 'start_date', 'end_date', 'status')
     list_filter = ('status', 'leave_type')
 
 
 @admin.register(Document)
-class DocumentAdmin(admin.ModelAdmin):
+class DocumentAdmin(ModelAdmin):
     list_display = ('title', 'employee', 'category', 'uploaded_at')

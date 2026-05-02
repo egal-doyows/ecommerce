@@ -1,15 +1,16 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 from .models import ExpenseCategory, Expense
 
 
 @admin.register(ExpenseCategory)
-class ExpenseCategoryAdmin(admin.ModelAdmin):
+class ExpenseCategoryAdmin(ModelAdmin):
     list_display = ['name', 'is_active']
     list_filter = ['is_active']
 
 
 @admin.register(Expense)
-class ExpenseAdmin(admin.ModelAdmin):
+class ExpenseAdmin(ModelAdmin):
     list_display = ['expense_number', 'category', 'description', 'amount', 'date',
                     'payment_method', 'recorded_by']
     list_filter = ['category', 'payment_method', 'date']

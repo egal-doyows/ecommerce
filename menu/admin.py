@@ -1,9 +1,11 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin, TabularInline
+
 from .models import RestaurantSettings, Category, InventoryItem, MenuItem, Recipe, Table, Order, OrderItem, Shift
 
 
 @admin.register(RestaurantSettings)
-class RestaurantSettingsAdmin(admin.ModelAdmin):
+class RestaurantSettingsAdmin(ModelAdmin):
     list_display = ('name', 'tagline', 'phone', 'email')
 
     fieldsets = (
@@ -37,14 +39,14 @@ class RestaurantSettingsAdmin(admin.ModelAdmin):
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(ModelAdmin):
     list_display = ('name', 'slug', 'icon')
     prepopulated_fields = {'slug': ('name',)}
     search_fields = ('name',)   # required so MenuItemAdmin can autocomplete on category
 
 
 @admin.register(InventoryItem)
-class InventoryItemAdmin(admin.ModelAdmin):
+class InventoryItemAdmin(ModelAdmin):
     list_display = ('name', 'unit', 'stock_quantity', 'buying_price', 'low_stock_threshold', 'stock_status')
     list_filter = ('unit',)
     search_fields = ('name',)
@@ -59,14 +61,14 @@ class InventoryItemAdmin(admin.ModelAdmin):
     stock_status.short_description = 'Status'
 
 
-class RecipeInline(admin.TabularInline):
+class RecipeInline(TabularInline):
     model = Recipe
     extra = 1
     autocomplete_fields = ('inventory_item',)
 
 
 @admin.register(MenuItem)
-class MenuItemAdmin(admin.ModelAdmin):
+class MenuItemAdmin(ModelAdmin):
     list_display = ('title', 'category', 'price', 'item_tier', 'is_available', 'is_featured', 'preparation_time', 'stock_type', 'stock_info')
     list_filter = ('category', 'is_available', 'is_featured', 'item_tier')
     search_fields = ('title',)
@@ -115,13 +117,13 @@ class MenuItemAdmin(admin.ModelAdmin):
 
 
 @admin.register(Table)
-class TableAdmin(admin.ModelAdmin):
+class TableAdmin(ModelAdmin):
     list_display = ('number', 'capacity', 'status')
     list_editable = ('status',)
     list_filter = ('status',)
 
 
-class OrderItemInline(admin.TabularInline):
+class OrderItemInline(TabularInline):
     model = OrderItem
     extra = 0
     readonly_fields = ('get_subtotal',)
@@ -132,7 +134,7 @@ class OrderItemInline(admin.TabularInline):
 
 
 @admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
+class OrderAdmin(ModelAdmin):
     list_display = ('id', 'table', 'waiter', 'status', 'payment_method', 'mpesa_code', 'get_total', 'created_at')
     list_filter = ('status', 'payment_method', 'waiter', 'created_at')
     inlines = [OrderItemInline]
@@ -156,7 +158,7 @@ class OrderAdmin(admin.ModelAdmin):
 
 
 @admin.register(Shift)
-class ShiftAdmin(admin.ModelAdmin):
+class ShiftAdmin(ModelAdmin):
     list_display = ('id', 'waiter', 'started_at', 'ended_at', 'is_active', 'get_duration', 'get_order_count')
     list_filter = ('is_active', 'waiter', 'started_at')
     readonly_fields = ('started_at',)

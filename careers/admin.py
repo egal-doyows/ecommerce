@@ -1,10 +1,11 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 
 from .models import JobOpening
 
 
 @admin.register(JobOpening)
-class JobOpeningAdmin(admin.ModelAdmin):
+class JobOpeningAdmin(ModelAdmin):
     list_display = ('title', 'employment_type', 'location', 'is_open', 'posted_at')
     list_filter = ('is_open', 'employment_type')
     list_editable = ('is_open',)
