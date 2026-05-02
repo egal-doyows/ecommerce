@@ -39,6 +39,7 @@ def health_check(request):
 urlpatterns = [
     # Public marketing site lives at the root.
     path('', include('public_site.urls')),
+    path('work-with-us/', include('careers.urls')),
 
     # Health check stays at the root so nginx / uptime monitors don't need
     # to know about the app prefix.

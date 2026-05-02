@@ -1,0 +1,76 @@
+{% extends 'public_site/_base.html' %}
+
+{% block title %}Work with us — {{ settings.name|default:"Bean & Bite" }}{% endblock %}
+{% block description %}Open positions at {{ settings.name|default:"Bean & Bite" }}. Come work with us.{% endblock %}
+
+{% block content %}
+<section class="ps-page-header">
+    <div class="ps-container">
+        <span class="ps-script">join the team</span>
+        <h1>Work with us</h1>
+        <p class="ps-muted">
+            We&rsquo;re a small team that takes coffee, food, and the people we serve seriously.
+            If that sounds like you, we&rsquo;d love to hear from you.
+        </p>
+    </div>
+</section>
+
+<section class="ps-section">
+    <div class="ps-container">
+    {% if not openings %}
+        <div class="ps-careers-empty">
+            <div class="ps-careers-empty-icon">☕</div>
+            <h2>No open positions right now</h2>
+            <p>
+                We&rsquo;re fully staffed at the moment — but the team turns over with the
+                seasons, so do check back. If you think you&rsquo;d be a great fit anyway,
+                drop your CV at the counter and ask for the manager.
+            </p>
+            <a href="{% url 'public-home' %}" class="ps-btn ps-btn-outline">Back to the home page</a>
+        </div>
+    {% else %}
+        <div class="ps-careers-intro">
+            <p>
+                Below are the roles we&rsquo;re actively hiring for. Each one tells you exactly
+                how to apply — please follow the instructions on the role you want.
+            </p>
+        </div>
+        <div class="ps-jobs">
+            {% for job in openings %}
+            <article class="ps-job" id="job-{{ job.slug }}">
+                <header class="ps-job-head">
+                    <div>
+                        <h2>{{ job.title }}</h2>
+                        <div class="ps-job-meta">
+                            <span class="ps-job-pill ps-job-pill-type">{{ job.get_employment_type_display }}</span>
+                            {% if job.location %}<span class="ps-job-pill">📍 {{ job.location }}</span>{% endif %}
+                            <span class="ps-job-pill ps-job-pill-muted">Posted {{ job.posted_at|date:"j M Y" }}</span>
+                        </div>
+                    </div>
+                </header>
+
+                {% if job.summary %}<p class="ps-job-summary">{{ job.summary }}</p>{% endif %}
+
+                <div class="ps-job-section">
+                    <h3>The role</h3>
+                    <div class="ps-job-prose">{{ job.description|linebreaks }}</div>
+                </div>
+
+                {% if job.requirements %}
+                <div class="ps-job-section">
+                    <h3>What we&rsquo;re looking for</h3>
+                    <div class="ps-job-prose">{{ job.requirements|linebreaks }}</div>
+                </div>
+                {% endif %}
+
+                <div class="ps-job-apply">
+                    <h3><span class="ps-script">apply</span><br>How to apply</h3>
+                    <div class="ps-job-prose">{{ job.how_to_apply|linebreaks|urlize }}</div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+    </div>
+</section>
+{% endblock %}

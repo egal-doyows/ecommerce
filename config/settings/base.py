@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'expenses',
     'hr',
     'reports',
+    'careers',
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
