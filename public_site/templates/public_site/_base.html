@@ -22,6 +22,7 @@
         <nav class="ps-nav" aria-label="Primary">
             <a href="{% url 'public-home' %}">Home</a>
             <a href="{% url 'public-menu' %}">Menu</a>
+            <a href="{% url 'public-contact' %}">Contact</a>
             <a href="{% url 'careers-list' %}" class="ps-nav-staff">Work with us</a>
         </nav>
     </div>
@@ -43,16 +44,19 @@
             <div>
                 <h4>Visit</h4>
                 <ul>
-                    {% if settings.address %}<li>{{ settings.address }}</li>{% endif %}
+                    {% if settings.address %}<li>{{ settings.address|linebreaksbr }}</li>{% endif %}
                     <li>Mon – Fri · 7am – 9pm</li>
                     <li>Sat – Sun · 8am – 10pm</li>
+                    {% if settings.directions_url %}<li><a href="{{ settings.directions_url }}" target="_blank" rel="noopener">Get directions →</a></li>{% endif %}
                 </ul>
             </div>
             <div>
                 <h4>Get in touch</h4>
                 <ul>
                     {% if settings.phone %}<li><a href="tel:{{ settings.phone }}">{{ settings.phone }}</a></li>{% endif %}
+                    {% if settings.whatsapp_number %}<li><a href="https://wa.me/{{ settings.whatsapp_number }}" target="_blank" rel="noopener">WhatsApp us</a></li>{% endif %}
                     {% if settings.email %}<li><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></li>{% endif %}
+                    <li><a href="{% url 'public-contact' %}">Contact page</a></li>
                     <li><a href="{% url 'public-menu' %}">Browse the menu</a></li>
                     <li><a href="{% url 'careers-list' %}">Work with us</a></li>
                 </ul>

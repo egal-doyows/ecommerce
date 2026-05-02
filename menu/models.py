@@ -21,6 +21,34 @@ class RestaurantSettings(models.Model):
         help_text='Default markup applied to cost when suggesting menu prices',
     )
 
+    # ── Public-site contact details (all optional) ──
+    email = models.EmailField(
+        blank=True,
+        help_text='Public contact email shown on the Contact page and footer.',
+    )
+    address = models.TextField(
+        blank=True,
+        help_text='Street address. Use line breaks for multi-line.',
+    )
+    map_embed_url = models.URLField(
+        max_length=500, blank=True,
+        help_text=(
+            'Optional Google Maps embed URL. In Google Maps → Share → Embed a map → copy '
+            'the src="..." value from the iframe. Shown on the Contact page if set.'
+        ),
+    )
+    directions_url = models.URLField(
+        max_length=500, blank=True,
+        help_text='Optional "Get directions" link (full Google Maps URL).',
+    )
+    whatsapp_number = models.CharField(
+        max_length=30, blank=True,
+        help_text='Country code, no +, no spaces. e.g. 254712345678 → opens wa.me link.',
+    )
+    facebook_url = models.URLField(blank=True)
+    instagram_url = models.URLField(blank=True)
+    twitter_url = models.URLField(blank=True, help_text='X / Twitter profile URL.')
+
     class Meta:
         verbose_name = 'Restaurant Settings'
         verbose_name_plural = 'Restaurant Settings'

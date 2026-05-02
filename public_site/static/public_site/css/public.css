@@ -662,6 +662,143 @@ h1, h2, h3 {
     font-size: 17px;
 }
 
+/* =====================  Contact page  ===================== */
+.ps-contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: 40px;
+    align-items: stretch;
+}
+@media (max-width: 880px) {
+    .ps-contact-grid { grid-template-columns: 1fr; }
+}
+
+.ps-contact-card {
+    background:
+        linear-gradient(180deg, #FFFCF5 0%, var(--bb-cream-3) 100%);
+    border: 1px solid var(--bb-line);
+    border-radius: var(--bb-radius);
+    padding: 36px 32px;
+    box-shadow: var(--bb-shadow);
+    position: relative;
+    overflow: hidden;
+}
+.ps-contact-card::before {
+    content: "";
+    position: absolute; top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: var(--bb-amber); opacity: 0.10;
+    border-radius: 50%;
+    pointer-events: none;
+}
+.ps-contact-card > * { position: relative; }
+.ps-contact-card h2 {
+    margin: 0 0 24px;
+    font-size: clamp(24px, 3vw, 30px);
+    color: var(--bb-red);
+}
+
+.ps-contact-row {
+    display: flex; gap: 16px;
+    margin-bottom: 24px;
+    align-items: flex-start;
+}
+.ps-contact-row:last-of-type { margin-bottom: 0; }
+
+.ps-contact-icon {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--bb-amber) 0%, var(--bb-red) 100%);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(184, 62, 30, 0.20);
+}
+.ps-contact-row strong {
+    display: block;
+    color: var(--bb-cocoa);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    margin-bottom: 4px;
+    font-weight: 700;
+}
+.ps-contact-row p {
+    margin: 0;
+    color: var(--bb-ink);
+    font-size: 16px;
+    line-height: 1.55;
+}
+.ps-contact-row a { color: var(--bb-red); font-weight: 500; }
+.ps-contact-link {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.ps-contact-socials {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--bb-line);
+}
+.ps-contact-socials strong {
+    display: block;
+    color: var(--bb-cocoa);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+.ps-socials {
+    display: flex; gap: 8px; flex-wrap: wrap;
+}
+.ps-socials a {
+    background: var(--bb-paper);
+    border: 1.5px solid var(--bb-line);
+    color: var(--bb-cocoa);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all .15s ease;
+}
+.ps-socials a:hover {
+    background: var(--bb-red);
+    border-color: var(--bb-red);
+    color: #fff;
+    text-decoration: none;
+}
+
+.ps-contact-map {
+    border-radius: var(--bb-radius);
+    overflow: hidden;
+    border: 1px solid var(--bb-line);
+    box-shadow: var(--bb-shadow);
+    background: var(--bb-cream-2);
+    min-height: 480px;
+    display: flex;
+}
+.ps-contact-map iframe { display: block; flex: 1; }
+.ps-contact-map-placeholder {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55), transparent 55%),
+        linear-gradient(135deg, var(--bb-amber-soft) 0%, var(--bb-red-soft) 100%);
+    color: rgba(255,255,255,0.95);
+    text-align: center;
+    padding: 40px;
+}
+.ps-contact-map-placeholder-inner p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.55;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.10);
+}
+
 /* =====================  Careers (work-with-us)  ===================== */
 .ps-careers-empty {
     text-align: center;

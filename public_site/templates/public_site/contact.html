@@ -1,0 +1,129 @@
+{% extends 'public_site/_base.html' %}
+
+{% block title %}Contact us — {{ settings.name|default:"Bean & Bite" }}{% endblock %}
+{% block description %}Visit, call, or message {{ settings.name|default:"Bean & Bite" }}.{% endblock %}
+
+{% block content %}
+<section class="ps-page-header">
+    <div class="ps-container">
+        <span class="ps-script">say hello</span>
+        <h1>Contact us</h1>
+        <p class="ps-muted">
+            Drop in, give us a call, or send a note — we&rsquo;d love to hear from you.
+        </p>
+    </div>
+</section>
+
+<section class="ps-section">
+    <div class="ps-container ps-contact-grid">
+        <aside class="ps-contact-card">
+            <h2>Visit &amp; reach us</h2>
+
+            {% if settings.address %}
+            <div class="ps-contact-row">
+                <div class="ps-contact-icon" aria-hidden="true">📍</div>
+                <div>
+                    <strong>Where</strong>
+                    <p>{{ settings.address|linebreaksbr }}</p>
+                    {% if settings.directions_url %}
+                        <a href="{{ settings.directions_url }}" target="_blank" rel="noopener" class="ps-contact-link">Get directions →</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if settings.phone %}
+            <div class="ps-contact-row">
+                <div class="ps-contact-icon" aria-hidden="true">☎</div>
+                <div>
+                    <strong>Phone</strong>
+                    <p><a href="tel:{{ settings.phone }}">{{ settings.phone }}</a></p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if settings.whatsapp_number %}
+            <div class="ps-contact-row">
+                <div class="ps-contact-icon" aria-hidden="true">💬</div>
+                <div>
+                    <strong>WhatsApp</strong>
+                    <p><a href="https://wa.me/{{ settings.whatsapp_number }}" target="_blank" rel="noopener">Chat with us on WhatsApp →</a></p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if settings.email %}
+            <div class="ps-contact-row">
+                <div class="ps-contact-icon" aria-hidden="true">✉</div>
+                <div>
+                    <strong>Email</strong>
+                    <p><a href="mailto:{{ settings.email }}">{{ settings.email }}</a></p>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="ps-contact-row">
+                <div class="ps-contact-icon" aria-hidden="true">🕐</div>
+                <div>
+                    <strong>Hours</strong>
+                    <p>
+                        Monday – Friday · 7am – 9pm<br>
+                        Saturday – Sunday · 8am – 10pm
+                    </p>
+                </div>
+            </div>
+
+            {% if settings.facebook_url or settings.instagram_url or settings.twitter_url %}
+            <div class="ps-contact-socials">
+                <strong>Follow us</strong>
+                <div class="ps-socials">
+                    {% if settings.instagram_url %}
+                        <a href="{{ settings.instagram_url }}" target="_blank" rel="noopener" aria-label="Instagram">Instagram</a>
+                    {% endif %}
+                    {% if settings.facebook_url %}
+                        <a href="{{ settings.facebook_url }}" target="_blank" rel="noopener" aria-label="Facebook">Facebook</a>
+                    {% endif %}
+                    {% if settings.twitter_url %}
+                        <a href="{{ settings.twitter_url }}" target="_blank" rel="noopener" aria-label="X / Twitter">X / Twitter</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </aside>
+
+        <div class="ps-contact-map">
+            {% if settings.map_embed_url %}
+                <iframe
+                    src="{{ settings.map_embed_url }}"
+                    title="Map to {{ settings.name|default:'Bean &amp; Bite' }}"
+                    width="100%" height="100%"
+                    style="border:0;"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    allowfullscreen></iframe>
+            {% else %}
+                <div class="ps-contact-map-placeholder">
+                    <div class="ps-contact-map-placeholder-inner">
+                        <div style="font-size:48px; line-height:1; margin-bottom:14px;">☕</div>
+                        <p>
+                            We&rsquo;ll add a map here soon.<br>
+                            In the meantime, just give us a call and we&rsquo;ll guide you in.
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="ps-cta-band">
+    <div class="ps-container ps-cta-band-inner">
+        <div>
+            <span class="ps-script">while you&rsquo;re here</span>
+            <h2>Have a look at the menu.</h2>
+            <p>Coffee, breakfast, lunch — see what we&rsquo;re serving today.</p>
+        </div>
+        <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-primary">View the menu →</a>
+    </div>
+</section>
+{% endblock %}

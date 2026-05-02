@@ -19,6 +19,12 @@ def home(request):
     })
 
 
+def contact(request):
+    return render(request, 'public_site/contact.html', {
+        'settings': _settings(),
+    })
+
+
 def menu(request):
     categories = (
         Category.objects

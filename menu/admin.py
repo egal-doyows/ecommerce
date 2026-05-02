@@ -4,7 +4,29 @@ from .models import RestaurantSettings, Category, InventoryItem, MenuItem, Recip
 
 @admin.register(RestaurantSettings)
 class RestaurantSettingsAdmin(admin.ModelAdmin):
-    list_display = ('name', 'tagline', 'phone')
+    list_display = ('name', 'tagline', 'phone', 'email')
+
+    fieldsets = (
+        ('Branding', {
+            'fields': ('name', 'tagline', 'logo'),
+        }),
+        ('Contact', {
+            'description': (
+                'Public contact details shown on the website (Contact page, footer). '
+                'Anything left blank is simply hidden — no broken UI.'
+            ),
+            'fields': (
+                'phone', 'whatsapp_number', 'email', 'website', 'address',
+                'map_embed_url', 'directions_url',
+            ),
+        }),
+        ('Social', {
+            'fields': ('facebook_url', 'instagram_url', 'twitter_url'),
+        }),
+        ('Operational', {
+            'fields': ('currency', 'default_markup_percent'),
+        }),
+    )
 
     def has_add_permission(self, request):
         # Only allow one instance
