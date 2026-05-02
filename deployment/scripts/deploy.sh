@@ -9,6 +9,16 @@ VENV_DIR=$APP_DIR/.venv
 
 cd "$APP_DIR"
 
+# manage.py reads os.environ directly (no dotenv loader). The systemd units
+# pull env from .env via EnvironmentFile=, but bare `manage.py` invocations
+# below don't, so source it here too. Required: DJANGO_SECRET_KEY, DATABASE_URL.
+if [ -f "$APP_DIR/.env" ]; then
+    set -a; . "$APP_DIR/.env"; set +a
+else
+    echo "ERROR: $APP_DIR/.env is missing — required for migrate/collectstatic." >&2
+    exit 1
+fi
+
 echo "==> Ensuring runtime dirs exist..."
 mkdir -p logs run media staticfiles
 
