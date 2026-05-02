@@ -2,65 +2,176 @@
 
 {% block content %}
 <section class="ps-hero">
-    <div class="ps-container ps-hero-inner">
-        <span class="ps-hero-eyebrow">Coffee · Kitchen · Community</span>
-        <h1>
-            {% if settings.name %}{{ settings.name }}{% else %}Bean <em>&amp;</em> Bite{% endif %}
-        </h1>
-        <p class="ps-hero-tagline">
-            {{ settings.tagline|default:"Slow-roasted coffee, hearty plates, and the kind of welcome that makes a place feel like home." }}
-        </p>
-        <div class="ps-hero-cta">
-            <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-primary">View our menu →</a>
-            {% if settings.phone %}
-                <a href="tel:{{ settings.phone }}" class="ps-btn ps-btn-outline">Call {{ settings.phone }}</a>
-            {% endif %}
+    <div class="ps-container ps-hero-grid">
+        <div>
+            <span class="ps-hero-eyebrow">Freshly brewed daily</span>
+            <h1>
+                Coffee, <em>slowed</em><br>
+                down.
+            </h1>
+            <p class="ps-hero-tagline">
+                {{ settings.tagline|default:"Single-origin beans, made-to-order plates, and the kind of unhurried mornings you make excuses to come back for." }}
+            </p>
+            <div class="ps-hero-cta">
+                <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-primary">See today&rsquo;s menu →</a>
+                {% if settings.phone %}
+                    <a href="tel:{{ settings.phone }}" class="ps-btn ps-btn-outline">Call {{ settings.phone }}</a>
+                {% endif %}
+            </div>
+            <div class="ps-hero-meta">
+                <div>
+                    <strong>7am</strong>
+                    <span>opens weekdays</span>
+                </div>
+                <div>
+                    <strong>Single origin</strong>
+                    <span>roasted weekly</span>
+                </div>
+                <div>
+                    <strong>Walk-ins</strong>
+                    <span>always welcome</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ps-hero-art" aria-hidden="true">
+            <div class="ps-hero-art-disc"></div>
+            <svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+                <!-- Steam wisps -->
+                <g fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.85">
+                    <path class="ps-steam-1" d="M85 60 q-8 -16 0 -28 q8 -12 0 -22"/>
+                    <path class="ps-steam-2" d="M110 60 q-10 -18 0 -32 q10 -14 0 -24"/>
+                    <path class="ps-steam-3" d="M135 60 q-8 -16 0 -28 q8 -12 0 -22"/>
+                </g>
+                <!-- Saucer -->
+                <ellipse cx="110" cy="190" rx="92" ry="14" fill="#2B1810" opacity="0.30"/>
+                <ellipse cx="110" cy="186" rx="86" ry="12" fill="#FFFFFF"/>
+                <ellipse cx="110" cy="184" rx="68" ry="8"  fill="#F4E8D2"/>
+                <!-- Mug body -->
+                <path d="M50 78 h120 v74 a36 36 0 0 1 -36 36 h-48 a36 36 0 0 1 -36 -36 z" fill="#FFFFFF"/>
+                <path d="M50 78 h120 v10 h-120 z" fill="#F4E8D2"/>
+                <!-- Coffee inside -->
+                <ellipse cx="110" cy="84" rx="56" ry="9" fill="#4A2A1A"/>
+                <ellipse cx="110" cy="82" rx="56" ry="7" fill="#6B3D24"/>
+                <!-- Crema highlight -->
+                <ellipse cx="92" cy="82" rx="14" ry="3" fill="#F8E4C0" opacity="0.6"/>
+                <!-- Handle -->
+                <path d="M170 100 q34 8 34 32 q0 24 -34 32" fill="none" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/>
+                <path d="M170 110 q22 6 22 22 q0 16 -22 22" fill="none" stroke="#F4E8D2" stroke-width="6" stroke-linecap="round"/>
+            </svg>
+            <span class="ps-hero-tag-pill ps-hero-tag-1">
+                <span class="ps-script">est.</span> 2024
+            </span>
+            <span class="ps-hero-tag-pill ps-hero-tag-2">
+                <span class="ps-script">today&rsquo;s</span> single origin
+            </span>
         </div>
     </div>
 </section>
 
+<!-- ============== From bean to cup ============== -->
+<section class="ps-ritual">
+    <div class="ps-container">
+        <div class="ps-section-head">
+            <span class="ps-script">our craft</span>
+            <h2>From bean to cup</h2>
+            <p>Three steps. A small obsession with each one.</p>
+        </div>
+        <div class="ps-ritual-grid">
+            <div class="ps-ritual-step">
+                <div class="ps-ritual-step-num">01</div>
+                <div class="ps-ritual-step-icon">
+                    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <ellipse cx="24" cy="24" rx="11" ry="17" transform="rotate(-25 24 24)"/>
+                        <path d="M24 7 q-3 17 0 34"/>
+                    </svg>
+                </div>
+                <h3>Sourced with care</h3>
+                <p>Single-origin beans from growers we know by name. Roasted weekly so what&rsquo;s in your cup is never weeks-old stock.</p>
+            </div>
+            <div class="ps-ritual-step">
+                <div class="ps-ritual-step-num">02</div>
+                <div class="ps-ritual-step-icon">
+                    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="12" y="6"  width="24" height="10" rx="2"/>
+                        <rect x="14" y="16" width="20" height="22" rx="2"/>
+                        <circle cx="24" cy="27" r="5"/>
+                        <path d="M16 38 v4 h16 v-4"/>
+                    </svg>
+                </div>
+                <h3>Ground to order</h3>
+                <p>Every shot, every pour-over, ground seconds before brewing. Dialed in for the day&rsquo;s humidity and the bean&rsquo;s mood.</p>
+            </div>
+            <div class="ps-ritual-step">
+                <div class="ps-ritual-step-num">03</div>
+                <div class="ps-ritual-step-icon">
+                    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 18 h22 v12 a8 8 0 0 1 -8 8 h-6 a8 8 0 0 1 -8 -8 z"/>
+                        <path d="M32 22 q6 1 6 6 q0 5 -6 6"/>
+                        <path d="M16 12 q-1 -3 1 -6"/>
+                        <path d="M22 12 q-1 -3 1 -6"/>
+                        <path d="M28 12 q-1 -3 1 -6"/>
+                    </svg>
+                </div>
+                <h3>Served unhurried</h3>
+                <p>No buzzers, no shouting names. Just a warm cup brought to your table by someone who&rsquo;s glad you&rsquo;re here.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============== Signature brews ============== -->
 <section class="ps-section">
     <div class="ps-container">
         <div class="ps-section-head">
-            <h2>What we&rsquo;re about</h2>
-            <p>Three small promises we keep, every single morning.</p>
+            <span class="ps-script">what we&rsquo;re known for</span>
+            <h2>Signature brews</h2>
+            <p>Pick your morning. Or come twice and try two.</p>
         </div>
-        <div class="ps-highlights">
-            <div class="ps-highlight">
-                <div class="ps-highlight-icon">☕</div>
-                <h3>Brewed with care</h3>
-                <p>Single-origin beans, dialed-in shots, and baristas who actually know your name by visit two.</p>
+        <div class="ps-brews-grid">
+            <div class="ps-brew-card">
+                <span class="ps-brew-emoji">☕</span>
+                <span class="ps-script">smooth &amp; bold</span>
+                <h3>The Bean House</h3>
+                <p>Our signature espresso blend — chocolatey, balanced, and built for milk drinks or straight up.</p>
             </div>
-            <div class="ps-highlight">
-                <div class="ps-highlight-icon">🍳</div>
-                <h3>Kitchen-led menu</h3>
-                <p>Made-to-order plates from a small, seasonal menu — no warming lamps, no shortcuts.</p>
+            <div class="ps-brew-card">
+                <span class="ps-brew-emoji">🥛</span>
+                <span class="ps-script">silky comfort</span>
+                <h3>Honey Oat Latte</h3>
+                <p>Double shot, steamed oat milk, a drizzle of local honey. The drink we hand most regulars on rainy days.</p>
             </div>
-            <div class="ps-highlight">
-                <div class="ps-highlight-icon">✦</div>
-                <h3>A place to linger</h3>
-                <p>Wi-Fi, slow afternoons, big tables for friends. Stay as long as the cup is warm.</p>
+            <div class="ps-brew-card">
+                <span class="ps-brew-emoji">✦</span>
+                <span class="ps-script">bright &amp; clean</span>
+                <h3>Pour-Over of the Day</h3>
+                <p>Whatever&rsquo;s freshest from this week&rsquo;s roast — brewed slow, one cup at a time. Ask the bar.</p>
             </div>
+        </div>
+        <div style="text-align:center; margin-top: 40px;">
+            <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-outline">Browse the full menu →</a>
         </div>
     </div>
 </section>
 
-<section class="ps-section" style="padding-top: 24px;">
+<!-- ============== Welcome / Visit ============== -->
+<section class="ps-section" style="padding-top: 0;">
     <div class="ps-container ps-grid-2">
         <div>
-            <h2>Welcome to the table.</h2>
+            <span class="ps-script">come in</span>
+            <h2>A place to linger.</h2>
             <p>
-                Step in for fresh-brewed coffee, hearty meals, and the kind of
-                hospitality that makes a place feel like home. Whether you&rsquo;re
-                grabbing a quick bite before work or settling in for the afternoon,
-                we&rsquo;re glad you&rsquo;re here.
+                Some places are for grabbing and going. We built this one for staying.
+                Big tables for friends, quiet corners for the laptop, and free refills
+                of the filter brew until you&rsquo;re ready to leave.
             </p>
             <p>
-                Our menu changes with the seasons and with what&rsquo;s fresh at the market —
-                see what we&rsquo;re serving today.
+                The kitchen runs all day — proper breakfasts, sandwiches that take
+                a few minutes because they&rsquo;re made when you order, and a small
+                seasonal menu we&rsquo;re quietly proud of.
             </p>
             <p style="margin-top: 28px;">
-                <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-outline">Browse the menu →</a>
+                <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-amber">See what&rsquo;s on today →</a>
             </p>
         </div>
         <aside class="ps-info-card">
@@ -82,11 +193,13 @@
     </div>
 </section>
 
+<!-- ============== CTA ============== -->
 <section class="ps-cta-band">
     <div class="ps-container ps-cta-band-inner">
         <div>
-            <h2>Hungry yet?</h2>
-            <p>See today&rsquo;s menu — coffee, breakfast, lunch and the things we&rsquo;re proud of.</p>
+            <span class="ps-script">hungry yet?</span>
+            <h2>Today&rsquo;s menu is waiting.</h2>
+            <p>Coffee, breakfast, lunch, and the things we&rsquo;re proud of.</p>
         </div>
         <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-primary">View the menu →</a>
     </div>
