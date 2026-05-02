@@ -100,7 +100,7 @@ def _get_post_login_redirect(request):
 
     # Superusers → Django admin
     if user.is_superuser:
-        return redirect('/admin/')
+        return redirect('/restpos/admin/')
     # Manager → auto-shift + admin dashboard
     if user.groups.filter(name='Manager').exists():
         _ensure_login_shift(user)
