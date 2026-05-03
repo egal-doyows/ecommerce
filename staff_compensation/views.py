@@ -16,15 +16,15 @@ def _can_manage_compensation(user):
 
 
 def _get_commission_staff():
-    """Return queryset of users in groups that earn commission (Front Service + Attendant + Marketing)."""
+    """Return queryset of users in groups that earn commission (Server + Attendant + Promoter)."""
     return User.objects.filter(
-        groups__name__in=['Front Service', 'Attendant', 'Marketing'], is_active=True,
+        groups__name__in=['Server', 'Attendant', 'Promoter'], is_active=True,
     ).select_related('compensation').prefetch_related('groups')
 
 
 @login_required(login_url='my-login')
 def compensation_overview(request):
-    """Manager view: list commission-earning staff (Front Service, Attendants & Marketing) this month."""
+    """Manager view: list commission-earning staff (Servers, Attendants & Promoters) this month."""
     if not _can_manage_compensation(request.user):
         return redirect('dashboard')
 

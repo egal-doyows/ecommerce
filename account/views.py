@@ -101,19 +101,19 @@ def _get_post_login_redirect(request):
     # Superusers → Django admin
     if user.is_superuser:
         return redirect('/restpos/admin/')
-    # Manager → auto-shift + admin dashboard
-    if user.groups.filter(name='Manager').exists():
+    # Owner / Manager → auto-shift + admin dashboard
+    if user.groups.filter(name__in=['Owner', 'Manager']).exists():
         _ensure_login_shift(user)
         return redirect('admin-dashboard')
     # Supervisors → auto-shift + POS
     if user.groups.filter(name='Supervisor').exists():
         _ensure_login_shift(user)
         return redirect('pos')
-    # Marketing → auto-shift + POS
-    if user.groups.filter(name='Marketing').exists():
+    # Promoters → auto-shift + POS
+    if user.groups.filter(name='Promoter').exists():
         _ensure_login_shift(user)
         return redirect('pos')
-    # Front Service / Cashiers / others → shift or POS
+    # Servers / Cashiers / Kitchen / others → shift or POS
     if Shift.objects.filter(waiter=user, is_active=True).exists():
         return redirect('pos')
     return redirect('shift')

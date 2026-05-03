@@ -29,30 +29,33 @@ def _is_supervisor(user):
     return user.groups.filter(name='Supervisor').exists()
 
 
-def _is_marketing(user):
-    """Return True if user is in the Marketing group."""
-    return user.groups.filter(name='Marketing').exists()
+def _is_promoter(user):
+    """Return True if user is in the Promoter group (was 'Marketing' pre-2026)."""
+    return user.groups.filter(name='Promoter').exists()
 
 
 def _is_manager_or_above(user):
-    """Return True if user is superuser, Manager, or Supervisor."""
+    """Return True if user is superuser, Owner, Manager, or Supervisor."""
     if user.is_superuser:
         return True
-    return user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
+    return user.groups.filter(name__in=['Owner', 'Manager', 'Supervisor']).exists()
 
 
 def _must_select_attendant(user):
     """Return True if user must select an attendant when creating orders."""
     if user.is_superuser:
         return True
-    return user.groups.filter(name__in=['Manager', 'Supervisor', 'Marketing']).exists()
+    return user.groups.filter(name__in=['Owner', 'Manager', 'Supervisor', 'Promoter']).exists()
 
 
 def _is_auto_shift_user(user):
-    """Superusers, Managers, Supervisors, and Marketing get auto-created shifts (no starting cash)."""
+    """Superusers, Owners, Managers, Supervisors, and Promoters get auto-created shifts (no starting cash).
+
+    Servers and Cashiers must clock in manually.
+    """
     if _is_manager_or_above(user):
         return True
-    return _is_marketing(user)
+    return _is_promoter(user)
 
 
 def _ensure_shift(user):
@@ -64,7 +67,7 @@ def _ensure_shift(user):
 def shift_required(view_func):
     """Redirect to shift page if user has no active shift.
     Superusers and Managers get an auto-created shift (no starting cash).
-    Front Service and Cashiers must clock in manually.
+    Servers and Cashiers must clock in manually.
     """
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
@@ -152,7 +155,7 @@ def place_order(request):
 
         # Determine who gets credit for the order (commission).
         # Managers, Supervisors, Superusers, and Marketing must select an attendant.
-        # Marketing users are tracked as created_by and also earn commission.
+        # Promoter users are tracked as created_by and also earn commission.
         order_waiter = request.user
         order_created_by = None
         if _must_select_attendant(request.user):
@@ -162,8 +165,8 @@ def place_order(request):
             order_waiter = get_object_or_404(
                 User, id=attendant_id, groups__name='Attendant', is_active=True,
             )
-            # Marketing staff earn commission on orders they create
-            if _is_marketing(request.user):
+            # Promoters earn commission on orders they create
+            if _is_promoter(request.user):
                 order_created_by = request.user
 
         active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()

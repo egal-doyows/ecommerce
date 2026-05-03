@@ -161,8 +161,8 @@ def staff_create(request):
                         'commission_rate_premium': 0,
                     },
                 )
-            elif role.name == 'Marketing':
-                # Marketing can login and earns commission on orders they create
+            elif role.name == 'Promoter':
+                # Promoters can login and earn commission on orders they create
                 WaiterCode.objects.create(
                     user=user,
                     code=WaiterCode.generate_code(),

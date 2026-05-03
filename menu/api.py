@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from .models import Category, MenuItem, Table, Order, OrderItem, Shift
 from .views import (
-    _must_select_attendant, _is_supervisor, _is_marketing,
+    _must_select_attendant, _is_supervisor, _is_promoter,
     _is_auto_shift_user, _ensure_shift, _is_manager_or_above,
 )
 from .models import _InsufficientStock
@@ -118,7 +118,7 @@ def api_place_order(request):
         order_waiter = get_object_or_404(
             User, id=attendant_id, groups__name='Attendant', is_active=True,
         )
-        if _is_marketing(request.user):
+        if _is_promoter(request.user):
             order_created_by = request.user
 
     cart_items = []

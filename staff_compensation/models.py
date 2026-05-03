@@ -77,8 +77,8 @@ class StaffCompensation(models.Model):
 
     def _get_orders(self, start_date=None, end_date=None):
         """Return paid orders this user earns commission on.
-        - Attendant/Front Service: orders where they are the waiter.
-        - Marketing: orders where they are the created_by.
+        - Attendant / Server: orders where they are the waiter.
+        - Promoter: orders where they are the created_by.
         """
         from django.db.models import Q
         from menu.models import Order
