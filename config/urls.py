@@ -15,6 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap
 from django.db import connection
 from django.http import JsonResponse
 from django.urls import path, include
@@ -24,6 +25,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from menu.views import service_worker_view
+from public_site.sitemaps import sitemaps as public_sitemaps
 
 
 @never_cache
@@ -40,6 +42,9 @@ urlpatterns = [
     # Public marketing site lives at the root.
     path('', include('public_site.urls')),
     path('work-with-us/', include('careers.urls')),
+
+    # SEO endpoints (sitemap.xml; robots.txt + site.webmanifest are in public_site.urls).
+    path('sitemap.xml', sitemap, {'sitemaps': public_sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
 
     # Health check stays at the root so nginx / uptime monitors don't need
     # to know about the app prefix.

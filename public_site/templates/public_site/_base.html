@@ -4,9 +4,38 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#B83E1E">
+
+    {# ─────  Title + description  ───── #}
     <title>{% block title %}{{ settings.name|default:"Bean & Bite" }} — Coffee, food & a place to belong{% endblock %}</title>
     <meta name="description" content="{% block description %}{{ settings.tagline|default:"Fresh-brewed coffee, hearty meals, and warm hospitality." }}{% endblock %}">
-    <link rel="icon" type="image/png" href="{% static 'public_site/img/logo.png' %}">
+
+    {# ─────  Favicon set  ───── #}
+    <link rel="icon" href="{% static 'public_site/img/favicon.ico' %}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'public_site/img/icon-32.png' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'public_site/img/icon-192.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'public_site/img/apple-touch-icon.png' %}">
+    <link rel="manifest" href="{% url 'public-webmanifest' %}">
+
+    {# ─────  Open Graph (Facebook, WhatsApp, LinkedIn, etc.)  ───── #}
+    {# Pages can override og_title / og_description for richer per-page sharing. #}
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:site_name" content="{{ settings.name|default:'Bean & Bite' }}">
+    <meta property="og:title" content="{% block og_title %}{{ settings.name|default:'Bean & Bite' }} — Coffee, food & a place to belong{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ settings.tagline|default:'Fresh-brewed coffee, hearty meals, and warm hospitality.' }}{% endblock %}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ settings.name|default:'Bean & Bite' }} logo">
+    <meta property="og:locale" content="en_KE">
+
+    {# ─────  Twitter / X Card (mirrors og_*; override both if customizing per-page)  ───── #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ settings.name|default:'Bean & Bite' }} — Coffee, food & a place to belong{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ settings.tagline|default:'Fresh-brewed coffee, hearty meals, and warm hospitality.' }}{% endblock %}">
+    <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}">
+
+    {# ─────  Stylesheet  ───── #}
     <link rel="stylesheet" href="{% static 'public_site/css/public.css' %}">
 </head>
 <body>

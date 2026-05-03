@@ -1011,6 +1011,36 @@ h1, h2, h3 {
     margin-bottom: 2px;
 }
 
+/* =====================  Error pages (404 / 500)  ===================== */
+.ps-error-page {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 32px 24px;
+}
+.ps-error-page .ps-script {
+    display: block;
+    color: var(--bb-amber-deep);
+    font-size: 80px;
+    line-height: 1;
+    margin-bottom: 12px;
+}
+.ps-error-page h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    margin: 0 0 18px;
+}
+.ps-error-page p {
+    color: var(--bb-cocoa);
+    font-size: 17px;
+    margin: 0 0 32px;
+}
+.ps-error-actions {
+    display: inline-flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
 /* =====================  Footer  ===================== */
 .ps-footer {
     background: var(--bb-espresso);

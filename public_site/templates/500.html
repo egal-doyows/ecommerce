@@ -1,0 +1,46 @@
+{# Deliberately stand-alone (no extends): if the 500 came from a
+   broken context processor or settings, _base.html could fail too. #}
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#B83E1E">
+    <title>Something went wrong — Bean &amp; Bite</title>
+    <link rel="icon" href="{% static 'public_site/img/favicon.ico' %}" sizes="any">
+    <link rel="stylesheet" href="{% static 'public_site/css/public.css' %}">
+</head>
+<body>
+<header class="ps-header">
+    <div class="ps-container ps-header-inner">
+        <a href="/" class="ps-brand" aria-label="Bean &amp; Bite home">
+            <img src="{% static 'public_site/img/logo.png' %}" alt="Bean &amp; Bite" class="ps-brand-logo">
+        </a>
+    </div>
+</header>
+
+<main>
+<section class="ps-section" style="padding: 96px 0 64px;">
+    <div class="ps-container ps-error-page">
+        <span class="ps-script">500</span>
+        <h1>Something brewed up wrong.</h1>
+        <p>
+            Sorry — we hit an unexpected error. Our team has been notified and
+            we&rsquo;re looking into it. Try reloading in a minute, or head back home.
+        </p>
+        <div class="ps-error-actions">
+            <a href="/" class="ps-btn ps-btn-primary">Back home</a>
+        </div>
+    </div>
+</section>
+</main>
+
+<footer class="ps-footer">
+    <div class="ps-container">
+        <div class="ps-footer-bar">
+            <div>&copy; Bean &amp; Bite. All rights reserved.</div>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

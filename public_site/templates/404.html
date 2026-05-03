@@ -1,0 +1,21 @@
+{% extends 'public_site/_base.html' %}
+
+{% block title %}Page not found — {{ settings.name|default:"Bean & Bite" }}{% endblock %}
+
+{% block content %}
+<section class="ps-section" style="padding: 96px 0 64px;">
+    <div class="ps-container ps-error-page">
+        <span class="ps-script">404</span>
+        <h1>This page wandered off.</h1>
+        <p>
+            We couldn&rsquo;t find what you were looking for. It might have moved,
+            or perhaps the link was a bit off. No harm done — pick a fresh
+            direction below.
+        </p>
+        <div class="ps-error-actions">
+            <a href="{% url 'public-home' %}" class="ps-btn ps-btn-primary">Back home</a>
+            <a href="{% url 'public-menu' %}" class="ps-btn ps-btn-outline">See the menu</a>
+        </div>
+    </div>
+</section>
+{% endblock %}
