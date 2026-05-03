@@ -27,7 +27,7 @@
 
 <!-- Profile Header -->
 <div class="adm-card" style="margin-bottom:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
-    <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--adm-accent),#6366f1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:700;flex-shrink:0;">
+    <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--adm-accent),#8E2C12);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:700;flex-shrink:0;">
         {{ emp.user.first_name|first|upper }}{{ emp.user.last_name|first|upper }}
     </div>
     <div style="flex:1;min-width:200px;">
@@ -76,7 +76,7 @@
 <!-- Info Grid -->
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
     <div class="adm-stat">
-        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+        <div class="adm-stat-icon" style="background:rgba(184, 62, 30,.1);color:var(--adm-accent);">
             <i class="fa-solid fa-phone"></i>
         </div>
         <div>
@@ -85,7 +85,7 @@
         </div>
     </div>
     <div class="adm-stat">
-        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+        <div class="adm-stat-icon" style="background:rgba(184, 62, 30,.1);color:var(--adm-accent);">
             <i class="fa-solid fa-envelope"></i>
         </div>
         <div>
@@ -94,7 +94,7 @@
         </div>
     </div>
     <div class="adm-stat">
-        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+        <div class="adm-stat-icon" style="background:rgba(184, 62, 30,.1);color:var(--adm-accent);">
             <i class="fa-solid fa-calendar-check"></i>
         </div>
         <div>
@@ -103,7 +103,7 @@
         </div>
     </div>
     <div class="adm-stat">
-        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">
+        <div class="adm-stat-icon" style="background:rgba(184, 62, 30,.1);color:var(--adm-accent);">
             <i class="fa-solid fa-clock-rotate-left"></i>
         </div>
         <div>
@@ -450,7 +450,7 @@
         <h3 style="font-size:16px;font-weight:700;margin:0 0 16px;display:flex;align-items:center;gap:8px;">
             <i class="fa-solid fa-right-left" style="color:var(--adm-accent);"></i> Transfer Employee
         </h3>
-        <div style="padding:10px 14px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.12);border-radius:8px;margin-bottom:16px;font-size:12px;">
+        <div style="padding:10px 14px;background:rgba(184, 62, 30,.05);border:1px solid rgba(184, 62, 30,.12);border-radius:8px;margin-bottom:16px;font-size:12px;">
             <strong>{{ emp.full_name }}</strong>
             <span style="color:var(--adm-muted);margin:0 4px;">|</span>
             Current: <strong>{{ emp.department.name|default:"No department" }}</strong>

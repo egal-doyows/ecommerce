@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#1b1f3b">
+    <meta name="theme-color" content="#2A1A10">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="{{ restaurant.name }}">
@@ -20,11 +20,12 @@
             theme: {
                 extend: {
                     colors: {
-                        'pos-dark': '#1b1f3b',
-                        'pos-navy': '#161938',
-                        'pos-blue': '#0f3460',
-                        'pos-accent': '#7c83ff',
-                        'pos-light': '#f0f2f5',
+                        // Bean & Bite brand — must mirror :root in styles.css
+                        'pos-dark':   '#2A1A10',  // espresso
+                        'pos-navy':   '#3D2418',  // cocoa-dark
+                        'pos-blue':   '#8E2C12',  // red-deep
+                        'pos-accent': '#B83E1E',  // brick red — primary CTA
+                        'pos-light':  '#FBF4E8',  // cream
                     }
                 }
             }
@@ -72,7 +73,7 @@
                 </a>
                 <a href="{% url 'cart-summary' %}" class="tw-relative tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'cart-summary' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
                     <i class="fa-solid fa-plate-wheat tw-text-xs"></i> Tray
-                    <span id="cart-qty" class="tw-inline-flex tw-items-center tw-justify-center tw-min-w-[20px] tw-h-5 tw-px-1.5 tw-rounded-full tw-bg-rose-500 tw-text-white tw-text-[11px] tw-font-bold tw-leading-none">{% with qty=cart|length %}{{ qty }}{% endwith %}</span>
+                    <span id="cart-qty" class="tw-inline-flex tw-items-center tw-justify-center tw-min-w-[20px] tw-h-5 tw-px-1.5 tw-rounded-full tw-bg-pos-accent tw-text-white tw-text-[11px] tw-font-bold tw-leading-none">{% with qty=cart|length %}{{ qty }}{% endwith %}</span>
                 </a>
                 {% if is_manager or is_supervisor %}
                 <a href="{% url 'admin-dashboard' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'admin-dashboard' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
@@ -90,7 +91,7 @@
                         {% if user.waiter_code.photo %}
                         <img src="{{ user.waiter_code.photo.url }}" alt="" class="tw-w-8 tw-h-8 tw-rounded-full tw-object-cover tw-shadow-sm">
                         {% else %}
-                        <div class="tw-w-8 tw-h-8 tw-rounded-full tw-bg-gradient-to-br tw-from-pos-accent tw-to-indigo-500 tw-flex tw-items-center tw-justify-center tw-text-white tw-text-xs tw-font-bold tw-shadow-sm">
+                        <div class="tw-w-8 tw-h-8 tw-rounded-full tw-bg-gradient-to-br tw-from-pos-accent tw-to-pos-blue tw-flex tw-items-center tw-justify-center tw-text-white tw-text-xs tw-font-bold tw-shadow-sm">
                             {{ user.username|first|upper }}
                         </div>
                         {% endif %}

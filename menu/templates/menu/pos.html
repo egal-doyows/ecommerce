@@ -55,8 +55,8 @@
     }
 
     .pos-search input:focus {
-        border-color: #7c83ff;
-        box-shadow: 0 0 0 3px rgba(124,131,255,0.1);
+        border-color: #B83E1E;
+        box-shadow: 0 0 0 3px rgba(184, 62, 30,0.1);
     }
 
     .pos-search input::placeholder { color: #b0b8c1; }
@@ -85,11 +85,11 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
 
-    .pos-cat-btn:hover { color: var(--pos-text); box-shadow: 0 2px 8px rgba(0,0,0,0.08); background: #f0f1ff; }
+    .pos-cat-btn:hover { color: var(--pos-text); box-shadow: 0 2px 8px rgba(0,0,0,0.08); background: #FFF8EA; }
     .pos-cat-btn.active {
-        background: linear-gradient(135deg, #7c83ff 0%, #6366f1 100%);
+        background: linear-gradient(135deg, #B83E1E 0%, #8E2C12 100%);
         color: #fff;
-        box-shadow: 0 3px 12px rgba(124,131,255,0.35);
+        box-shadow: 0 3px 12px rgba(184, 62, 30,0.35);
     }
 
     .pos-cat-btn i { margin-right: 4px; font-size: 12px; }
@@ -104,16 +104,16 @@
     .pos-sections::-webkit-scrollbar { width: 10px; }
     .pos-sections::-webkit-scrollbar-track { background: transparent; }
     .pos-sections::-webkit-scrollbar-thumb {
-        background: rgba(27, 31, 59, 0.18);
+        background: rgba(42, 26, 16, 0.18);
         border-radius: 6px;
         border: 2px solid transparent;
         background-clip: padding-box;
     }
     .pos-sections::-webkit-scrollbar-thumb:hover {
-        background: rgba(27, 31, 59, 0.32);
+        background: rgba(42, 26, 16, 0.32);
         background-clip: padding-box;
     }
-    .pos-sections { scrollbar-color: rgba(27, 31, 59, 0.25) transparent; scrollbar-width: thin; }
+    .pos-sections { scrollbar-color: rgba(42, 26, 16, 0.25) transparent; scrollbar-width: thin; }
 
     .pos-cat-section { margin-bottom: 28px; }
     .pos-cat-section[hidden] { display: none; }
@@ -174,14 +174,14 @@
 
     .pos-item-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(99,102,241,0.15);
-        border-color: #7c83ff;
+        box-shadow: 0 8px 24px rgba(184, 62, 30,0.15);
+        border-color: #B83E1E;
     }
 
     .pos-item-card.adding {
         transform: scale(0.95);
-        border-color: #7c83ff;
-        box-shadow: 0 0 0 3px rgba(124,131,255,0.2);
+        border-color: #B83E1E;
+        box-shadow: 0 0 0 3px rgba(184, 62, 30,0.2);
     }
 
     .pos-item-card.unavailable {
@@ -221,8 +221,8 @@
         position: absolute;
         top: 8px;
         right: 8px;
-        background: rgba(27,31,59,0.75);
-        color: #c0c4e0;
+        background: rgba(42, 26, 16,0.75);
+        color: #F4C27A;
         font-size: 10px;
         font-weight: 600;
         padding: 3px 8px;
@@ -253,7 +253,7 @@
     .pos-item-price {
         font-size: 15px;
         font-weight: 800;
-        color: #6366f1;
+        color: #8E2C12;
     }
 
     .pos-item-time {
@@ -286,7 +286,7 @@
     /* ---- Right: Order Panel ---- */
     .pos-order-panel {
         width: 360px;
-        background: #1b1f3b;
+        background: #2A1A10;
         border-left: none;
         display: flex;
         flex-direction: column;
@@ -313,14 +313,14 @@
 
     .pos-order-header h3 i {
         font-size: 15px;
-        color: #7c83ff;
+        color: #B83E1E;
     }
 
     .pos-order-count {
         font-size: 12px;
         font-weight: 700;
         color: #fff;
-        background: #7c83ff;
+        background: #B83E1E;
         padding: 3px 12px;
         border-radius: 12px;
     }
@@ -359,7 +359,7 @@
         border: 1.5px solid rgba(255,255,255,0.15);
         border-radius: 6px;
         background: rgba(255,255,255,0.06);
-        color: #c0c4e0;
+        color: #F4C27A;
         font-size: 13px;
         font-weight: 700;
         cursor: pointer;
@@ -371,9 +371,9 @@
     }
 
     .pos-qty-btn:hover {
-        border-color: #7c83ff;
-        color: #7c83ff;
-        background: rgba(124,131,255,0.12);
+        border-color: #B83E1E;
+        color: #B83E1E;
+        background: rgba(184, 62, 30,0.12);
     }
 
     .pos-qty-value {
@@ -401,7 +401,7 @@
     .pos-order-item-price {
         font-size: 13px;
         font-weight: 700;
-        color: #7c83ff;
+        color: #B83E1E;
         flex-shrink: 0;
         white-space: nowrap;
     }
@@ -447,7 +447,7 @@
     .pos-order-footer {
         border-top: 1px solid rgba(255,255,255,0.06);
         padding: 18px 22px;
-        background: #161938;
+        background: #3D2418;
     }
 
     .pos-table-select {
@@ -481,11 +481,11 @@
     }
 
     .pos-table-select select:focus {
-        border-color: #7c83ff;
+        border-color: #B83E1E;
     }
 
     .pos-table-select select option {
-        background: #1b1f3b;
+        background: #2A1A10;
         color: #e8e9f3;
     }
 
@@ -504,7 +504,7 @@
         background: rgba(255,255,255,0.05);
     }
 
-    .pos-notes-input:focus { border-color: #7c83ff; }
+    .pos-notes-input:focus { border-color: #B83E1E; }
     .pos-notes-input::placeholder { color: #52567a; }
 
     .pos-order-summary {
@@ -528,7 +528,7 @@
     }
 
     .pos-summary-label { font-size: 13px; color: #7a7f9e; font-weight: 500; }
-    .pos-summary-value { font-size: 13px; color: #c0c4e0; font-weight: 600; }
+    .pos-summary-value { font-size: 13px; color: #F4C27A; font-weight: 600; }
 
     .pos-summary-row.total .pos-summary-label {
         font-size: 14px;
@@ -539,7 +539,7 @@
     .pos-summary-row.total .pos-summary-value {
         font-size: 22px;
         font-weight: 800;
-        color: #7c83ff;
+        color: #B83E1E;
     }
 
     .pos-btn-group {
@@ -550,7 +550,7 @@
     .pos-place-btn {
         flex: 1;
         padding: 14px 20px;
-        background: linear-gradient(135deg, #7c83ff 0%, #6366f1 100%);
+        background: linear-gradient(135deg, #B83E1E 0%, #8E2C12 100%);
         color: #fff;
         border: none;
         border-radius: 14px;
@@ -563,18 +563,18 @@
         justify-content: center;
         gap: 10px;
         letter-spacing: 0.3px;
-        box-shadow: 0 4px 15px rgba(124,131,255,0.25);
+        box-shadow: 0 4px 15px rgba(184, 62, 30,0.25);
     }
 
     .pos-place-btn:hover {
         background: linear-gradient(135deg, #8b91ff 0%, #7c7dff 100%);
-        box-shadow: 0 6px 25px rgba(124,131,255,0.4);
+        box-shadow: 0 6px 25px rgba(184, 62, 30,0.4);
         transform: translateY(-2px);
     }
 
     .pos-place-btn:active {
         transform: translateY(0);
-        box-shadow: 0 2px 10px rgba(124,131,255,0.3);
+        box-shadow: 0 2px 10px rgba(184, 62, 30,0.3);
     }
 
     .pos-place-btn:disabled {
@@ -612,7 +612,7 @@
         bottom: 30px;
         left: 50%;
         transform: translateX(-50%) translateY(80px);
-        background: #1b1f3b;
+        background: #2A1A10;
         color: #e8e9f3;
         padding: 12px 24px;
         border-radius: 12px;
@@ -625,8 +625,8 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        box-shadow: 0 8px 30px rgba(27,31,59,0.4);
-        border: 1px solid rgba(124,131,255,0.2);
+        box-shadow: 0 8px 30px rgba(42, 26, 16,0.4);
+        border: 1px solid rgba(184, 62, 30,0.2);
     }
 
     .pos-toast.show {
@@ -654,7 +654,7 @@
     }
 
     .pos-breadcrumb-item a {
-        color: #6366f1;
+        color: #8E2C12;
         text-decoration: none;
         font-weight: 600;
         transition: color 0.15s;
@@ -662,7 +662,7 @@
     }
 
     .pos-breadcrumb-item a:hover {
-        color: #7c83ff;
+        color: #B83E1E;
         text-decoration: underline;
     }
 
@@ -681,7 +681,7 @@
         font-size: 11px;
         font-weight: 600;
         color: #fff;
-        background: #6366f1;
+        background: #8E2C12;
         padding: 1px 8px;
         border-radius: 8px;
         margin-left: 4px;

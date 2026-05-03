@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#1b1f3b">
+    <meta name="theme-color" content="#2A1A10">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="{% static 'manifest.json' %}">
@@ -16,10 +16,10 @@
         tailwind.config = {
             prefix: 'tw-',
             theme: { extend: { colors: {
-                'pos-dark': '#1b1f3b',
-                'pos-navy': '#161938',
-                'pos-blue': '#0f3460',
-                'pos-accent': '#7c83ff',
+                'pos-dark': '#2A1A10',
+                'pos-navy': '#3D2418',
+                'pos-blue': '#8E2C12',
+                'pos-accent': '#B83E1E',
                 'pos-light': '#f0f2f5',
             }}}
         }
@@ -31,9 +31,9 @@
         :root {
             --adm-sidebar: 260px;
             --adm-bg: #f0f2f5;
-            --adm-dark: #1b1f3b;
-            --adm-navy: #161938;
-            --adm-accent: #7c83ff;
+            --adm-dark: #2A1A10;
+            --adm-navy: #3D2418;
+            --adm-accent: #B83E1E;
             --adm-accent-hover: #6b72ee;
             --adm-border: #e2e5ea;
             --adm-text: #2d3748;
@@ -80,7 +80,7 @@
             justify-content: center;
             color: #fff;
             font-size: 14px;
-            box-shadow: 0 2px 8px rgba(124,131,255,.35);
+            box-shadow: 0 2px 8px rgba(184, 62, 30,.35);
         }
         .adm-topbar-brand span { color: #fff; font-weight: 700; font-size: 16px; }
         .adm-topbar-right {
@@ -103,7 +103,7 @@
         .adm-topbar-user .avatar {
             width: 32px; height: 32px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--adm-accent), #6366f1);
+            background: linear-gradient(135deg, var(--adm-accent), #8E2C12);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -149,11 +149,11 @@
             border-left: 3px solid transparent;
         }
         .adm-nav-link:hover {
-            background: rgba(124,131,255,.06);
+            background: rgba(184, 62, 30,.06);
             color: var(--adm-accent);
         }
         .adm-nav-link.active {
-            background: rgba(124,131,255,.08);
+            background: rgba(184, 62, 30,.08);
             color: var(--adm-accent);
             border-left-color: var(--adm-accent);
             font-weight: 600;
@@ -267,7 +267,7 @@
             vertical-align: middle;
         }
         .adm-table tr:last-child td { border-bottom: none; }
-        .adm-table tr:hover { background: rgba(124,131,255,.02); }
+        .adm-table tr:hover { background: rgba(184, 62, 30,.02); }
 
         /* ── Buttons ─────────────────────────────────────────── */
         .adm-btn {
@@ -286,13 +286,13 @@
         .adm-btn-primary {
             background: var(--adm-accent);
             color: #fff;
-            box-shadow: 0 2px 8px rgba(124,131,255,.3);
+            box-shadow: 0 2px 8px rgba(184, 62, 30,.3);
         }
         .adm-btn-primary:hover {
             background: var(--adm-accent-hover);
             color: #fff;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(124,131,255,.35);
+            box-shadow: 0 4px 12px rgba(184, 62, 30,.35);
         }
         .adm-btn-outline {
             background: transparent;
@@ -338,10 +338,10 @@
         .adm-badge-success { background: rgba(40,167,69,.1); color: var(--adm-success); }
         .adm-badge-warning { background: rgba(245,158,11,.1); color: var(--adm-warning); }
         .adm-badge-danger  { background: rgba(231,76,60,.1);  color: var(--adm-danger); }
-        .adm-badge-info    { background: rgba(124,131,255,.1); color: var(--adm-accent); }
+        .adm-badge-info    { background: rgba(184, 62, 30,.1); color: var(--adm-accent); }
         .adm-badge-muted   { background: rgba(136,150,167,.1); color: var(--adm-muted); }
         .adm-badge-premium { background: linear-gradient(135deg,rgba(245,158,11,.12),rgba(234,88,12,.12)); color: #d97706; }
-        .adm-badge-regular { background: rgba(124,131,255,.1); color: var(--adm-accent); }
+        .adm-badge-regular { background: rgba(184, 62, 30,.1); color: var(--adm-accent); }
 
         /* ── Forms ───────────────────────────────────────────── */
         .adm-input {
@@ -356,7 +356,7 @@
         }
         .adm-input:focus {
             border-color: var(--adm-accent);
-            box-shadow: 0 0 0 3px rgba(124,131,255,.12);
+            box-shadow: 0 0 0 3px rgba(184, 62, 30,.12);
             outline: none;
         }
         .adm-form-group { margin-bottom: 18px; }

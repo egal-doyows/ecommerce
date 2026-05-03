@@ -3,17 +3,20 @@
    ======================================== */
 
 :root {
-    --pos-dark: #1b1f3b;
-    --pos-navy: #161938;
-    --pos-blue: #0f3460;
-    --pos-accent: #7c83ff;
-    --pos-light: #f0f2f5;
-    --pos-card: #ffffff;
-    --pos-text: #2d3436;
-    --pos-muted: #636e72;
-    --pos-success: #00b894;
-    --pos-warning: #fdcb6e;
-    --pos-border: #e1e5e9;
+    /* Bean & Bite brand palette mapped to the existing POS tokens.
+       These are the source of truth — base.html mirrors the same values
+       into its Tailwind config (tw-bg-pos-accent, etc.). */
+    --pos-dark:    #2A1A10;   /* espresso — topbar, dark surfaces */
+    --pos-navy:    #3D2418;   /* cocoa-dark — slightly deeper */
+    --pos-blue:    #8E2C12;   /* red-deep — focus rings, partner of accent */
+    --pos-accent:  #B83E1E;   /* brick red — primary CTA, brand */
+    --pos-light:   #FBF4E8;   /* cream — page background */
+    --pos-card:    #ffffff;
+    --pos-text:    #2A1A10;   /* espresso ink */
+    --pos-muted:   #6B5240;   /* warm muted */
+    --pos-success: #00b894;   /* semantic — keep */
+    --pos-warning: #fdcb6e;   /* semantic — keep */
+    --pos-border:  #E7D6BB;   /* warm hairline */
 }
 
 * { box-sizing: border-box; }
@@ -31,7 +34,7 @@ body {
 /* ---- Form overrides ---- */
 .form-control:focus {
     border-color: var(--pos-blue);
-    box-shadow: 0 0 0 3px rgba(15,52,96,0.15);
+    box-shadow: 0 0 0 3px rgba(142, 44, 18, 0.15);   /* red-deep glow */
 }
 
 /* ---- Scrollbar ---- */
