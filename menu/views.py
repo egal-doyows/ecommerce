@@ -102,7 +102,14 @@ def offline_view(request):
 @login_required(login_url='waiter-login')
 @shift_required
 def pos_home(request):
-    all_products = MenuItem.objects.filter(is_available=True)
+    # Order by category then title so the template's {% regroup %} produces
+    # one section per category (alphabetical), each with its items sorted.
+    all_products = (
+        MenuItem.objects
+        .filter(is_available=True)
+        .select_related('category')
+        .order_by('category__name', 'title')
+    )
     tables = Table.objects.all()
     show_attendant_select = _must_select_attendant(request.user)
     context = {

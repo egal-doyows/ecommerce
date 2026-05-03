@@ -94,33 +94,65 @@
 
     .pos-cat-btn i { margin-right: 4px; font-size: 12px; }
 
-    /* ---- Items Grid ---- */
-    .pos-items-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
-        gap: 16px;
-        padding: 4px 24px 24px;
-        /* Always show the vertical scrollbar (even when there's nothing to
-           scroll) so the available width is identical between a filtered
-           category and the All tab — otherwise the scrollbar appearing on
-           All steals ~12-15px and the grid reflows with narrower cards.
-           scrollbar-gutter: stable is also set as a hint for browsers that
-           render overlay scrollbars (they ignore overflow-y:scroll width). */
-        overflow-y: scroll;
-        scrollbar-gutter: stable;
+    /* ---- Sections (category-grouped scroll area) ---- */
+    .pos-sections {
         flex: 1;
+        overflow-y: scroll;        /* always-on scrollbar so width never shifts */
+        scrollbar-gutter: stable;
+        padding: 4px 24px 24px;
     }
-    /* Tame the always-visible scrollbar so it looks intentional, not gluey. */
-    .pos-items-grid::-webkit-scrollbar { width: 10px; }
-    .pos-items-grid::-webkit-scrollbar-track { background: transparent; }
-    .pos-items-grid::-webkit-scrollbar-thumb {
+    .pos-sections::-webkit-scrollbar { width: 10px; }
+    .pos-sections::-webkit-scrollbar-track { background: transparent; }
+    .pos-sections::-webkit-scrollbar-thumb {
         background: rgba(27, 31, 59, 0.18);
         border-radius: 6px;
         border: 2px solid transparent;
         background-clip: padding-box;
     }
-    .pos-items-grid::-webkit-scrollbar-thumb:hover { background: rgba(27, 31, 59, 0.32); background-clip: padding-box; }
-    .pos-items-grid { scrollbar-color: rgba(27, 31, 59, 0.25) transparent; scrollbar-width: thin; }
+    .pos-sections::-webkit-scrollbar-thumb:hover {
+        background: rgba(27, 31, 59, 0.32);
+        background-clip: padding-box;
+    }
+    .pos-sections { scrollbar-color: rgba(27, 31, 59, 0.25) transparent; scrollbar-width: thin; }
+
+    .pos-cat-section { margin-bottom: 28px; }
+    .pos-cat-section[hidden] { display: none; }
+
+    .pos-cat-section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin: 8px 0 14px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+    }
+    .pos-cat-section-head::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, var(--pos-border), transparent);
+    }
+    .pos-cat-section-head .pos-cat-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--pos-muted);
+        background: #fff;
+        padding: 2px 9px;
+        border-radius: 999px;
+        text-transform: none;
+        letter-spacing: 0;
+        order: 2;        /* keep count after the rule line */
+    }
+
+    /* ---- Items Grid (now inside each section) ---- */
+    .pos-items-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+        gap: 16px;
+    }
 
     .pos-item-card {
         background: #fff;
@@ -687,28 +719,40 @@
             <span class="pos-breadcrumb-count" id="breadcrumb-count">{{ all_products|length }}</span>
         </div>
 
-        <div class="pos-items-grid" id="pos-items-grid">
-            {% for product in all_products %}
-            <div class="pos-item-card {% if not product.is_available %}unavailable{% endif %}"
-                 data-id="{{ product.id }}"
-                 data-category="{{ product.category.slug }}"
-                 data-name="{{ product.title }}"
-                 data-price="{{ product.price }}">
-                <div class="pos-item-img-wrap">
-                    {% if product.image %}
-                    <img class="pos-item-img" src="{{ product.image.url }}" alt="{{ product.title }}" loading="lazy">
-                    {% else %}
-                    <div class="pos-item-noimg"><i class="fa fa-cutlery"></i></div>
-                    {% endif %}
-                    <span class="pos-item-badge"><i class="fa fa-clock-o"></i> {{ product.preparation_time }}m</span>
+        <div class="pos-sections" id="pos-sections">
+            {% regroup all_products by category as cat_groups %}
+            {% for cat_group in cat_groups %}
+            <section class="pos-cat-section"
+                     data-cat-section="{{ cat_group.grouper.slug }}">
+                <div class="pos-cat-section-head">
+                    <span>{{ cat_group.grouper.name }}</span>
+                    <span class="pos-cat-count" data-section-count>{{ cat_group.list|length }}</span>
                 </div>
-                <div class="pos-item-info">
-                    <div class="pos-item-name">{{ product.title|capfirst }}</div>
-                    <div class="pos-item-meta">
-                        <span class="pos-item-price">{{ restaurant.currency_symbol }}{{ product.price|floatformat:2|intcomma }}</span>
+                <div class="pos-items-grid">
+                    {% for product in cat_group.list %}
+                    <div class="pos-item-card {% if not product.is_available %}unavailable{% endif %}"
+                         data-id="{{ product.id }}"
+                         data-category="{{ product.category.slug }}"
+                         data-name="{{ product.title }}"
+                         data-price="{{ product.price }}">
+                        <div class="pos-item-img-wrap">
+                            {% if product.image %}
+                            <img class="pos-item-img" src="{{ product.image.url }}" alt="{{ product.title }}" loading="lazy">
+                            {% else %}
+                            <div class="pos-item-noimg"><i class="fa fa-cutlery"></i></div>
+                            {% endif %}
+                            <span class="pos-item-badge"><i class="fa fa-clock-o"></i> {{ product.preparation_time }}m</span>
+                        </div>
+                        <div class="pos-item-info">
+                            <div class="pos-item-name">{{ product.title|capfirst }}</div>
+                            <div class="pos-item-meta">
+                                <span class="pos-item-price">{{ restaurant.currency_symbol }}{{ product.price|floatformat:2|intcomma }}</span>
+                            </div>
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
-            </div>
+            </section>
             {% empty %}
             <div class="pos-empty-state">
                 <i class="fa fa-cutlery"></i>
@@ -831,15 +875,38 @@
     });
 
     function filterItems(cat, search) {
-        let visibleCount = 0;
-        document.querySelectorAll('.pos-item-card').forEach(card => {
-            const matchCat = (cat === 'all' || card.dataset.category === cat);
-            const matchSearch = !search || card.dataset.name.toLowerCase().includes(search);
-            const show = matchCat && matchSearch;
-            card.style.display = show ? '' : 'none';
-            if (show) visibleCount++;
+        // Operate on whole sections for category filtering, then on individual
+        // cards within visible sections for search. A section is hidden if
+        // its category doesn't match OR all its cards are filtered out by search.
+        let totalVisible = 0;
+
+        document.querySelectorAll('.pos-cat-section').forEach(section => {
+            const sectionCat = section.dataset.catSection;
+            const matchCat = (cat === 'all' || sectionCat === cat);
+
+            if (!matchCat) {
+                section.hidden = true;
+                return;
+            }
+
+            // Section's category matches — now apply search to its cards.
+            let sectionVisible = 0;
+            section.querySelectorAll('.pos-item-card').forEach(card => {
+                const matchSearch = !search || card.dataset.name.toLowerCase().includes(search);
+                card.style.display = matchSearch ? '' : 'none';
+                if (matchSearch) sectionVisible++;
+            });
+
+            // Hide section entirely when search yields zero hits within it.
+            section.hidden = (sectionVisible === 0);
+            totalVisible += sectionVisible;
+
+            // Update the section's per-category count chip.
+            const chip = section.querySelector('[data-section-count]');
+            if (chip) chip.textContent = sectionVisible;
         });
-        updateBreadcrumb(cat, search, visibleCount);
+
+        updateBreadcrumb(cat, search, totalVisible);
     }
 
     function updateBreadcrumb(cat, search, count) {
