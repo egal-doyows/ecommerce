@@ -100,13 +100,27 @@
         grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
         gap: 16px;
         padding: 4px 24px 24px;
-        overflow-y: auto;
-        /* Reserve scrollbar space even when not scrolling, so card sizes
-           don't shift between filtered tabs (no scroll) and the All tab
-           (scroll appears, container shrinks, cards reflow narrower). */
+        /* Always show the vertical scrollbar (even when there's nothing to
+           scroll) so the available width is identical between a filtered
+           category and the All tab — otherwise the scrollbar appearing on
+           All steals ~12-15px and the grid reflows with narrower cards.
+           scrollbar-gutter: stable is also set as a hint for browsers that
+           render overlay scrollbars (they ignore overflow-y:scroll width). */
+        overflow-y: scroll;
         scrollbar-gutter: stable;
         flex: 1;
     }
+    /* Tame the always-visible scrollbar so it looks intentional, not gluey. */
+    .pos-items-grid::-webkit-scrollbar { width: 10px; }
+    .pos-items-grid::-webkit-scrollbar-track { background: transparent; }
+    .pos-items-grid::-webkit-scrollbar-thumb {
+        background: rgba(27, 31, 59, 0.18);
+        border-radius: 6px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+    .pos-items-grid::-webkit-scrollbar-thumb:hover { background: rgba(27, 31, 59, 0.32); background-clip: padding-box; }
+    .pos-items-grid { scrollbar-color: rgba(27, 31, 59, 0.25) transparent; scrollbar-width: thin; }
 
     .pos-item-card {
         background: #fff;
