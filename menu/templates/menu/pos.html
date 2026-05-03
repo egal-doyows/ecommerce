@@ -101,6 +101,10 @@
         gap: 16px;
         padding: 4px 24px 24px;
         overflow-y: auto;
+        /* Reserve scrollbar space even when not scrolling, so card sizes
+           don't shift between filtered tabs (no scroll) and the All tab
+           (scroll appears, container shrinks, cards reflow narrower). */
+        scrollbar-gutter: stable;
         flex: 1;
     }
 
