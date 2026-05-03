@@ -118,6 +118,13 @@
     .pos-cat-section { margin-bottom: 28px; }
     .pos-cat-section[hidden] { display: none; }
 
+    /* When the user has clicked a single category tab, the active pill
+       + breadcrumb already name the category — the section heading
+       becomes redundant noise. Hide it. (Stays visible on the All tab
+       where it actually organizes the scroll.) */
+    .pos-sections.is-category-only .pos-cat-section-head { display: none; }
+    .pos-sections.is-category-only .pos-cat-section { margin-bottom: 0; }
+
     .pos-cat-section-head {
         display: flex;
         align-items: baseline;
@@ -879,6 +886,12 @@
         // cards within visible sections for search. A section is hidden if
         // its category doesn't match OR all its cards are filtered out by search.
         let totalVisible = 0;
+
+        // Toggle compact mode: when a specific category tab is active,
+        // hide the in-section heading (the tab pill + breadcrumb already
+        // name the category, so showing it again is redundant noise).
+        const sectionsEl = document.getElementById('pos-sections');
+        if (sectionsEl) sectionsEl.classList.toggle('is-category-only', cat !== 'all');
 
         document.querySelectorAll('.pos-cat-section').forEach(section => {
             const sectionCat = section.dataset.catSection;
