@@ -37,6 +37,70 @@ body {
     box-shadow: 0 0 0 3px rgba(142, 44, 18, 0.15);   /* red-deep glow */
 }
 
+/* ============================================================
+   Bootstrap (Flatly) primary-colour override
+   The vendor theme ships its own blue for .btn-primary, .bg-primary,
+   .text-primary, .border-primary, .alert-primary, .badge-primary.
+   We re-brand them all once here so every back-office form/button
+   inherits Bean & Bite without us touching 21 templates.
+   ============================================================ */
+.btn-primary,
+.btn-primary:focus {
+    background-color: var(--pos-accent) !important;
+    border-color:    var(--pos-accent) !important;
+    color: #fff !important;
+}
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary.active,
+.btn-primary:not(:disabled):not(.disabled):active {
+    background-color: var(--pos-blue) !important;
+    border-color:    var(--pos-blue) !important;
+    color: #fff !important;
+}
+.btn-outline-primary {
+    color:        var(--pos-accent) !important;
+    border-color: var(--pos-accent) !important;
+    background:   transparent !important;
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    background-color: var(--pos-accent) !important;
+    color: #fff !important;
+}
+.btn-link, a.text-primary, .text-primary {
+    color: var(--pos-accent) !important;
+}
+.bg-primary {
+    background-color: var(--pos-accent) !important;
+    color: #fff !important;
+}
+.border-primary {
+    border-color: var(--pos-accent) !important;
+}
+.alert-primary {
+    background-color: #FFF8EA;
+    border-color:    var(--pos-border);
+    color:           var(--pos-text);
+}
+.badge-primary,
+.badge.bg-primary {
+    background-color: var(--pos-accent) !important;
+    color: #fff !important;
+}
+/* Pagination uses .page-item.active .page-link with primary; rebrand. */
+.page-item.active .page-link {
+    background-color: var(--pos-accent) !important;
+    border-color:    var(--pos-accent) !important;
+}
+.page-link {
+    color: var(--pos-accent) !important;
+}
+/* Generic links inside panels often inherit Bootstrap blue. */
+a, a:not([class]) { color: var(--pos-accent); }
+a:hover, a:not([class]):hover { color: var(--pos-blue); }
+
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }

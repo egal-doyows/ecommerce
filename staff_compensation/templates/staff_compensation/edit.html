@@ -24,7 +24,7 @@
         background: #fff;
         border-radius: 16px;
         padding: 32px;
-        border: 1.5px solid var(--pos-border, #e5e7eb);
+        border: 1.5px solid var(--pos-border, #E7D6BB);
         box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
 
@@ -63,7 +63,7 @@
         display: block;
         padding: 20px 18px;
         border-radius: 12px;
-        border: 2px solid var(--pos-border, #e5e7eb);
+        border: 2px solid var(--pos-border, #E7D6BB);
         cursor: pointer;
         text-align: center;
         transition: all 0.2s;
@@ -71,7 +71,7 @@
 
     .sc-type-option input:checked + .sc-type-label {
         border-color: var(--pos-accent);
-        background: #f0f0ff;
+        background: #FFF8EA;
         box-shadow: 0 0 0 3px rgba(124,131,255,0.15);
     }
 
@@ -123,7 +123,7 @@
         display: block;
         padding: 10px 8px;
         border-radius: 8px;
-        border: 1.5px solid var(--pos-border, #e5e7eb);
+        border: 1.5px solid var(--pos-border, #E7D6BB);
         cursor: pointer;
         text-align: center;
         transition: all 0.2s;
@@ -134,7 +134,7 @@
 
     .sc-scope-option input:checked + .sc-scope-label {
         border-color: var(--pos-accent);
-        background: #f0f0ff;
+        background: #FFF8EA;
         color: var(--pos-accent);
     }
 
@@ -171,7 +171,7 @@
         border-radius: 10px;
         padding: 10px 14px;
         font-size: 15px;
-        border: 1.5px solid var(--pos-border, #e5e7eb);
+        border: 1.5px solid var(--pos-border, #E7D6BB);
     }
 
     .sc-field-group .form-control:focus {
@@ -197,7 +197,7 @@
         margin-left: 6px;
     }
 
-    .sc-tier-regular { background: #f0f2f5; color: #6b7280; }
+    .sc-tier-regular { background: #FBF4E8; color: #6b7280; }
     .sc-tier-premium { background: #fef3c7; color: #92400e; }
 
     .sc-submit-btn {
@@ -228,7 +228,7 @@
 
     .sc-divider {
         border: none;
-        border-top: 1px solid #f3f4f6;
+        border-top: 1px solid #FBF4E8;
         margin: 20px 0;
     }
 </style>
@@ -252,7 +252,7 @@
                     <input type="radio" name="compensation_type" value="commission" id="type_commission"
                            {% if form.initial.compensation_type == 'commission' or form.data.compensation_type == 'commission' %}checked{% endif %}>
                     <label for="type_commission" class="sc-type-label">
-                        <div class="sc-type-icon" style="background:#e0f2fe; color:#0369a1;">
+                        <div class="sc-type-icon" style="background:#FFF8EA; color:#B83E1E;">
                             <i class="fa-solid fa-percent"></i>
                         </div>
                         <h4>Commission</h4>

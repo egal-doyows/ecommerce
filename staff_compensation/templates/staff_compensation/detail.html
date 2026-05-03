@@ -22,7 +22,7 @@
 
     .sc-profile {
         background: #fff;
-        border: 2px solid var(--pos-border, #e5e7eb);
+        border: 2px solid var(--pos-border, #E7D6BB);
         border-radius: 16px;
         padding: 28px;
         margin-bottom: 20px;
@@ -61,7 +61,7 @@
         text-transform: uppercase;
     }
 
-    .sc-badge-commission { background: #e0f2fe; color: #0369a1; }
+    .sc-badge-commission { background: #FFF8EA; color: #B83E1E; }
     .sc-badge-salary { background: #f0fdf4; color: #15803d; }
     .sc-badge-none { background: #fef3c7; color: #92400e; }
 
@@ -100,7 +100,7 @@
         font-size: 12px;
         font-weight: 600;
         color: var(--pos-accent);
-        background: #f0f0ff;
+        background: #FFF8EA;
         padding: 4px 12px;
         border-radius: 6px;
     }
@@ -117,7 +117,7 @@
         background: #fff;
         border-radius: 14px;
         padding: 22px;
-        border: 1.5px solid var(--pos-border, #e5e7eb);
+        border: 1.5px solid var(--pos-border, #E7D6BB);
     }
 
     .sc-stat-label {
@@ -153,7 +153,7 @@
     .sc-history {
         background: #fff;
         border-radius: 14px;
-        border: 1.5px solid var(--pos-border, #e5e7eb);
+        border: 1.5px solid var(--pos-border, #E7D6BB);
         overflow: hidden;
     }
 
@@ -161,7 +161,7 @@
         display: flex;
         align-items: center;
         padding: 16px 20px;
-        border-bottom: 1px solid #f3f4f6;
+        border-bottom: 1px solid #FBF4E8;
         gap: 14px;
     }
 
@@ -263,7 +263,7 @@
             <a href="{% url 'compensation-edit' staff_user.pk %}" class="sc-edit-link">
                 <i class="fa-solid fa-pen"></i> Edit
             </a>
-            <a href="{% url 'bank-details-edit' staff_user.pk %}" class="sc-edit-link" style="background:#0369a1; font-size:12px; padding:6px 12px;">
+            <a href="{% url 'bank-details-edit' staff_user.pk %}" class="sc-edit-link" style="background:#B83E1E; font-size:12px; padding:6px 12px;">
                 <i class="fa-solid fa-building-columns"></i> {% if bank_details %}Edit Bank{% else %}Add Bank{% endif %}
             </a>
         </div>
@@ -301,7 +301,7 @@
         </div>
         <div class="sc-stat-card">
             <div class="sc-stat-label">Total Paid</div>
-            <div class="sc-stat-value" style="color:#0369a1;">{{ restaurant.currency_symbol }} {{ total_paid|floatformat:2|intcomma }}</div>
+            <div class="sc-stat-value" style="color:#B83E1E;">{{ restaurant.currency_symbol }} {{ total_paid|floatformat:2|intcomma }}</div>
         </div>
         {% else %}
         <div class="sc-stat-card">
@@ -312,7 +312,7 @@
     </div>
 
     {% else %}
-    <div style="text-align:center; padding:40px; background:#fff; border-radius:14px; border:1.5px solid var(--pos-border, #e5e7eb); margin-bottom:24px;">
+    <div style="text-align:center; padding:40px; background:#fff; border-radius:14px; border:1.5px solid var(--pos-border, #E7D6BB); margin-bottom:24px;">
         <i class="fa-solid fa-circle-exclamation" style="font-size:32px; color:#f59e0b; margin-bottom:12px;"></i>
         <p style="color:var(--pos-muted); margin:0;">Compensation plan has not been set up for this staff member.</p>
         <a href="{% url 'compensation-edit' staff_user.pk %}" style="display:inline-block; margin-top:14px; padding:10px 24px; background:var(--pos-accent); color:#fff; border-radius:10px; font-weight:700; font-size:13px; text-decoration:none;">Set Up Now</a>

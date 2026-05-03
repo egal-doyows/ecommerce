@@ -23,14 +23,14 @@
     .pay-card {
         background: #fff;
         border-radius: 16px;
-        border: 1.5px solid var(--pos-border, #e5e7eb);
+        border: 1.5px solid var(--pos-border, #E7D6BB);
         overflow: hidden;
     }
 
     .pay-header {
         padding: 24px 28px;
-        border-bottom: 1.5px solid var(--pos-border, #e5e7eb);
-        background: #fafbfc;
+        border-bottom: 1.5px solid var(--pos-border, #E7D6BB);
+        background: #FBF4E8;
     }
 
     .pay-header h2 {
@@ -51,7 +51,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 20px 28px;
-        border-bottom: 1.5px solid var(--pos-border, #e5e7eb);
+        border-bottom: 1.5px solid var(--pos-border, #E7D6BB);
         background: #f0fdf4;
     }
 
@@ -93,7 +93,7 @@
         align-items: center;
         gap: 6px;
         padding: 16px 10px;
-        border: 2px solid var(--pos-border, #e5e7eb);
+        border: 2px solid var(--pos-border, #E7D6BB);
         border-radius: 14px;
         background: #fff;
         cursor: pointer;
@@ -101,11 +101,11 @@
         text-align: center;
     }
 
-    .pay-account-label:hover { border-color: #a5b4fc; background: #eef2ff; }
+    .pay-account-label:hover { border-color: #a5b4fc; background: #FFF8EA; }
 
     .pay-account-option input:checked + .pay-account-label {
         border-color: #8E2C12;
-        background: #eef2ff;
+        background: #FFF8EA;
         box-shadow: 0 0 0 3px rgba(184, 62, 30,0.15);
     }
 
@@ -137,7 +137,7 @@
     .pay-amount-field input {
         width: 100%;
         padding: 14px 18px;
-        border: 2px solid var(--pos-border, #e5e7eb);
+        border: 2px solid var(--pos-border, #E7D6BB);
         border-radius: 12px;
         font-size: 20px;
         font-weight: 800;
@@ -159,7 +159,7 @@
     .pay-notes-field textarea {
         width: 100%;
         padding: 10px 14px;
-        border: 2px solid var(--pos-border, #e5e7eb);
+        border: 2px solid var(--pos-border, #E7D6BB);
         border-radius: 10px;
         font-size: 13px;
         font-family: inherit;
@@ -236,7 +236,7 @@
             </div>
         </div>
         {% if payment.amount_paid > 0 %}
-        <div style="padding:10px 28px;background:#fffbeb;border-bottom:1.5px solid var(--pos-border,#e5e7eb);font-size:13px;color:#92400e;font-weight:600;">
+        <div style="padding:10px 28px;background:#fffbeb;border-bottom:1.5px solid var(--pos-border,#E7D6BB);font-size:13px;color:#92400e;font-weight:600;">
             <i class="fa-solid fa-clock-rotate-left" style="margin-right:6px;"></i>
             {{ restaurant.currency_symbol }} {{ payment.amount_paid|floatformat:2|intcomma }} already paid
         </div>

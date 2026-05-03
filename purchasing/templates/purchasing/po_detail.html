@@ -23,7 +23,7 @@
                 {% if items %}
                 <form method="POST" action="{% url 'po-approve' po.pk %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="adm-btn" style="background:#2563eb;color:#fff;" onclick="return confirm('Approve this purchase order?')">
+                    <button type="submit" class="adm-btn" style="background:#B83E1E;color:#fff;" onclick="return confirm('Approve this purchase order?')">
                         <i class="fa-solid fa-check-double"></i> Approve
                     </button>
                 </form>
@@ -37,7 +37,7 @@
             {% elif can_edit and items %}
                 <form method="POST" action="{% url 'po-submit' po.pk %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="adm-btn" style="background:#2563eb;color:#fff;" onclick="return confirm('Submit this PO for manager approval?')">
+                    <button type="submit" class="adm-btn" style="background:#B83E1E;color:#fff;" onclick="return confirm('Submit this PO for manager approval?')">
                         <i class="fa-solid fa-paper-plane"></i> Submit for Approval
                     </button>
                 </form>
@@ -48,7 +48,7 @@
                 {% if items %}
                 <form method="POST" action="{% url 'po-approve' po.pk %}" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="adm-btn" style="background:#2563eb;color:#fff;" onclick="return confirm('Approve this purchase order?')">
+                    <button type="submit" class="adm-btn" style="background:#B83E1E;color:#fff;" onclick="return confirm('Approve this purchase order?')">
                         <i class="fa-solid fa-check-double"></i> Approve
                     </button>
                 </form>
@@ -93,7 +93,7 @@
         <div class="adm-stat-icon" style="
             {% if po.status == 'draft' %}background:rgba(136,150,167,.1);color:var(--adm-muted);
             {% elif po.status == 'pending' %}background:rgba(245,158,11,.1);color:#d97706;
-            {% elif po.status == 'approved' %}background:rgba(59,130,246,.1);color:#2563eb;
+            {% elif po.status == 'approved' %}background:rgba(59,130,246,.1);color:#B83E1E;
             {% elif po.status == 'received' %}background:rgba(40,167,69,.1);color:var(--adm-success);
             {% else %}background:rgba(231,76,60,.1);color:var(--adm-danger);{% endif %}
         ">
