@@ -3,154 +3,261 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
-
 <style>
-    .login-wrapper {
+    /* ────  Bean & Bite branded login  ──── */
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Caveat:wght@500;700&display=swap');
+
+    :root {
+        --bb-red:        #B83E1E;
+        --bb-red-deep:   #8E2C12;
+        --bb-amber:      #E08E2A;
+        --bb-amber-deep: #B86F1A;
+        --bb-amber-soft: #F4C27A;
+        --bb-cream:      #FBF4E8;
+        --bb-cream-3:    #FFF8EA;
+        --bb-paper:      #FFFFFF;
+        --bb-ink:        #2A1A10;
+        --bb-ink-soft:   #6B5240;
+        --bb-cocoa:      #4A2A1A;
+        --bb-line:       #E7D6BB;
+    }
+
+    .bb-login-wrap {
         min-height: calc(100vh - 60px);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        background: var(--bb-cream);
+    }
+    @media (max-width: 880px) {
+        .bb-login-wrap { grid-template-columns: 1fr; }
+    }
+
+    /* Left brand panel */
+    .bb-login-brand {
+        position: relative;
+        background:
+            radial-gradient(700px 400px at 80% 20%, rgba(224,142,42,0.32), transparent 60%),
+            linear-gradient(135deg, var(--bb-red) 0%, var(--bb-red-deep) 100%);
+        color: #fff;
+        padding: 64px 56px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .bb-login-brand::after {
+        content: "";
+        position: absolute;
+        right: -120px; bottom: -120px;
+        width: 380px; height: 380px;
+        background: var(--bb-amber);
+        opacity: 0.18;
+        border-radius: 50%;
+    }
+    @media (max-width: 880px) {
+        .bb-login-brand { padding: 40px 28px; min-height: 220px; }
+    }
+
+    .bb-login-brand-inner { position: relative; z-index: 1; max-width: 380px; }
+    .bb-login-brand img.bb-logo {
+        height: 120px; width: auto; display: block;
+        margin-bottom: 28px;
+        background: var(--bb-paper);
+        padding: 14px 18px;
+        border-radius: 14px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.20);
+    }
+    @media (max-width: 880px) {
+        .bb-login-brand img.bb-logo { height: 80px; margin: 0 auto 0; }
+        .bb-login-brand-inner { text-align: center; max-width: 100%; }
+    }
+
+    .bb-login-brand .bb-script {
+        font-family: 'Caveat', cursive;
+        font-size: 30px;
+        color: var(--bb-amber-soft);
+        line-height: 1;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .bb-login-brand h1 {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: clamp(28px, 4vw, 40px);
+        margin: 0 0 18px;
+        line-height: 1.1;
+        font-weight: 700;
+    }
+    .bb-login-brand p {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.55;
+        opacity: 0.92;
+    }
+    @media (max-width: 880px) { .bb-login-brand p { display: none; } }
+
+    /* Right form panel */
+    .bb-login-form-area {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        padding: 20px;
+        padding: 48px 28px;
     }
-
-    .login-card {
+    .bb-login-card {
         width: 100%;
-        max-width: 420px;
-        background: #fff;
-        border-radius: 16px;
-        padding: 40px 32px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        max-width: 400px;
     }
-
-    .login-card h3 {
-        font-size: 20px;
+    .bb-login-card .bb-eyebrow {
+        font-size: 12px;
         font-weight: 700;
-        color: var(--pos-text);
-        text-align: center;
-        margin-bottom: 4px;
+        letter-spacing: 0.20em;
+        text-transform: uppercase;
+        color: var(--bb-amber-deep);
+        margin-bottom: 8px;
+    }
+    .bb-login-card h2 {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-weight: 700;
+        font-size: 32px;
+        margin: 0 0 8px;
+        color: var(--bb-red);
+        line-height: 1.1;
+    }
+    .bb-login-card .bb-sub {
+        color: var(--bb-cocoa);
+        margin: 0 0 28px;
+        font-size: 15px;
     }
 
-    .login-card .subtitle {
-        text-align: center;
-        color: var(--pos-muted);
-        font-size: 14px;
-        margin-bottom: 28px;
-    }
-
-    .login-btn {
+    .bb-login-card form input[type="text"],
+    .bb-login-card form input[type="password"],
+    .bb-login-card form input[type="email"] {
         width: 100%;
-        padding: 13px;
-        background: linear-gradient(135deg, #1a1a2e, #0f3460);
+        background: var(--bb-cream-3);
+        border: 1.5px solid var(--bb-line);
+        border-radius: 10px;
+        padding: 13px 14px;
+        font-size: 15px;
+        color: var(--bb-ink);
+        transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+    .bb-login-card form input[type="text"]:focus,
+    .bb-login-card form input[type="password"]:focus,
+    .bb-login-card form input[type="email"]:focus {
+        outline: none;
+        border-color: var(--bb-amber);
+        background: var(--bb-paper);
+        box-shadow: 0 0 0 3px rgba(224,142,42,0.18);
+    }
+    .bb-login-card form label,
+    .bb-login-card form .form-group label {
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--bb-cocoa);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
+    }
+
+    .bb-login-btn {
+        width: 100%;
+        padding: 14px;
+        background: var(--bb-red);
         color: #fff;
         border: none;
-        border-radius: 12px;
-        font-size: 16px;
-        font-weight: 700;
+        border-radius: 999px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: transform .12s ease, background .15s ease, box-shadow .15s ease;
+        box-shadow: 0 8px 20px rgba(184,62,30,0.30);
+        margin-top: 8px;
     }
-
-    .login-btn:hover {
-        box-shadow: 0 6px 20px rgba(15,52,96,0.4);
+    .bb-login-btn:hover {
+        background: var(--bb-red-deep);
         transform: translateY(-1px);
     }
 
-    .login-links {
-        text-align: center;
-        margin-top: 20px;
-    }
-
-    .login-links a {
-        display: block;
-        color: var(--pos-muted);
-        font-size: 13px;
-        text-decoration: none;
-        margin-bottom: 8px;
-        transition: color 0.2s;
-    }
-
-    .login-links a:hover {
-        color: var(--pos-blue);
-    }
-
-    .login-divider {
+    .bb-divider {
         display: flex;
         align-items: center;
-        margin: 20px 0;
-        color: #adb5bd;
-        font-size: 12px;
+        gap: 12px;
+        margin: 24px 0 18px;
+        color: var(--bb-ink-soft);
+        font-size: 11px;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.16em;
     }
-
-    .login-divider::before,
-    .login-divider::after {
+    .bb-divider::before, .bb-divider::after {
         content: '';
         flex: 1;
         height: 1px;
-        background: #dee2e6;
+        background: var(--bb-line);
     }
 
-    .login-divider::before { margin-right: 12px; }
-    .login-divider::after { margin-left: 12px; }
-
-    .waiter-login-btn {
+    .bb-alt-btn {
         display: block;
         width: 100%;
         padding: 12px;
-        background: var(--pos-light);
-        color: var(--pos-text);
-        border: none;
-        border-radius: 10px;
+        background: var(--bb-cream-3);
+        color: var(--bb-cocoa);
+        border: 1.5px solid var(--bb-line);
+        border-radius: 999px;
         font-size: 14px;
         font-weight: 600;
         text-align: center;
         text-decoration: none;
-        transition: all 0.2s;
+        transition: all .15s ease;
+    }
+    .bb-alt-btn:hover {
+        background: var(--bb-amber);
+        color: #fff;
+        border-color: var(--bb-amber);
+        text-decoration: none;
     }
 
-    .waiter-login-btn:hover {
-        background: #e2e6ea;
-        color: var(--pos-text);
+    .bb-help {
+        text-align: center;
+        margin-top: 22px;
+        font-size: 13px;
+        color: var(--bb-ink-soft);
     }
 </style>
 
-<div class="login-wrapper">
-    <div class="login-card">
-        <div style="text-align:center;margin-bottom:24px;">
-            <div style="width:80px;height:80px;margin:0 auto 14px;border-radius:50%;overflow:hidden;border:3px solid #e9ecef;">
-                {% if restaurant.logo %}
-                <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:100%;height:100%;object-fit:cover;">
-                {% else %}
-                <div style="width:100%;height:100%;background:linear-gradient(135deg,var(--pos-accent),#6366f1);display:flex;align-items:center;justify-content:center;">
-                    <i class="fa-solid fa-utensils" style="font-size:30px;color:#fff;"></i>
-                </div>
-                {% endif %}
-            </div>
-            <h3 style="margin-bottom:4px;">{{ restaurant.name|default:"Bean &amp; Bite" }}</h3>
-            <p class="subtitle">Sign in to your account</p>
+<div class="bb-login-wrap">
+    <aside class="bb-login-brand">
+        <div class="bb-login-brand-inner">
+            <img src="{% static 'public_site/img/logo.png' %}"
+                 alt="{{ restaurant.name|default:'Bean & Bite' }}"
+                 class="bb-logo">
+            <span class="bb-script">welcome back</span>
+            <h1>{{ restaurant.name|default:"Bean &amp; Bite" }}</h1>
+            <p>The team portal — sign in to manage orders, the menu, the floor, and everything in between.</p>
         </div>
+    </aside>
 
-        <form method="POST" autocomplete="off">
-            {% csrf_token %}
-            {{ form.username|as_crispy_field }}
-            <br>
-            {{ form.password|as_crispy_field }}
-            <br>
-            <button type="submit" class="login-btn">Login</button>
-        </form>
+    <main class="bb-login-form-area">
+        <div class="bb-login-card">
+            <div class="bb-eyebrow">Staff sign-in</div>
+            <h2>Welcome back.</h2>
+            <p class="bb-sub">Sign in to your account to continue.</p>
 
-        <div class="login-divider">or</div>
+            <form method="POST" autocomplete="off">
+                {% csrf_token %}
+                {{ form.username|as_crispy_field }}
+                {{ form.password|as_crispy_field }}
+                <button type="submit" class="bb-login-btn">Sign in</button>
+            </form>
 
-        <a href="{% url 'waiter-login' %}" class="waiter-login-btn">
-            <i class="fa fa-th"></i> &nbsp; Login Using Code
-        </a>
+            <div class="bb-divider">or</div>
 
-        <div class="login-links">
-            <span style="font-size:12px; color:var(--pos-muted);">Contact admin to create an account</span>
+            <a href="{% url 'waiter-login' %}" class="bb-alt-btn">
+                Sign in using a 6-digit code
+            </a>
+
+            <p class="bb-help">Need an account? Ask the manager.</p>
         </div>
-    </div>
+    </main>
 </div>
-
 {% endblock %}

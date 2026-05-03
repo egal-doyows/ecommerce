@@ -2,249 +2,332 @@
 {% load static %}
 
 {% block content %}
-
 <style>
-    .waiter-wrapper {
+    /* ────  Bean & Bite branded waiter login  ──── */
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Caveat:wght@500;700&display=swap');
+
+    :root {
+        --bb-red:        #B83E1E;
+        --bb-red-deep:   #8E2C12;
+        --bb-amber:      #E08E2A;
+        --bb-amber-deep: #B86F1A;
+        --bb-amber-soft: #F4C27A;
+        --bb-cream:      #FBF4E8;
+        --bb-cream-3:    #FFF8EA;
+        --bb-paper:      #FFFFFF;
+        --bb-ink:        #2A1A10;
+        --bb-ink-soft:   #6B5240;
+        --bb-cocoa:      #4A2A1A;
+        --bb-line:       #E7D6BB;
+    }
+
+    .bb-login-wrap {
         min-height: calc(100vh - 60px);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        background: var(--bb-cream);
+    }
+    @media (max-width: 880px) {
+        .bb-login-wrap { grid-template-columns: 1fr; }
+    }
+
+    .bb-login-brand {
+        position: relative;
+        background:
+            radial-gradient(700px 400px at 80% 20%, rgba(224,142,42,0.32), transparent 60%),
+            linear-gradient(135deg, var(--bb-red) 0%, var(--bb-red-deep) 100%);
+        color: #fff;
+        padding: 64px 56px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .bb-login-brand::after {
+        content: "";
+        position: absolute;
+        right: -120px; bottom: -120px;
+        width: 380px; height: 380px;
+        background: var(--bb-amber);
+        opacity: 0.18;
+        border-radius: 50%;
+    }
+    @media (max-width: 880px) {
+        .bb-login-brand { padding: 40px 28px; min-height: 220px; }
+    }
+
+    .bb-login-brand-inner { position: relative; z-index: 1; max-width: 380px; }
+    .bb-login-brand img.bb-logo {
+        height: 120px; width: auto; display: block;
+        margin-bottom: 28px;
+        background: var(--bb-paper);
+        padding: 14px 18px;
+        border-radius: 14px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.20);
+    }
+    @media (max-width: 880px) {
+        .bb-login-brand img.bb-logo { height: 80px; margin: 0 auto 0; }
+        .bb-login-brand-inner { text-align: center; max-width: 100%; }
+    }
+
+    .bb-login-brand .bb-script {
+        font-family: 'Caveat', cursive;
+        font-size: 30px;
+        color: var(--bb-amber-soft);
+        line-height: 1;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .bb-login-brand h1 {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: clamp(28px, 4vw, 40px);
+        margin: 0 0 18px;
+        line-height: 1.1;
+        font-weight: 700;
+    }
+    .bb-login-brand p {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.55;
+        opacity: 0.92;
+    }
+    @media (max-width: 880px) { .bb-login-brand p { display: none; } }
+
+    .bb-login-form-area {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        padding: 20px;
+        padding: 48px 28px;
     }
-
-    .waiter-card {
-        max-width: 440px;
+    .bb-login-card {
         width: 100%;
-        background: #ffffff;
-        border-radius: 16px;
-        padding: 50px 40px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 460px;
+        text-align: center;
     }
-
-    .logo-wrapper {
-        width: 90px;
-        height: 90px;
-        margin: 0 auto 25px;
-        border-radius: 50%;
-        overflow: hidden;
-        border: 3px solid #e9ecef;
-    }
-
-    .logo-wrapper img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .waiter-card h4 {
+    .bb-login-card .bb-eyebrow {
+        font-size: 12px;
         font-weight: 700;
-        color: #1a1a2e;
-        margin-bottom: 6px;
+        letter-spacing: 0.20em;
+        text-transform: uppercase;
+        color: var(--bb-amber-deep);
+        margin-bottom: 8px;
+    }
+    .bb-login-card h2 {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-weight: 700;
+        font-size: 32px;
+        margin: 0 0 8px;
+        color: var(--bb-red);
+        line-height: 1.1;
+    }
+    .bb-login-card .bb-sub {
+        color: var(--bb-cocoa);
+        margin: 0 0 28px;
+        font-size: 15px;
     }
 
-    .waiter-card .subtitle {
-        color: #6c757d;
-        font-size: 14px;
-        margin-bottom: 30px;
-    }
-
-    .digit-inputs {
+    /* Digit code inputs */
+    .bb-digits {
         display: flex;
         justify-content: center;
-        gap: 12px;
-        margin-bottom: 30px;
+        gap: 10px;
+        margin: 8px 0 28px;
+        flex-wrap: wrap;
     }
-
-    .digit-input {
-        width: 50px;
-        height: 58px;
+    .bb-digit {
+        width: 52px;
+        height: 62px;
         text-align: center;
-        font-size: 24px;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 28px;
         font-weight: 700;
-        color: #1a1a2e;
-        background: #f8f9fa;
-        border: 2px solid #dee2e6;
+        color: var(--bb-red);
+        background: var(--bb-cream-3);
+        border: 1.5px solid var(--bb-line);
         border-radius: 12px;
         outline: none;
-        transition: all 0.2s ease;
+        transition: all .15s ease;
     }
-
-    .digit-input:focus {
-        border-color: #0f3460;
-        background: #fff;
-        box-shadow: 0 0 0 3px rgba(15, 52, 96, 0.15);
+    .bb-digit:focus {
+        border-color: var(--bb-amber);
+        background: var(--bb-paper);
+        box-shadow: 0 0 0 3px rgba(224,142,42,0.20);
         transform: translateY(-2px);
     }
-
-    .digit-input.filled {
-        border-color: #0f3460;
-        background: #fff;
+    .bb-digit.filled {
+        border-color: var(--bb-amber);
+        background: var(--bb-paper);
+    }
+    @media (max-width: 480px) {
+        .bb-digit { width: 44px; height: 54px; font-size: 22px; gap: 8px; }
     }
 
-    .btn-waiter-login {
-        background: linear-gradient(135deg, #1a1a2e, #0f3460);
-        border: none;
-        color: #fff;
-        font-weight: 600;
-        font-size: 16px;
-        padding: 14px;
-        border-radius: 12px;
+    .bb-login-btn {
         width: 100%;
-        transition: all 0.3s ease;
-    }
-
-    .btn-waiter-login:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(15, 52, 96, 0.4);
+        padding: 14px;
+        background: var(--bb-red);
         color: #fff;
+        border: none;
+        border-radius: 999px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        transition: transform .12s ease, background .15s ease, box-shadow .15s ease;
+        box-shadow: 0 8px 20px rgba(184,62,30,0.30);
+    }
+    .bb-login-btn:hover {
+        background: var(--bb-red-deep);
+        transform: translateY(-1px);
     }
 
-    .waiter-card .alt-link {
-        color: #6c757d;
-        font-size: 13px;
-        text-decoration: none;
-        transition: color 0.2s;
-    }
-
-    .waiter-card .alt-link:hover {
-        color: #0f3460;
-    }
-
-    .divider {
+    .bb-divider {
         display: flex;
         align-items: center;
-        margin: 25px 0 20px;
-        color: #adb5bd;
-        font-size: 12px;
+        gap: 12px;
+        margin: 24px 0 18px;
+        color: var(--bb-ink-soft);
+        font-size: 11px;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.16em;
     }
-
-    .divider::before,
-    .divider::after {
+    .bb-divider::before, .bb-divider::after {
         content: '';
         flex: 1;
         height: 1px;
-        background: #dee2e6;
+        background: var(--bb-line);
     }
 
-    .divider::before { margin-right: 12px; }
-    .divider::after { margin-left: 12px; }
-
-    .alert-danger {
-        border: none;
-        border-radius: 10px;
-        background: #fff5f5;
-        color: #c0392b;
+    .bb-alt-btn {
+        display: inline-block;
+        padding: 11px 22px;
+        background: var(--bb-cream-3);
+        color: var(--bb-cocoa);
+        border: 1.5px solid var(--bb-line);
+        border-radius: 999px;
         font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all .15s ease;
+    }
+    .bb-alt-btn:hover {
+        background: var(--bb-amber);
+        color: #fff;
+        border-color: var(--bb-amber);
+        text-decoration: none;
+    }
+
+    .bb-error {
+        background: rgba(184, 62, 30, 0.08);
+        color: var(--bb-red-deep);
+        border: 1px solid rgba(184, 62, 30, 0.25);
+        border-radius: 10px;
         padding: 12px 16px;
+        font-size: 14px;
+        margin: 0 0 20px;
+        text-align: center;
     }
 </style>
 
-<div class="waiter-wrapper">
-<div class="waiter-card">
-    <div class="text-center">
-        <div class="logo-wrapper">
-            {% if restaurant.logo %}
-            <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}">
-            {% else %}
-            <div style="width:100%;height:100%;background:linear-gradient(135deg,var(--pos-accent),#6366f1);display:flex;align-items:center;justify-content:center;">
-                <i class="fa-solid fa-utensils" style="font-size:36px;color:#fff;"></i>
-            </div>
+<div class="bb-login-wrap">
+    <aside class="bb-login-brand">
+        <div class="bb-login-brand-inner">
+            <img src="{% static 'public_site/img/logo.png' %}"
+                 alt="{{ restaurant.name|default:'Bean & Bite' }}"
+                 class="bb-logo">
+            <span class="bb-script">on the floor?</span>
+            <h1>Quick code sign-in</h1>
+            <p>Tap your six-digit code to log in. No password, just speed — perfect for a busy service.</p>
+        </div>
+    </aside>
+
+    <main class="bb-login-form-area">
+        <div class="bb-login-card">
+            <div class="bb-eyebrow">Waiter access</div>
+            <h2>Enter your code.</h2>
+            <p class="bb-sub">Six digits, no spaces. Auto-submits when complete.</p>
+
+            {% if error %}
+                <div class="bb-error" role="alert">{{ error }}</div>
             {% endif %}
+
+            <form method="POST" autocomplete="off" id="waiter-form">
+                {% csrf_token %}
+                <input type="hidden" name="code" id="code-hidden">
+
+                <div class="bb-digits">
+                    <input type="text" class="bb-digit" maxlength="1" inputmode="numeric" pattern="[0-9]" autofocus>
+                    <input type="text" class="bb-digit" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="bb-digit" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="bb-digit" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="bb-digit" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    <input type="text" class="bb-digit" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                </div>
+
+                <button type="submit" class="bb-login-btn">Sign in</button>
+            </form>
+
+            <div class="bb-divider">or</div>
+
+            <a href="{% url 'my-login' %}" class="bb-alt-btn">
+                Sign in with username &amp; password
+            </a>
         </div>
-        <h4>{{ restaurant.name|default:"Bean &amp; Bite" }}</h4>
-        <p class="subtitle">Enter your 6-digit access code</p>
-    </div>
-
-    {% if error %}
-    <div class="alert alert-danger text-center" role="alert">
-        {{ error }}
-    </div>
-    {% endif %}
-
-    <form method="POST" autocomplete="off" id="waiter-form">
-        {% csrf_token %}
-        <input type="hidden" name="code" id="code-hidden">
-
-        <div class="digit-inputs">
-            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autofocus>
-            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
-            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
-            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
-            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
-            <input type="text" class="digit-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
-        </div>
-
-        <button type="submit" class="btn btn-waiter-login">
-            Login
-        </button>
-    </form>
-
-    <div class="divider">or</div>
-
-    <div class="text-center">
-        <a href="{% url 'my-login' %}" class="alt-link">Login with username & password</a>
-    </div>
-</div>
+    </main>
 </div>
 
 <script>
-    const inputs = document.querySelectorAll('.digit-input');
-    const hidden = document.getElementById('code-hidden');
+    (function () {
+        var inputs = document.querySelectorAll('.bb-digit');
+        var hidden = document.getElementById('code-hidden');
+        var form   = document.getElementById('waiter-form');
 
-    inputs.forEach((input, index) => {
-        input.addEventListener('input', function () {
-            this.value = this.value.replace(/[^0-9]/g, '');
-            if (this.value) {
-                this.classList.add('filled');
-            } else {
-                this.classList.remove('filled');
-            }
-            if (this.value && index < inputs.length - 1) {
-                inputs[index + 1].focus();
-            } else if (this.value && index === inputs.length - 1) {
-                submitIfComplete();
-            }
+        inputs.forEach(function (input, index) {
+            input.addEventListener('input', function () {
+                this.value = this.value.replace(/[^0-9]/g, '');
+                this.classList.toggle('filled', !!this.value);
+                if (this.value && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                } else if (this.value && index === inputs.length - 1) {
+                    submitIfComplete();
+                }
+            });
+
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Backspace' && !this.value && index > 0) {
+                    inputs[index - 1].focus();
+                    inputs[index - 1].classList.remove('filled');
+                }
+            });
+
+            input.addEventListener('paste', function (e) {
+                e.preventDefault();
+                var pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+                for (var i = 0; i < pasted.length && i < inputs.length; i++) {
+                    inputs[i].value = pasted[i];
+                    inputs[i].classList.add('filled');
+                }
+                var nextIndex = Math.min(pasted.length, inputs.length - 1);
+                inputs[nextIndex].focus();
+                if (pasted.length === 6) submitIfComplete();
+            });
         });
 
-        input.addEventListener('keydown', function (e) {
-            if (e.key === 'Backspace' && !this.value && index > 0) {
-                inputs[index - 1].focus();
-                inputs[index - 1].classList.remove('filled');
+        function submitIfComplete() {
+            var code = '';
+            inputs.forEach(function (input) { code += input.value; });
+            if (code.length === 6) {
+                hidden.value = code;
+                form.submit();
             }
-        });
-
-        input.addEventListener('paste', function (e) {
-            e.preventDefault();
-            const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
-            for (let i = 0; i < pasted.length && i < inputs.length; i++) {
-                inputs[i].value = pasted[i];
-                inputs[i].classList.add('filled');
-            }
-            const nextIndex = Math.min(pasted.length, inputs.length - 1);
-            inputs[nextIndex].focus();
-            if (pasted.length === 6) {
-                submitIfComplete();
-            }
-        });
-    });
-
-    function submitIfComplete() {
-        let code = '';
-        inputs.forEach(input => { code += input.value; });
-        if (code.length === 6) {
-            hidden.value = code;
-            document.getElementById('waiter-form').submit();
         }
-    }
 
-    document.getElementById('waiter-form').addEventListener('submit', function () {
-        let code = '';
-        inputs.forEach(input => { code += input.value; });
-        hidden.value = code;
-    });
+        form.addEventListener('submit', function () {
+            var code = '';
+            inputs.forEach(function (input) { code += input.value; });
+            hidden.value = code;
+        });
+    })();
 </script>
-
 {% endblock content %}
