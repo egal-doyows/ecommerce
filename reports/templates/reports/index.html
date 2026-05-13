@@ -55,6 +55,14 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Revenue split by order type (Dine-in / Takeaway / Delivery) and source (POS, Uber Eats, Glovo, Bolt, Jumia, Phone).</p>
     </a>
 
+    <a href="{% url 'reports-online-sales' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-truck-fast" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Online Sales</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-platform orders, revenue, settlements paid in the period, and live outstanding receivable for Uber Eats / Glovo / Bolt / Jumia.</p>
+    </a>
+
     <a href="{% url 'reports-stock-on-hand' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-boxes-stacked" style="font-size:20px;color:var(--adm-accent);"></i>

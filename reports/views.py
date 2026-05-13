@@ -9,6 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
+from administration.models import Account, Transaction
 from menu.models import InventoryItem, Order, OrderItem, RestaurantSettings, Shift, StockAdjustment
 from waste.models import WasteItem
 from expenses.models import Expense
@@ -1093,5 +1094,141 @@ def sales_by_channel(request):
         'cross_rows': cross_rows,
         'total_revenue': total_revenue,
         'total_count': total_count,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── Online Sales ───────────────────────────────────────────────────────
+
+# Sources considered "online marketplace" orders. Excludes phone (manual
+# call-ins) and other (catch-all) so this report stays focused on the
+# delivery-platform pipeline that has its own receivable accounts.
+ONLINE_SOURCES = ['ubereats', 'glovo', 'bolt', 'jumia']
+ONLINE_AR_ACCOUNTS = ['ubereats_ar', 'glovo_ar', 'bolt_ar', 'jumia_ar']
+SOURCE_TO_AR = dict(zip(ONLINE_SOURCES, ONLINE_AR_ACCOUNTS))
+
+
+@manager_required
+def online_sales(request):
+    """
+    Online sales: orders sourced from Uber Eats / Glovo / Bolt / Jumia.
+
+    Pairs the period's order activity with the live receivable balance
+    per platform and the settlement transactions in the period so an
+    owner can see at a glance how much each platform owes them, what
+    settled, and what's still outstanding.
+    """
+    start, end, preset = parse_date_range(request)
+
+    paid_orders = (
+        Order.objects
+        .filter(
+            status='paid',
+            source__in=ONLINE_SOURCES,
+            created_at__date__gte=start,
+            created_at__date__lte=end,
+        )
+        .prefetch_related('items')
+    )
+
+    source_labels = dict(Order.SOURCE_CHOICES)
+
+    # Per-platform aggregation across the period.
+    per_platform = {
+        s: {'count': 0, 'revenue': Decimal('0'), 'avg_ticket': Decimal('0')}
+        for s in ONLINE_SOURCES
+    }
+    total_revenue = Decimal('0')
+    total_count = 0
+    for order in paid_orders:
+        revenue = order.get_total()
+        per_platform[order.source]['count'] += 1
+        per_platform[order.source]['revenue'] += revenue
+        total_revenue += revenue
+        total_count += 1
+    for s, agg in per_platform.items():
+        if agg['count']:
+            agg['avg_ticket'] = agg['revenue'] / agg['count']
+
+    # Live outstanding receivable per platform (queried fresh — the AR
+    # balance is independent of the period filter; it always reflects
+    # the current unsettled total).
+    ar_balances = {}
+    total_outstanding = Decimal('0')
+    for ar_type in ONLINE_AR_ACCOUNTS:
+        acct = Account.get_by_type(ar_type)
+        bal = acct.balance
+        ar_balances[ar_type] = bal
+        total_outstanding += bal
+
+    # Settlement transactions in the period — debits on AR accounts
+    # represent the platform paying out (via Transfer Funds).
+    settlements_qs = (
+        Transaction.objects
+        .filter(
+            account__account_type__in=ONLINE_AR_ACCOUNTS,
+            transaction_type='debit',
+            created_at__date__gte=start,
+            created_at__date__lte=end,
+        )
+        .select_related('account', 'created_by')
+        .order_by('-created_at')
+    )
+
+    settlement_rows = []
+    settlement_total = Decimal('0')
+    settlement_by_platform = {s: Decimal('0') for s in ONLINE_SOURCES}
+    for txn in settlements_qs:
+        platform_code = txn.account.account_type.replace('_ar', '')
+        settlement_rows.append({
+            'date': txn.created_at,
+            'platform': source_labels.get(platform_code, platform_code),
+            'platform_code': platform_code,
+            'amount': txn.amount,
+            'description': txn.description,
+            'by': txn.created_by.username if txn.created_by else 'System',
+        })
+        settlement_total += txn.amount
+        if platform_code in settlement_by_platform:
+            settlement_by_platform[platform_code] += txn.amount
+
+    # Combine everything into one row per platform for the summary table.
+    platform_rows = []
+    for s in ONLINE_SOURCES:
+        agg = per_platform[s]
+        if not agg['count'] and not ar_balances[SOURCE_TO_AR[s]] and not settlement_by_platform[s]:
+            continue
+        platform_rows.append({
+            'key': s,
+            'label': source_labels[s],
+            'count': agg['count'],
+            'revenue': agg['revenue'],
+            'avg_ticket': agg['avg_ticket'],
+            'outstanding': ar_balances[SOURCE_TO_AR[s]],
+            'settled_in_period': settlement_by_platform[s],
+        })
+    platform_rows.sort(key=lambda r: r['revenue'], reverse=True)
+
+    if request.GET.get('format') == 'csv':
+        header = ['Platform', 'Orders', 'Revenue', 'Avg ticket',
+                  'Settled in period', 'Outstanding now']
+        rows = [
+            [r['label'], r['count'], r['revenue'], r['avg_ticket'],
+             r['settled_in_period'], r['outstanding']]
+            for r in platform_rows
+        ]
+        return csv_response(
+            f'online_sales_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, rows,
+        )
+
+    return render(request, 'reports/online_sales.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'platform_rows': platform_rows,
+        'settlement_rows': settlement_rows,
+        'total_revenue': total_revenue,
+        'total_count': total_count,
+        'total_outstanding': total_outstanding,
+        'settlement_total': settlement_total,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })

@@ -1,0 +1,121 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Online Sales{% endblock %}
+{% block report_breadcrumb %}Online Sales{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv"
+   class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block report_body %}
+<!-- Summary tiles -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px;">
+    <div class="adm-card">
+        <div style="color:var(--adm-muted);font-size:12px;">Online orders</div>
+        <div style="font-size:22px;font-weight:700;">{{ total_count }}</div>
+        <div style="color:var(--adm-muted);font-size:11px;">In selected period</div>
+    </div>
+    <div class="adm-card">
+        <div style="color:var(--adm-muted);font-size:12px;">Gross online revenue</div>
+        <div style="font-size:22px;font-weight:700;">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</div>
+        <div style="color:var(--adm-muted);font-size:11px;">Period total</div>
+    </div>
+    <div class="adm-card" style="border-left:3px solid #16a34a;">
+        <div style="color:var(--adm-muted);font-size:12px;">Settled in period</div>
+        <div style="font-size:22px;font-weight:700;color:#16a34a;">{{ currency_symbol }} {{ settlement_total|floatformat:2|intcomma }}</div>
+        <div style="color:var(--adm-muted);font-size:11px;">Platforms paid us</div>
+    </div>
+    <div class="adm-card" style="border-left:3px solid #f59e0b;">
+        <div style="color:var(--adm-muted);font-size:12px;">Outstanding now</div>
+        <div style="font-size:22px;font-weight:700;color:#d97706;">{{ currency_symbol }} {{ total_outstanding|floatformat:2|intcomma }}</div>
+        <div style="color:var(--adm-muted);font-size:11px;">Across all platforms</div>
+    </div>
+</div>
+
+{% if not platform_rows and not settlement_rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-truck-fast" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No online sales or settlements in this period.</p>
+    <p style="font-size:12px;">Mark an order paid via Uber Eats / Glovo / Bolt Food / Jumia Food to see it here.</p>
+</div>
+{% else %}
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">By platform</h3>
+    <p style="margin:0 0 12px;color:var(--adm-muted);font-size:12px;">
+        "Outstanding now" is the live receivable balance — independent of the period.
+        "Settled in period" is what each platform actually paid you during these dates.
+    </p>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Platform</th>
+                <th style="text-align:right;">Orders</th>
+                <th style="text-align:right;">Revenue</th>
+                <th style="text-align:right;">Avg ticket</th>
+                <th style="text-align:right;">Settled in period</th>
+                <th style="text-align:right;">Outstanding now</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in platform_rows %}
+            <tr>
+                <td><strong>{{ r.label }}</strong></td>
+                <td style="text-align:right;">{{ r.count }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ currency_symbol }} {{ r.avg_ticket|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:#16a34a;">{% if r.settled_in_period %}{{ currency_symbol }} {{ r.settled_in_period|floatformat:2|intcomma }}{% else %}<span style="color:var(--adm-muted);">—</span>{% endif %}</td>
+                <td style="text-align:right;color:#d97706;font-weight:700;">{% if r.outstanding %}{{ currency_symbol }} {{ r.outstanding|floatformat:2|intcomma }}{% else %}<span style="color:var(--adm-muted);font-weight:400;">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-border);">
+                <td style="font-weight:800;">Total</td>
+                <td style="text-align:right;font-weight:800;">{{ total_count }}</td>
+                <td style="text-align:right;font-weight:800;">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</td>
+                <td></td>
+                <td style="text-align:right;font-weight:800;color:#16a34a;">{{ currency_symbol }} {{ settlement_total|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:800;color:#d97706;">{{ currency_symbol }} {{ total_outstanding|floatformat:2|intcomma }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+{% if settlement_rows %}
+<div class="adm-card">
+    <h3 style="margin:0 0 12px;font-size:14px;">Settlements in period</h3>
+    <p style="margin:0 0 12px;color:var(--adm-muted);font-size:12px;">
+        Recorded via Accounts → Transfer / Settle. Each row is a platform paying out into one of your cash/bank accounts.
+    </p>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Platform</th>
+                <th>Description</th>
+                <th style="text-align:right;">Amount</th>
+                <th>By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in settlement_rows %}
+            <tr>
+                <td style="white-space:nowrap;color:var(--adm-muted);">{{ s.date|date:"d M Y H:i" }}</td>
+                <td><strong>{{ s.platform }}</strong></td>
+                <td style="color:var(--adm-muted);">{{ s.description }}</td>
+                <td style="text-align:right;color:#16a34a;font-weight:700;">{{ currency_symbol }} {{ s.amount|floatformat:2|intcomma }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{{ s.by|capfirst }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
