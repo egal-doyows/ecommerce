@@ -11,13 +11,30 @@ cd "$APP_DIR"
 
 # manage.py reads os.environ directly (no dotenv loader). The systemd units
 # pull env from .env via EnvironmentFile=, but bare `manage.py` invocations
-# below don't, so source it here too. Required: DJANGO_SECRET_KEY, DATABASE_URL.
-if [ -f "$APP_DIR/.env" ]; then
-    set -a; . "$APP_DIR/.env"; set +a
-else
+# below don't, so load it here too. Required: DJANGO_SECRET_KEY, DATABASE_URL.
+#
+# We parse .env line-by-line instead of `source`-ing it, so values can contain
+# unquoted spaces (e.g. ALLOWED_HOSTS=foo.com www.foo.com) the way systemd
+# EnvironmentFile= and python-dotenv accept them.
+if [ ! -f "$APP_DIR/.env" ]; then
     echo "ERROR: $APP_DIR/.env is missing — required for migrate/collectstatic." >&2
     exit 1
 fi
+
+while IFS= read -r line || [ -n "$line" ]; do
+    # Skip blanks and comments
+    case "$line" in ''|'#'*) continue ;; esac
+    # Skip anything that isn't KEY=VALUE
+    case "$line" in *=*) ;; *) continue ;; esac
+    key=${line%%=*}
+    value=${line#*=}
+    # Strip a matching pair of surrounding single or double quotes
+    case "$value" in
+        \"*\") value=${value%\"}; value=${value#\"} ;;
+        \'*\') value=${value%\'}; value=${value#\'} ;;
+    esac
+    export "$key=$value"
+done < "$APP_DIR/.env"
 
 echo "==> Ensuring runtime dirs exist..."
 mkdir -p logs run media staticfiles
