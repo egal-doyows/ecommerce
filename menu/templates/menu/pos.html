@@ -61,14 +61,19 @@
 
     .pos-search input::placeholder { color: #b0b8c1; }
 
+    .pos-categories-wrap {
+        position: relative;
+        flex-shrink: 0;
+    }
+
     .pos-categories {
         display: flex;
         gap: 8px;
         padding: 16px 24px 8px;
         overflow-x: auto;
-        flex-shrink: 0;
         scrollbar-width: thin;
         scrollbar-color: rgba(184, 62, 30, 0.3) transparent;
+        scroll-behavior: smooth;
     }
 
     .pos-categories::-webkit-scrollbar { height: 6px; }
@@ -78,6 +83,58 @@
         border-radius: 3px;
     }
     .pos-categories::-webkit-scrollbar-thumb:hover { background: rgba(184, 62, 30, 0.45); }
+
+    .pos-cat-arrow {
+        position: absolute;
+        top: 50%;
+        transform: translateY(calc(-50% - 2px));
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background: #fff;
+        color: #B83E1E;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s, background 0.15s, transform 0.15s;
+    }
+
+    .pos-cat-arrow.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .pos-cat-arrow:hover { background: #FFF8EA; }
+    .pos-cat-arrow:active { transform: translateY(calc(-50% - 2px)) scale(0.95); }
+
+    .pos-cat-arrow-prev { left: 6px; }
+    .pos-cat-arrow-next { right: 6px; }
+
+    /* Soft fade under each arrow so categories don't visually slam into it */
+    .pos-cat-arrow-prev::before,
+    .pos-cat-arrow-next::before {
+        content: '';
+        position: absolute;
+        top: -8px;
+        bottom: -8px;
+        width: 24px;
+        pointer-events: none;
+    }
+    .pos-cat-arrow-prev::before {
+        left: 32px;
+        background: linear-gradient(to right, rgba(244, 235, 220, 0.95), rgba(244, 235, 220, 0));
+    }
+    .pos-cat-arrow-next::before {
+        right: 32px;
+        background: linear-gradient(to left, rgba(244, 235, 220, 0.95), rgba(244, 235, 220, 0));
+    }
 
     .pos-cat-btn {
         padding: 8px 20px;
@@ -748,15 +805,23 @@
             </div>
         </div>
 
-        <div class="pos-categories">
-            <button class="pos-cat-btn active" data-category="all">
-                <i class="fa fa-th"></i> All
+        <div class="pos-categories-wrap">
+            <button type="button" class="pos-cat-arrow pos-cat-arrow-prev" id="pos-cat-arrow-prev" aria-label="Scroll categories left">
+                <i class="fa fa-chevron-left"></i>
             </button>
-            {% for category in all_categories %}
-            <button class="pos-cat-btn" data-category="{{ category.slug }}">
-                {% if category.icon %}<i class="fa {{ category.icon }}"></i> {% endif %}{{ category.name|capfirst }}
+            <div class="pos-categories" id="pos-categories">
+                <button class="pos-cat-btn active" data-category="all">
+                    <i class="fa fa-th"></i> All
+                </button>
+                {% for category in all_categories %}
+                <button class="pos-cat-btn" data-category="{{ category.slug }}">
+                    {% if category.icon %}<i class="fa {{ category.icon }}"></i> {% endif %}{{ category.name|capfirst }}
+                </button>
+                {% endfor %}
+            </div>
+            <button type="button" class="pos-cat-arrow pos-cat-arrow-next" id="pos-cat-arrow-next" aria-label="Scroll categories right">
+                <i class="fa fa-chevron-right"></i>
             </button>
-            {% endfor %}
         </div>
 
         <div class="pos-breadcrumb" id="pos-breadcrumb">
@@ -896,19 +961,46 @@
 <div class="pos-toast" id="added-toast"></div>
 
 <script>
-    // ---- Mousewheel → horizontal scroll on the category bar ----
-    // Touch users swipe, but mouse users would otherwise have no way to
-    // reach off-screen categories. Only intercepts the wheel when the
-    // bar actually overflows, so on wide screens the page still scrolls.
+    // ---- Category bar scroll: wheel + visible prev/next arrows ----
+    // Touch users swipe. Mouse users get arrows (always visible when the
+    // bar overflows) plus vertical-wheel → horizontal-scroll translation.
     (function () {
-        const catBar = document.querySelector('.pos-categories');
-        if (!catBar) return;
+        const catBar = document.getElementById('pos-categories');
+        const prevBtn = document.getElementById('pos-cat-arrow-prev');
+        const nextBtn = document.getElementById('pos-cat-arrow-next');
+        if (!catBar || !prevBtn || !nextBtn) return;
+
+        function updateArrows() {
+            const max = catBar.scrollWidth - catBar.clientWidth;
+            const overflows = max > 1;
+            const atStart = catBar.scrollLeft <= 1;
+            const atEnd = catBar.scrollLeft >= max - 1;
+            prevBtn.classList.toggle('is-visible', overflows && !atStart);
+            nextBtn.classList.toggle('is-visible', overflows && !atEnd);
+        }
+
+        function step(direction) {
+            // Scroll by ~80% of visible width so the rightmost visible
+            // button becomes the leftmost after the jump (with overlap).
+            const delta = Math.max(120, catBar.clientWidth * 0.8) * direction;
+            catBar.scrollBy({ left: delta, behavior: 'smooth' });
+        }
+
+        prevBtn.addEventListener('click', () => step(-1));
+        nextBtn.addEventListener('click', () => step(1));
+
         catBar.addEventListener('wheel', function (e) {
             if (e.deltaY === 0) return;
             if (catBar.scrollWidth <= catBar.clientWidth) return;
             e.preventDefault();
             catBar.scrollLeft += e.deltaY;
         }, { passive: false });
+
+        catBar.addEventListener('scroll', updateArrows, { passive: true });
+        window.addEventListener('resize', updateArrows);
+        // Initial pass (and one rAF later to catch web-font reflow).
+        updateArrows();
+        requestAnimationFrame(updateArrows);
     })();
 
     // ---- Category filter ----
