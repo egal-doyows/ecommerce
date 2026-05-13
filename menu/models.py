@@ -407,7 +407,30 @@ class Order(models.Model):
         ('credit', 'Credit (Debtor)'),
     ]
 
-    table = models.ForeignKey(Table, on_delete=models.SET_NULL, null=True, related_name='orders')
+    ORDER_TYPE_CHOICES = [
+        ('dine_in', 'Dine-in'),
+        ('takeaway', 'Takeaway'),
+        ('delivery', 'Delivery'),
+    ]
+
+    SOURCE_CHOICES = [
+        ('pos', 'POS / Walk-in'),
+        ('phone', 'Phone'),
+        ('ubereats', 'Uber Eats'),
+        ('glovo', 'Glovo'),
+        ('bolt', 'Bolt Food'),
+        ('jumia', 'Jumia Food'),
+        ('other', 'Other'),
+    ]
+
+    order_type = models.CharField(
+        max_length=10, choices=ORDER_TYPE_CHOICES, default='dine_in',
+    )
+    source = models.CharField(
+        max_length=10, choices=SOURCE_CHOICES, default='pos',
+        help_text="Where the order came from. Used to split walk-in vs marketplace revenue.",
+    )
+    table = models.ForeignKey(Table, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     waiter = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='orders')
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True,
@@ -447,7 +470,9 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Order #{self.id} - Table {self.table.number if self.table else 'N/A'}"
+        if self.order_type == 'dine_in':
+            return f"Order #{self.id} - Table {self.table.number if self.table else 'N/A'}"
+        return f"Order #{self.id} - {self.get_order_type_display()}"
 
     def delete(self, *args, **kwargs):
         table = self.table

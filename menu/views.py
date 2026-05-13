@@ -128,11 +128,20 @@ def place_order(request):
         cart = Cart(request)
         table_id = request.POST.get('table_id')
         order_notes = request.POST.get('notes', '')
+        order_type = request.POST.get('order_type', 'dine_in')
+        source = request.POST.get('source', 'pos')
 
-        if not table_id or cart.__len__() == 0:
-            return JsonResponse({'error': 'Select a table and add items'}, status=400)
+        if order_type not in dict(Order.ORDER_TYPE_CHOICES):
+            order_type = 'dine_in'
+        if source not in dict(Order.SOURCE_CHOICES):
+            source = 'pos'
 
-        table = get_object_or_404(Table, id=table_id)
+        if cart.__len__() == 0:
+            return JsonResponse({'error': 'Add items to the order'}, status=400)
+        if order_type == 'dine_in' and not table_id:
+            return JsonResponse({'error': 'Select a table for dine-in orders'}, status=400)
+
+        table = get_object_or_404(Table, id=table_id) if table_id and order_type == 'dine_in' else None
 
         order_waiter = request.user
         order_created_by = None
@@ -142,6 +151,8 @@ def place_order(request):
         with transaction.atomic():
             order = Order.objects.create(
                 table=table,
+                order_type=order_type,
+                source=source,
                 waiter=order_waiter,
                 created_by=order_created_by,
                 shift=active_shift,
@@ -164,8 +175,9 @@ def place_order(request):
                 except Exception:
                     logger.warning("Stock deduction failed for %s", product.title)
 
-            table.status = 'occupied'
-            table.save()
+            if table:
+                table.status = 'occupied'
+                table.save()
 
         cart.clear()
 

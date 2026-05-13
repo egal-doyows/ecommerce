@@ -387,7 +387,15 @@
         </div>
 
         <div class="od-meta">
-            <div><i class="fa fa-th-large"></i> &nbsp; <strong>{{ order.table }}</strong></div>
+            <div>
+                {% if order.order_type == 'dine_in' %}
+                <i class="fa fa-th-large"></i> &nbsp; <strong>{{ order.table|default:"—" }}</strong>
+                {% else %}
+                <i class="fa {% if order.order_type == 'takeaway' %}fa-bag-shopping{% else %}fa-motorcycle{% endif %}"></i> &nbsp;
+                <strong>{{ order.get_order_type_display }}</strong>{% if order.source != 'pos' %}
+                <span style="font-size:11px; color:var(--pos-muted);">&middot; {{ order.get_source_display }}</span>{% endif %}
+                {% endif %}
+            </div>
             <div><i class="fa fa-user"></i> &nbsp; <strong>{{ order.waiter.username|capfirst }}</strong></div>
             {% if order.created_by %}
             <div><i class="fa fa-bullhorn"></i> &nbsp; <strong>{{ order.created_by.username|capfirst }}</strong> <span style="font-size:11px; color:var(--pos-muted);">(Marketing)</span></div>
@@ -559,7 +567,7 @@
         <span>{{ order.created_at|date:"d/m/Y" }}</span>
     </div>
     <div class="receipt-row">
-        <span>{{ order.table }}</span>
+        <span>{% if order.order_type == 'dine_in' %}{{ order.table|default:"—" }}{% else %}{{ order.get_order_type_display }}{% if order.source != 'pos' %} ({{ order.get_source_display }}){% endif %}{% endif %}</span>
         <span>{{ order.created_at|date:"H:i" }}</span>
     </div>
     <div class="receipt-row receipt-sm">

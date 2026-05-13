@@ -91,11 +91,20 @@ def api_place_order(request):
     items = data.get('items', [])
     notes = data.get('notes', '')
     offline_id = data.get('offline_id', '')
+    order_type = data.get('order_type', 'dine_in')
+    source = data.get('source', 'pos')
 
-    if not table_id or not items:
-        return JsonResponse({'error': 'Table and items required'}, status=400)
+    if order_type not in dict(Order.ORDER_TYPE_CHOICES):
+        order_type = 'dine_in'
+    if source not in dict(Order.SOURCE_CHOICES):
+        source = 'pos'
 
-    table = get_object_or_404(Table, id=table_id)
+    if not items:
+        return JsonResponse({'error': 'Items required'}, status=400)
+    if order_type == 'dine_in' and not table_id:
+        return JsonResponse({'error': 'Table required for dine-in orders'}, status=400)
+
+    table = get_object_or_404(Table, id=table_id) if table_id and order_type == 'dine_in' else None
 
     # Ensure shift exists
     if _is_auto_shift_user(request.user):
@@ -122,6 +131,8 @@ def api_place_order(request):
         with transaction.atomic():
             order = Order.objects.create(
                 table=table,
+                order_type=order_type,
+                source=source,
                 waiter=order_waiter,
                 created_by=order_created_by,
                 shift=active_shift,
@@ -139,8 +150,9 @@ def api_place_order(request):
                     unit_cost=product.current_unit_cost(),
                 )
                 product.deduct_stock(qty)
-            table.status = 'occupied'
-            table.save()
+            if table:
+                table.status = 'occupied'
+                table.save()
     except _InsufficientStock as e:
         # Distinct 409 so the offline-sync client can surface "out of stock"
         # rather than retrying as a generic failure. _InsufficientStock is

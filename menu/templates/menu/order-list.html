@@ -223,7 +223,7 @@
         <div class="ol-card-body">
             <div class="ol-card-id">#{{ order.id }}</div>
             <div class="ol-card-info">
-                <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{{ order.table }}</div>
+                <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{% if order.order_type == 'dine_in' %}{{ order.table|default:"—" }}{% else %}{{ order.get_order_type_display }}{% if order.source != 'pos' %} <span style="font-size:11px; color:var(--pos-muted); font-weight:500;">&middot; {{ order.get_source_display }}</span>{% endif %}{% endif %}</div>
                 <div class="ol-card-info-row">
                     <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
                     <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
@@ -254,7 +254,7 @@
         <div class="ol-card-body">
             <div class="ol-card-id">#{{ order.id }}</div>
             <div class="ol-card-info">
-                <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{{ order.table }}</div>
+                <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{% if order.order_type == 'dine_in' %}{{ order.table|default:"—" }}{% else %}{{ order.get_order_type_display }}{% if order.source != 'pos' %} <span style="font-size:11px; color:var(--pos-muted); font-weight:500;">&middot; {{ order.get_source_display }}</span>{% endif %}{% endif %}</div>
                 <div class="ol-card-info-row">
                     <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
                     <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>

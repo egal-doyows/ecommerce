@@ -34,7 +34,7 @@
         <tr>
             <td style="font-weight:600;">#{{ order.pk }}</td>
             <td>{{ order.waiter.username|default:"—" }}</td>
-            <td>{% if order.table %}S{{ order.table.number }}{% else %}—{% endif %}</td>
+            <td>{% if order.order_type == 'dine_in' %}{% if order.table %}T{{ order.table.number }}{% else %}—{% endif %}{% else %}<span style="font-size:11px; color:var(--adm-muted);">{{ order.get_order_type_display }}{% if order.source != 'pos' %} · {{ order.get_source_display }}{% endif %}</span>{% endif %}</td>
             <td>{{ order.items.count }}</td>
             <td style="font-weight:600;">{{ restaurant.currency_symbol }} {{ order.get_total|floatformat:2 }}</td>
             <td>
