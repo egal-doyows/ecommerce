@@ -24,6 +24,7 @@ from django.views.decorators.cache import never_cache
 from django.conf import settings
 from django.conf.urls.static import static
 
+from account.views import user_logout
 from menu.views import service_worker_view
 from public_site.sitemaps import sitemaps as public_sitemaps
 
@@ -54,6 +55,10 @@ urlpatterns = [
     # The full POS / back-office app lives under /restpos/.
     path('restpos/', include([
         path('sw.js', service_worker_view, name='service-worker'),
+        # Intercept Django admin's logout so superusers land on the waiter
+        # login screen (same as everyone else) instead of the bare admin
+        # "logged out" page. Must come BEFORE admin.site.urls.
+        path('admin/logout/', user_logout, name='admin-logout-redirect'),
         path('admin/', admin.site.urls),
         path('', include('menu.urls')),
         path('cart/', include('cart.urls')),
