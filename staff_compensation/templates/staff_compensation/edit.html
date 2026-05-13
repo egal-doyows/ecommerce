@@ -250,7 +250,7 @@
             <div class="sc-type-toggle">
                 <div class="sc-type-option">
                     <input type="radio" name="compensation_type" value="commission" id="type_commission"
-                           {% if form.initial.compensation_type == 'commission' or form.data.compensation_type == 'commission' %}checked{% endif %}>
+                           {% if form.compensation_type.value == 'commission' %}checked{% endif %}>
                     <label for="type_commission" class="sc-type-label">
                         <div class="sc-type-icon" style="background:#FFF8EA; color:#B83E1E;">
                             <i class="fa-solid fa-percent"></i>
@@ -261,7 +261,7 @@
                 </div>
                 <div class="sc-type-option">
                     <input type="radio" name="compensation_type" value="salary" id="type_salary"
-                           {% if form.initial.compensation_type == 'salary' or form.data.compensation_type == 'salary' %}checked{% endif %}>
+                           {% if form.compensation_type.value == 'salary' %}checked{% endif %}>
                     <label for="type_salary" class="sc-type-label">
                         <div class="sc-type-icon" style="background:#f0fdf4; color:#15803d;">
                             <i class="fa-solid fa-money-bill-wave"></i>

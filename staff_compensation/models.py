@@ -33,7 +33,7 @@ class StaffCompensation(models.Model):
         User, on_delete=models.CASCADE, related_name='compensation',
     )
     compensation_type = models.CharField(
-        max_length=10, choices=COMPENSATION_TYPE_CHOICES,
+        max_length=10, choices=COMPENSATION_TYPE_CHOICES, default='salary',
     )
     is_commission_only = models.BooleanField(
         default=False,
