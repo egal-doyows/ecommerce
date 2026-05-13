@@ -19,11 +19,20 @@ class Account(models.Model):
         ('cash', 'Cash Register'),
         ('mpesa', 'M-Pesa Till'),
         ('bank', 'Bank Account'),
+        ('ubereats_ar', 'Uber Eats Receivable'),
+        ('glovo_ar', 'Glovo Receivable'),
+        ('bolt_ar', 'Bolt Food Receivable'),
+        ('jumia_ar', 'Jumia Food Receivable'),
     ]
+
+    # Account-type codes ending in `_ar` are accounts receivable — money
+    # owed to us by a delivery platform that hasn't settled yet. Treated
+    # as assets in totals, but kept visually distinct from liquid cash.
+    RECEIVABLE_SUFFIX = '_ar'
 
     name = models.CharField(max_length=100)
     account_type = models.CharField(
-        max_length=10, choices=ACCOUNT_TYPE_CHOICES, unique=True,
+        max_length=20, choices=ACCOUNT_TYPE_CHOICES, unique=True,
     )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -126,6 +135,14 @@ ORDER_PAYMENT_TO_ACCOUNT = {
     'cash': 'cash',
     'mpesa': 'mpesa',
     'card': 'bank',
+    # Platform payments credit a receivable account — money the platform
+    # owes us until they settle. Recorded as an asset, but kept off the
+    # liquid-cash totals. Settle via Accounts → Transfer Funds when the
+    # platform pays out (debit the AR, credit the destination cash/bank).
+    'ubereats': 'ubereats_ar',
+    'glovo': 'glovo_ar',
+    'bolt': 'bolt_ar',
+    'jumia': 'jumia_ar',
 }
 
 

@@ -6,18 +6,21 @@
 <div class="adm-page-header">
     <div>
         <h1>Accounts</h1>
-        <div class="breadcrumb-text">Track money across Cash, M-Pesa Till &amp; Bank</div>
+        <div class="breadcrumb-text">Cash on hand, plus platform receivables awaiting settlement</div>
     </div>
     <div>
         <a href="{% url 'admin-transfer-funds' %}" class="adm-btn adm-btn-primary">
-            <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer Funds
+            <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer / Settle
         </a>
     </div>
 </div>
 
-<!-- Account Cards -->
-<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-bottom:28px;">
-    {% for item in account_data %}
+<!-- Section: Cash on hand -->
+<h3 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--adm-muted); margin:0 0 10px;">
+    Cash on hand
+</h3>
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-bottom:24px;">
+    {% for item in cash_data %}
     <a href="{% url 'admin-account-detail' item.account.pk %}" style="text-decoration:none;">
         <div class="adm-stat" style="flex-direction:column; gap:12px; transition:all .15s; border:1.5px solid var(--adm-border);">
             <div style="display:flex; align-items:center; gap:14px; width:100%;">
@@ -53,19 +56,70 @@
     </a>
     {% endfor %}
 
-    <!-- Total Balance Card -->
+    <!-- Cash total -->
     <div class="adm-stat" style="flex-direction:column; gap:12px; background:var(--adm-dark); border:none;">
         <div style="display:flex; align-items:center; gap:14px; width:100%;">
             <div class="adm-stat-icon" style="background:rgba(184, 62, 30,.2); color:#B83E1E;">
                 <i class="fa-solid fa-wallet"></i>
             </div>
             <div>
-                <div style="font-size:12px; font-weight:600; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.5px;">Total Balance</div>
-                <div class="adm-stat-value" style="font-size:22px; color:#fff;">{{ restaurant.currency_symbol }} {{ total_balance|floatformat:2|intcomma }}</div>
+                <div style="font-size:12px; font-weight:600; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.5px;">Liquid total</div>
+                <div class="adm-stat-value" style="font-size:22px; color:#fff;">{{ restaurant.currency_symbol }} {{ cash_total|floatformat:2|intcomma }}</div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Section: Platform receivables -->
+{% if receivable_data %}
+<h3 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--adm-muted); margin:0 0 10px;">
+    Platform receivables
+    <span style="font-weight:500; text-transform:none; letter-spacing:0; font-size:12px; color:var(--adm-muted);">
+        — money platforms owe you until they settle
+    </span>
+</h3>
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; margin-bottom:28px;">
+    {% for item in receivable_data %}
+    <a href="{% url 'admin-account-detail' item.account.pk %}" style="text-decoration:none;">
+        <div class="adm-stat" style="flex-direction:column; gap:12px; transition:all .15s; border:1.5px solid var(--adm-border); border-left:3px solid #f59e0b;">
+            <div style="display:flex; align-items:center; gap:14px; width:100%;">
+                <div class="adm-stat-icon" style="background:rgba(245,158,11,.12); color:#d97706;">
+                    <i class="fa-solid fa-truck-fast"></i>
+                </div>
+                <div>
+                    <div style="font-size:12px; font-weight:600; color:var(--adm-muted); text-transform:uppercase; letter-spacing:.5px;">{{ item.account.name }}</div>
+                    <div class="adm-stat-value" style="font-size:22px;">{{ restaurant.currency_symbol }} {{ item.balance|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:16px; width:100%; border-top:1px solid var(--adm-border); padding-top:10px;">
+                <div style="font-size:12px;">
+                    <span style="color:var(--adm-muted);">Today in:</span>
+                    <strong style="color:#16a34a;">+{{ restaurant.currency_symbol }} {{ item.today_in|floatformat:2|intcomma }}</strong>
+                </div>
+                <div style="font-size:12px;">
+                    <span style="color:var(--adm-muted);">Settled today:</span>
+                    <strong style="color:#dc2626;">-{{ restaurant.currency_symbol }} {{ item.today_out|floatformat:2|intcomma }}</strong>
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+
+    <!-- Receivable total -->
+    <div class="adm-stat" style="flex-direction:column; gap:12px; background:rgba(245,158,11,.08); border:1.5px dashed #f59e0b;">
+        <div style="display:flex; align-items:center; gap:14px; width:100%;">
+            <div class="adm-stat-icon" style="background:rgba(245,158,11,.18); color:#d97706;">
+                <i class="fa-solid fa-hourglass-half"></i>
+            </div>
+            <div>
+                <div style="font-size:12px; font-weight:600; color:var(--adm-muted); text-transform:uppercase; letter-spacing:.5px;">Receivable total</div>
+                <div class="adm-stat-value" style="font-size:22px;">{{ restaurant.currency_symbol }} {{ receivable_total|floatformat:2|intcomma }}</div>
+                <div style="font-size:11px; color:var(--adm-muted); margin-top:4px;">Use Transfer/Settle when platforms pay out.</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Recent Transactions -->
 <div class="adm-card">

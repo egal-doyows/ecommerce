@@ -15,16 +15,19 @@
 <!-- Account balances -->
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
     {% for item in account_data %}
-    <div class="adm-stat" style="border:1.5px solid var(--adm-border);">
+    <div class="adm-stat" style="border:1.5px solid var(--adm-border);{% if '_ar' in item.account.account_type %}border-left:3px solid #f59e0b;{% endif %}">
         <div class="adm-stat-icon" style="
             {% if item.account.account_type == 'cash' %}background:rgba(34,197,94,.1);color:#16a34a;
             {% elif item.account.account_type == 'mpesa' %}background:rgba(34,197,94,.1);color:#15803d;
+            {% elif '_ar' in item.account.account_type %}background:rgba(245,158,11,.12);color:#d97706;
             {% else %}background:rgba(59,130,246,.1);color:#B83E1E;{% endif %}
         ">
             {% if item.account.account_type == 'cash' %}
                 <i class="fa-solid fa-money-bill-wave"></i>
             {% elif item.account.account_type == 'mpesa' %}
                 <i class="fa-solid fa-mobile-screen-button"></i>
+            {% elif '_ar' in item.account.account_type %}
+                <i class="fa-solid fa-truck-fast"></i>
             {% else %}
                 <i class="fa-solid fa-building-columns"></i>
             {% endif %}
@@ -78,7 +81,7 @@
 
         <div style="padding:12px 16px;background:rgba(124,131,255,.05);border:1px solid rgba(124,131,255,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
             <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:6px;"></i>
-            This will debit the source account and credit the destination account by the specified amount.
+            Debits the source and credits the destination. Use this to record a platform settlement: From = the platform's receivable account, To = M-Pesa Till or Bank.
         </div>
 
         <div style="display:flex;gap:10px;">

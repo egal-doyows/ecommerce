@@ -226,10 +226,14 @@
     .od-payment-section { margin-bottom: 16px; }
     .od-payment-label { font-size: 14px; font-weight: 700; color: var(--pos-text); margin-bottom: 12px; }
 
-    .od-pay-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .od-pay-tabs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 8px;
+        margin-bottom: 14px;
+    }
 
     .od-pay-tab {
-        flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -475,6 +479,22 @@
                         <div class="od-pay-tab" data-method="credit" onclick="selectPayment('credit')">
                             <i class="fa-solid fa-hand-holding-dollar"></i>
                             <span>Credit</span>
+                        </div>
+                        <div class="od-pay-tab" data-method="ubereats" onclick="selectPayment('ubereats')">
+                            <i class="fa-solid fa-motorcycle"></i>
+                            <span>Uber Eats</span>
+                        </div>
+                        <div class="od-pay-tab" data-method="glovo" onclick="selectPayment('glovo')">
+                            <i class="fa-solid fa-motorcycle"></i>
+                            <span>Glovo</span>
+                        </div>
+                        <div class="od-pay-tab" data-method="bolt" onclick="selectPayment('bolt')">
+                            <i class="fa-solid fa-motorcycle"></i>
+                            <span>Bolt Food</span>
+                        </div>
+                        <div class="od-pay-tab" data-method="jumia" onclick="selectPayment('jumia')">
+                            <i class="fa-solid fa-motorcycle"></i>
+                            <span>Jumia Food</span>
                         </div>
                     </div>
 

@@ -653,23 +653,31 @@ def accounts_overview(request):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    account_data = []
-    total_balance = 0
+    cash_data = []
+    receivable_data = []
+    cash_total = 0
+    receivable_total = 0
     for acct in accounts:
         bal = acct.balance
-        total_balance += bal
+        is_receivable = acct.account_type.endswith(Account.RECEIVABLE_SUFFIX)
+        if is_receivable:
+            receivable_total += bal
+        else:
+            cash_total += bal
         today_credits = acct.transactions.filter(
             transaction_type='credit', created_at__gte=today_start,
         ).aggregate(t=Sum('amount'))['t'] or 0
         today_debits = acct.transactions.filter(
             transaction_type='debit', created_at__gte=today_start,
         ).aggregate(t=Sum('amount'))['t'] or 0
-        account_data.append({
+        entry = {
             'account': acct,
             'balance': bal,
             'today_in': today_credits,
             'today_out': today_debits,
-        })
+            'is_receivable': is_receivable,
+        }
+        (receivable_data if is_receivable else cash_data).append(entry)
 
     # Recent transactions across all accounts
     recent_txns = Transaction.objects.select_related(
@@ -677,8 +685,11 @@ def accounts_overview(request):
     )[:20]
 
     context = {
-        'account_data': account_data,
-        'total_balance': total_balance,
+        'cash_data': cash_data,
+        'receivable_data': receivable_data,
+        'cash_total': cash_total,
+        'receivable_total': receivable_total,
+        'total_balance': cash_total + receivable_total,
         'recent_transactions': recent_txns,
         'current_month': now.strftime('%B %Y'),
     }

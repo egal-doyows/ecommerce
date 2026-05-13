@@ -405,6 +405,10 @@ class Order(models.Model):
         ('mpesa', 'M-Pesa'),
         ('card', 'Card'),
         ('credit', 'Credit (Debtor)'),
+        ('ubereats', 'Uber Eats'),
+        ('glovo', 'Glovo'),
+        ('bolt', 'Bolt Food'),
+        ('jumia', 'Jumia Food'),
     ]
 
     ORDER_TYPE_CHOICES = [
