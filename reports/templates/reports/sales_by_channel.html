@@ -1,0 +1,111 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Sales by Channel{% endblock %}
+{% block report_breadcrumb %}Sales by Channel{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv"
+   class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block report_body %}
+{% if not total_count %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-store" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No paid orders in this period.</p>
+</div>
+{% else %}
+
+<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:16px;">
+    <div class="adm-card">
+        <div style="color:var(--adm-muted);font-size:12px;">Paid orders</div>
+        <div style="font-size:22px;font-weight:700;">{{ total_count }}</div>
+    </div>
+    <div class="adm-card">
+        <div style="color:var(--adm-muted);font-size:12px;">Revenue</div>
+        <div style="font-size:22px;font-weight:700;">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</div>
+    </div>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">By order type</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th style="text-align:right;">Orders</th>
+                <th style="text-align:right;">Revenue</th>
+                <th style="text-align:right;">% of revenue</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in type_rows %}
+            <tr>
+                <td>{{ r.label }}</td>
+                <td style="text-align:right;">{{ r.count }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;font-size:14px;">By source</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Source</th>
+                <th style="text-align:right;">Orders</th>
+                <th style="text-align:right;">Revenue</th>
+                <th style="text-align:right;">% of revenue</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in source_rows %}
+            <tr>
+                <td>{{ r.label }}</td>
+                <td style="text-align:right;">{{ r.count }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="adm-card">
+    <h3 style="margin:0 0 12px;font-size:14px;">By order type &times; source</h3>
+    <p style="margin:0 0 12px;color:var(--adm-muted);font-size:12px;">
+        Combined breakdown — useful for spotting which platform drives which order type.
+    </p>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Source</th>
+                <th style="text-align:right;">Orders</th>
+                <th style="text-align:right;">Revenue</th>
+                <th style="text-align:right;">% of revenue</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in cross_rows %}
+            <tr>
+                <td>{{ r.type_label }}</td>
+                <td>{{ r.source_label }}</td>
+                <td style="text-align:right;">{{ r.count }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endif %}
+{% endblock %}

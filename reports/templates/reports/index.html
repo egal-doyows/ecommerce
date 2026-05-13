@@ -47,6 +47,14 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Revenue, COGS (frozen), waste, expenses, staff comp. Side-by-side previous period.</p>
     </a>
 
+    <a href="{% url 'reports-sales-by-channel' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-store" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Sales by Channel</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Revenue split by order type (Dine-in / Takeaway / Delivery) and source (POS, Uber Eats, Glovo, Bolt, Jumia, Phone).</p>
+    </a>
+
     <a href="{% url 'reports-stock-on-hand' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-boxes-stacked" style="font-size:20px;color:var(--adm-accent);"></i>

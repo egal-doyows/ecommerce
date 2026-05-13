@@ -14,4 +14,5 @@ urlpatterns = [
     path('voids-log/', views.voids_log, name='reports-voids-log'),
     path('cash-drawer/', views.cash_drawer, name='reports-cash-drawer'),
     path('stock-variance/', views.stock_variance, name='reports-stock-variance'),
+    path('sales-by-channel/', views.sales_by_channel, name='reports-sales-by-channel'),
 ]

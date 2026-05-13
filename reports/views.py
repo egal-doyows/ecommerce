@@ -983,3 +983,115 @@ def stock_variance(request):
         'has_variances': bool(nonzero_variances),
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
+
+
+# ── Sales by Channel ───────────────────────────────────────────────────
+
+@manager_required
+def sales_by_channel(request):
+    """Break paid revenue down by order_type (Dine-in/Takeaway/Delivery)
+    and source (POS/Phone/Uber Eats/Glovo/Bolt/Jumia/Other). Useful for
+    splitting walk-in vs marketplace revenue and tracking platform fees.
+    """
+    start, end, preset = parse_date_range(request)
+
+    paid_orders = (
+        Order.objects
+        .filter(status='paid', created_at__date__gte=start, created_at__date__lte=end)
+        .prefetch_related('items')
+    )
+
+    type_labels = dict(Order.ORDER_TYPE_CHOICES)
+    source_labels = dict(Order.SOURCE_CHOICES)
+
+    by_type = {k: {'count': 0, 'revenue': Decimal('0')} for k, _ in Order.ORDER_TYPE_CHOICES}
+    by_source = {k: {'count': 0, 'revenue': Decimal('0')} for k, _ in Order.SOURCE_CHOICES}
+    cross = {}
+
+    total_revenue = Decimal('0')
+    total_count = 0
+
+    for order in paid_orders:
+        revenue = order.get_total()
+        total_revenue += revenue
+        total_count += 1
+
+        by_type[order.order_type]['count'] += 1
+        by_type[order.order_type]['revenue'] += revenue
+        by_source[order.source]['count'] += 1
+        by_source[order.source]['revenue'] += revenue
+
+        key = (order.order_type, order.source)
+        if key not in cross:
+            cross[key] = {'count': 0, 'revenue': Decimal('0')}
+        cross[key]['count'] += 1
+        cross[key]['revenue'] += revenue
+
+    def _pct(amount):
+        if not total_revenue:
+            return Decimal('0')
+        return amount / total_revenue * 100
+
+    type_rows = [
+        {
+            'key': k,
+            'label': type_labels[k],
+            'count': v['count'],
+            'revenue': v['revenue'],
+            'pct': _pct(v['revenue']),
+        }
+        for k, v in by_type.items() if v['count']
+    ]
+    type_rows.sort(key=lambda r: r['revenue'], reverse=True)
+
+    source_rows = [
+        {
+            'key': k,
+            'label': source_labels[k],
+            'count': v['count'],
+            'revenue': v['revenue'],
+            'pct': _pct(v['revenue']),
+        }
+        for k, v in by_source.items() if v['count']
+    ]
+    source_rows.sort(key=lambda r: r['revenue'], reverse=True)
+
+    cross_rows = [
+        {
+            'type_label': type_labels[t],
+            'source_label': source_labels[s],
+            'count': v['count'],
+            'revenue': v['revenue'],
+            'pct': _pct(v['revenue']),
+        }
+        for (t, s), v in cross.items()
+    ]
+    cross_rows.sort(key=lambda r: r['revenue'], reverse=True)
+
+    if request.GET.get('format') == 'csv':
+        header = ['Group', 'Label', 'Orders', 'Revenue', '% of revenue']
+        rows = []
+        for r in type_rows:
+            rows.append(['Order type', r['label'], r['count'], r['revenue'], f"{r['pct']:.1f}"])
+        for r in source_rows:
+            rows.append(['Source', r['label'], r['count'], r['revenue'], f"{r['pct']:.1f}"])
+        for r in cross_rows:
+            rows.append([
+                'Type × Source',
+                f"{r['type_label']} · {r['source_label']}",
+                r['count'], r['revenue'], f"{r['pct']:.1f}",
+            ])
+        return csv_response(
+            f'sales_by_channel_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, rows,
+        )
+
+    return render(request, 'reports/sales_by_channel.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'type_rows': type_rows,
+        'source_rows': source_rows,
+        'cross_rows': cross_rows,
+        'total_revenue': total_revenue,
+        'total_count': total_count,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
