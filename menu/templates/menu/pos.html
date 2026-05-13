@@ -786,12 +786,12 @@
                 {% csrf_token %}
 
                 <div class="pos-table-select">
-                    <label><i class="fa fa-th-large"></i> Space</label>
+                    <label><i class="fa fa-th-large"></i> Table</label>
                     <select name="table_id" id="table-select" required>
-                        <option value="">Select space...</option>
+                        <option value="">Select table...</option>
                         {% for table in tables %}
                         <option value="{{ table.id }}">
-                            Space {{ table.number }} &middot; {{ table.capacity }} seats
+                            Table {{ table.number }} &middot; {{ table.capacity }} seats
                             {% if table.status != 'available' %}&mdash; {{ table.get_status_display }}{% endif %}
                         </option>
                         {% endfor %}
