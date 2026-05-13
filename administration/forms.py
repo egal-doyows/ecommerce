@@ -220,7 +220,7 @@ class TableForm(forms.ModelForm):
         model = Table
         fields = ['number', 'capacity', 'status']
         widgets = {
-            'number': forms.NumberInput(attrs={**_input, 'min': '1'}),
+            'number': forms.TextInput(attrs={**_input, 'maxlength': '10'}),
             'capacity': forms.NumberInput(attrs={**_input, 'min': '1'}),
             'status': forms.Select(attrs=_select),
         }

@@ -343,7 +343,7 @@ class Table(models.Model):
         ('reserved', 'Reserved'),
     ]
 
-    number = models.PositiveIntegerField(unique=True)
+    number = models.CharField(max_length=10, unique=True)
     capacity = models.PositiveIntegerField(default=4)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='available')
 
