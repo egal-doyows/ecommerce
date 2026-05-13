@@ -167,7 +167,7 @@
                 <td style="text-align:right;font-weight:800;color:#dc2626;">{{ restaurant.currency_symbol }} {{ total_debits|floatformat:2|intcomma }}</td>
                 <td style="text-align:right;font-weight:800;color:#16a34a;">{{ restaurant.currency_symbol }} {{ total_credits|floatformat:2|intcomma }}</td>
                 <td style="text-align:right;font-weight:800;">
-                    {% if has_date_filter %}{{ restaurant.currency_symbol }} {{ closing_balance|floatformat:2|intcomma }}{% endif %}
+                    {{ restaurant.currency_symbol }} {% if has_date_filter %}{{ closing_balance|floatformat:2|intcomma }}{% else %}{{ balance|floatformat:2|intcomma }}{% endif %}
                 </td>
                 <td></td>
             </tr>
