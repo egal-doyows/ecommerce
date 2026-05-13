@@ -1,25 +1,31 @@
 {
-  "name": "Restaurant POS",
-  "short_name": "POS",
-  "description": "Restaurant Point of Sale System",
+  "name": "Bean & Bite POS",
+  "short_name": "Bean & Bite",
+  "description": "Point-of-sale and back-office for Bean & Bite.",
   "start_url": "/restpos/",
   "scope": "/restpos/",
   "display": "standalone",
-  "background_color": "#1b1f3b",
-  "theme_color": "#1b1f3b",
+  "background_color": "#FBF4E8",
+  "theme_color": "#2A1A10",
   "orientation": "any",
   "icons": [
     {
-      "src": "/static/icons/icon-192.png",
+      "src": "/static/public_site/img/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/static/icons/icon-512.png",
+      "src": "/static/public_site/img/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/static/public_site/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
