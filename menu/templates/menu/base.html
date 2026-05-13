@@ -66,7 +66,7 @@
                     <i class="fa-solid fa-receipt tw-text-xs"></i> Orders
                 </a>
                 <a href="{% url 'tables' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'tables' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
-                    <i class="fa-solid fa-table-cells-large tw-text-xs"></i> Spaces
+                    <i class="fa-solid fa-table-cells-large tw-text-xs"></i> Tables
                 </a>
                 <a href="{% url 'shift' %}" class="tw-inline-flex tw-items-center tw-gap-2 tw-px-4 tw-py-2 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline tw-transition-all tw-duration-200 {% if request.resolver_match.url_name == 'shift' or request.resolver_match.url_name == 'shift-detail' %}tw-bg-pos-accent tw-text-white tw-shadow-md tw-shadow-pos-accent/30{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
                     <i class="fa-solid fa-clock-rotate-left tw-text-xs"></i> Shift

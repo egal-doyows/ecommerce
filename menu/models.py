@@ -351,7 +351,7 @@ class Table(models.Model):
         ordering = ['number']
 
     def __str__(self):
-        return f"Space {self.number}"
+        return f"Table {self.number}"
 
 
 class Shift(models.Model):
@@ -447,7 +447,7 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Order #{self.id} - Space {self.table.number if self.table else 'N/A'}"
+        return f"Order #{self.id} - Table {self.table.number if self.table else 'N/A'}"
 
     def delete(self, *args, **kwargs):
         table = self.table

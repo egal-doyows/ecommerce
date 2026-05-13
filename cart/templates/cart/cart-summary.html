@@ -482,12 +482,12 @@
         <!-- Right: Summary -->
         <div class="rp-summary-card">
             <div class="rp-summary-section">
-                <div class="rp-summary-label">Assign Space</div>
+                <div class="rp-summary-label">Assign Table</div>
                 <select name="table_id" class="rp-table-select" required>
-                    <option value="">-- Select a space --</option>
+                    <option value="">-- Select a table --</option>
                     {% for table in tables %}
                     <option value="{{ table.id }}" {% if table.status != 'available' %}style="color:var(--pos-muted);"{% endif %}>
-                        Space {{ table.number }} &middot; {{ table.capacity }} seats
+                        Table {{ table.number }} &middot; {{ table.capacity }} seats
                         {% if table.status != 'available' %} ({{ table.get_status_display }}){% endif %}
                     </option>
                     {% endfor %}

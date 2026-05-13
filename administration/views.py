@@ -473,12 +473,12 @@ def table_create(request):
         form = TableForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Space created.')
+            messages.success(request, 'Table created.')
             return redirect('admin-table-list')
     else:
         form = TableForm()
     return render(request, 'administration/generic_form.html', {
-        'form': form, 'title': 'Add Space', 'cancel_url': 'admin-table-list',
+        'form': form, 'title': 'Add Table', 'cancel_url': 'admin-table-list',
     })
 
 
@@ -489,12 +489,12 @@ def table_edit(request, pk):
         form = TableForm(request.POST, instance=table)
         if form.is_valid():
             form.save()
-            messages.success(request, f'Space {table.number} updated.')
+            messages.success(request, f'Table {table.number} updated.')
             return redirect('admin-table-list')
     else:
         form = TableForm(instance=table)
     return render(request, 'administration/generic_form.html', {
-        'form': form, 'title': f'Edit Space {table.number}', 'cancel_url': 'admin-table-list',
+        'form': form, 'title': f'Edit Table {table.number}', 'cancel_url': 'admin-table-list',
     })
 
 
@@ -503,11 +503,11 @@ def table_delete(request, pk):
     table = get_object_or_404(Table, pk=pk)
     if request.method == 'POST':
         table.delete()
-        messages.success(request, 'Space deleted.')
+        messages.success(request, 'Table deleted.')
         return redirect('admin-table-list')
     return render(request, 'administration/confirm_delete.html', {
         'object': table,
-        'object_name': f'Space {table.number}',
+        'object_name': f'Table {table.number}',
         'cancel_url': 'admin-table-list',
     })
 

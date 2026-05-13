@@ -318,7 +318,7 @@ def order_update_status(request, order_id):
                         debtor=order.debtor,
                         transaction_type='debit',
                         amount=order.get_total(),
-                        description=f'Order #{order.id} — Space {order.table.number if order.table else "N/A"}',
+                        description=f'Order #{order.id} — Table {order.table.number if order.table else "N/A"}',
                         reference=str(order.id),
                         created_by=request.user,
                     )
