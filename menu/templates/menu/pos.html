@@ -778,31 +778,7 @@
         </div>
 
         <div class="pos-order-items" id="order-items">
-            {% for item in cart %}
-            {% with product=item.product %}
-            <div class="pos-order-item" data-key="{{ item.key }}">
-                <div class="pos-qty-controls">
-                    <button class="pos-qty-btn qty-minus" data-key="{{ item.key }}">−</button>
-                    <span class="pos-qty-value">{{ item.qty }}</span>
-                    <button class="pos-qty-btn qty-plus" data-key="{{ item.key }}">+</button>
-                </div>
-                <div class="pos-order-item-details">
-                    <div class="pos-order-item-name">{{ product.title|capfirst }}</div>
-                    <div class="pos-order-item-unit">{{ restaurant.currency_symbol }}{{ item.price|floatformat:2|intcomma }} each</div>
-                </div>
-                <div class="pos-order-item-price">{{ restaurant.currency_symbol }}{{ item.total|floatformat:2|intcomma }}</div>
-                <button class="pos-order-item-remove" data-key="{{ item.key }}" title="Remove item">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            {% endwith %}
-            {% empty %}
-            <div class="pos-order-empty" id="order-empty">
-                <i class="fa fa-shopping-basket"></i>
-                <p>No items added</p>
-                <p class="pos-hint">Tap menu items to build an order</p>
-            </div>
-            {% endfor %}
+            {% include 'cart/_order_items.html' %}
         </div>
 
         <div class="pos-order-footer">
@@ -982,6 +958,36 @@
         return d.innerHTML;
     }
 
+    // ---- Apply server-rendered cart state in place ----
+    const currencySymbol = '{{ restaurant.currency_symbol|escapejs }}';
+
+    function formatTotal(totalStr) {
+        const n = parseFloat(totalStr);
+        if (isNaN(n)) return currencySymbol + '0.00';
+        return currencySymbol + n.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    }
+
+    function applyCartState(res) {
+        if (!res) return;
+        document.getElementById('order-items').innerHTML = res.html;
+
+        const qty = res.qty || 0;
+        const countEl = document.getElementById('order-count');
+        if (countEl) countEl.textContent = qty + ' item' + (qty === 1 ? '' : 's');
+
+        const summaryItems = document.getElementById('summary-items');
+        if (summaryItems) summaryItems.textContent = qty;
+
+        const summaryTotal = document.getElementById('summary-total');
+        if (summaryTotal) summaryTotal.textContent = formatTotal(res.total);
+
+        const placeBtn = document.querySelector('.pos-place-btn');
+        if (placeBtn) placeBtn.disabled = (qty === 0);
+    }
+
     // ---- Add item to cart ----
     document.querySelectorAll('.pos-item-card:not(.unavailable)').forEach(card => {
         card.addEventListener('click', function() {
@@ -997,9 +1003,9 @@
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     action: 'post'
                 },
-                success: function() {
+                success: function(res) {
                     showToast('<i class="fa fa-check"></i> ' + card.dataset.name + ' added');
-                    location.reload();
+                    applyCartState(res);
                 }
             });
         });
@@ -1019,7 +1025,7 @@
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 action: 'post'
             },
-            success: function() { location.reload(); }
+            success: applyCartState
         });
     });
 
@@ -1036,7 +1042,7 @@
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     action: 'post'
                 },
-                success: function() { location.reload(); }
+                success: applyCartState
             });
         } else {
             $.ajax({
@@ -1048,7 +1054,7 @@
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     action: 'post'
                 },
-                success: function() { location.reload(); }
+                success: applyCartState
             });
         }
     });
@@ -1064,7 +1070,7 @@
                 csrfmiddlewaretoken: '{{ csrf_token }}',
                 action: 'post'
             },
-            success: function() { location.reload(); }
+            success: applyCartState
         });
     });
 
@@ -1074,6 +1080,7 @@
         if (items.length === 0) return;
         if (!confirm('Clear all items from the order?')) return;
         let done = 0;
+        let lastRes = null;
         items.forEach(btn => {
             $.ajax({
                 type: 'POST',
@@ -1083,7 +1090,11 @@
                     csrfmiddlewaretoken: '{{ csrf_token }}',
                     action: 'post'
                 },
-                success: function() { done++; if (done >= items.length) location.reload(); }
+                success: function(res) {
+                    lastRes = res;
+                    done++;
+                    if (done >= items.length) applyCartState(lastRes);
+                }
             });
         });
     });

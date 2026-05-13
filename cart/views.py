@@ -1,9 +1,19 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.template.loader import render_to_string
 
 from .cart import Cart
 from menu.models import MenuItem, Table
+
+
+def _cart_response(request, cart):
+    html = render_to_string('cart/_order_items.html', {'cart': cart}, request=request)
+    return JsonResponse({
+        'qty': cart.__len__(),
+        'total': str(cart.get_total()),
+        'html': html,
+    })
 
 
 @login_required(login_url='waiter-login')
@@ -24,9 +34,7 @@ def cart_add(request):
 
         cart.add(product=product, product_qty=product_quantity)
 
-        cart_quantity = cart.__len__()
-        response = JsonResponse({'qty': cart_quantity})
-        return response
+        return _cart_response(request, cart)
 
 
 @login_required(login_url='waiter-login')
@@ -43,11 +51,7 @@ def cart_update(request):
 
         cart.update(key=cart_key, qty=product_quantity)
 
-        cart_quantity = cart.__len__()
-        cart_total = cart.get_total()
-
-        response = JsonResponse({'qty': cart_quantity, 'total': str(cart_total)})
-        return response
+        return _cart_response(request, cart)
 
 
 @login_required(login_url='waiter-login')
@@ -63,8 +67,4 @@ def cart_delete(request):
 
         cart.delete(key=cart_key)
 
-        cart_quantity = cart.__len__()
-        cart_total = cart.get_total()
-
-        response = JsonResponse({'qty': cart_quantity, 'total': str(cart_total)})
-        return response
+        return _cart_response(request, cart)

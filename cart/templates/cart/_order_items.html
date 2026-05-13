@@ -1,0 +1,26 @@
+{% load humanize %}
+{% for item in cart %}
+{% with product=item.product %}
+<div class="pos-order-item" data-key="{{ item.key }}">
+    <div class="pos-qty-controls">
+        <button class="pos-qty-btn qty-minus" data-key="{{ item.key }}">−</button>
+        <span class="pos-qty-value">{{ item.qty }}</span>
+        <button class="pos-qty-btn qty-plus" data-key="{{ item.key }}">+</button>
+    </div>
+    <div class="pos-order-item-details">
+        <div class="pos-order-item-name">{{ product.title|capfirst }}</div>
+        <div class="pos-order-item-unit">{{ restaurant.currency_symbol }}{{ item.price|floatformat:2|intcomma }} each</div>
+    </div>
+    <div class="pos-order-item-price">{{ restaurant.currency_symbol }}{{ item.total|floatformat:2|intcomma }}</div>
+    <button class="pos-order-item-remove" data-key="{{ item.key }}" title="Remove item">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+</div>
+{% endwith %}
+{% empty %}
+<div class="pos-order-empty" id="order-empty">
+    <i class="fa fa-shopping-basket"></i>
+    <p>No items added</p>
+    <p class="pos-hint">Tap menu items to build an order</p>
+</div>
+{% endfor %}
