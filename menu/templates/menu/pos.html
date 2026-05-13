@@ -64,12 +64,20 @@
     .pos-categories {
         display: flex;
         gap: 8px;
-        padding: 16px 24px 12px;
+        padding: 16px 24px 8px;
         overflow-x: auto;
         flex-shrink: 0;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(184, 62, 30, 0.3) transparent;
     }
 
-    .pos-categories::-webkit-scrollbar { height: 0; }
+    .pos-categories::-webkit-scrollbar { height: 6px; }
+    .pos-categories::-webkit-scrollbar-track { background: transparent; }
+    .pos-categories::-webkit-scrollbar-thumb {
+        background: rgba(184, 62, 30, 0.25);
+        border-radius: 3px;
+    }
+    .pos-categories::-webkit-scrollbar-thumb:hover { background: rgba(184, 62, 30, 0.45); }
 
     .pos-cat-btn {
         padding: 8px 20px;
@@ -888,6 +896,21 @@
 <div class="pos-toast" id="added-toast"></div>
 
 <script>
+    // ---- Mousewheel → horizontal scroll on the category bar ----
+    // Touch users swipe, but mouse users would otherwise have no way to
+    // reach off-screen categories. Only intercepts the wheel when the
+    // bar actually overflows, so on wide screens the page still scrolls.
+    (function () {
+        const catBar = document.querySelector('.pos-categories');
+        if (!catBar) return;
+        catBar.addEventListener('wheel', function (e) {
+            if (e.deltaY === 0) return;
+            if (catBar.scrollWidth <= catBar.clientWidth) return;
+            e.preventDefault();
+            catBar.scrollLeft += e.deltaY;
+        }, { passive: false });
+    })();
+
     // ---- Category filter ----
     document.querySelectorAll('.pos-cat-btn').forEach(btn => {
         btn.addEventListener('click', function() {
