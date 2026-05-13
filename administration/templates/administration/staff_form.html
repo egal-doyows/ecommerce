@@ -86,19 +86,19 @@
 
 {% if not staff_user %}
 <script>
-    // Hide password fields when Attendant role is selected (they can't login)
-    const roleSelect = document.getElementById('id_role');
-    if (roleSelect) {
-        function togglePasswordFields() {
-            const selectedText = roleSelect.options[roleSelect.selectedIndex]?.text || '';
-            const isAttendant = selectedText.trim() === 'Attendant';
-            document.querySelectorAll('#id_password1, #id_password2').forEach(el => {
+    // Hide password + role fields when the user is flagged as commission-only.
+    // Those staff don't log in and don't need a role.
+    const coCheckbox = document.getElementById('id_is_commission_only');
+    if (coCheckbox) {
+        function toggleNonLoginFields() {
+            const isCO = coCheckbox.checked;
+            document.querySelectorAll('#id_password1, #id_password2, #id_role').forEach(el => {
                 const group = el.closest('.adm-form-group');
-                if (group) group.style.display = isAttendant ? 'none' : '';
+                if (group) group.style.display = isCO ? 'none' : '';
             });
         }
-        roleSelect.addEventListener('change', togglePasswordFields);
-        togglePasswordFields();
+        coCheckbox.addEventListener('change', toggleNonLoginFields);
+        toggleNonLoginFields();
     }
 </script>
 {% endif %}

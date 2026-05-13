@@ -16,10 +16,17 @@ def _can_manage_compensation(user):
 
 
 def _get_commission_staff():
-    """Return queryset of users in groups that earn commission (Server + Attendant + Promoter)."""
+    """Return queryset of users that earn commission.
+
+    Includes anyone in the Server or Promoter group, plus the commission-only
+    staff flagged via StaffCompensation.is_commission_only (the legacy
+    "Attendant" group was retired in staff_compensation/migrations/0009).
+    """
+    from django.db.models import Q
     return User.objects.filter(
-        groups__name__in=['Server', 'Attendant', 'Promoter'], is_active=True,
-    ).select_related('compensation').prefetch_related('groups')
+        Q(groups__name__in=['Server', 'Promoter']) | Q(compensation__is_commission_only=True),
+        is_active=True,
+    ).select_related('compensation').prefetch_related('groups').distinct()
 
 
 @login_required(login_url='my-login')

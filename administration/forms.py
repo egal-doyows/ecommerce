@@ -22,10 +22,18 @@ _file = {'class': 'adm-input'}
 class StaffCreateForm(UserCreationForm):
     email = forms.EmailField(required=True, widget=forms.EmailInput(attrs=_input))
     role = forms.ModelChoiceField(
-        queryset=Group.objects.all(),
-        required=True,
+        queryset=Group.objects.exclude(name='Attendant'),
+        required=False,
         widget=forms.Select(attrs=_select),
-        help_text='Assign a role to this staff member',
+        help_text='Assign a role. Leave blank only for commission-only staff.',
+    )
+    is_commission_only = forms.BooleanField(
+        required=False,
+        label='Commission-only staff (no login)',
+        help_text=(
+            'For staff who exist only to receive commission attribution '
+            'and never log in. No password or role required.'
+        ),
     )
 
     class Meta:
@@ -39,7 +47,8 @@ class StaffCreateForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields['password1'].widget.attrs.update(_input)
         self.fields['password2'].widget.attrs.update(_input)
-        # Attendants don't login — passwords are optional (handled in clean)
+        # Real requirement is enforced in clean() — commission-only staff
+        # skip both the password and the role.
         self.fields['password1'].required = False
         self.fields['password2'].required = False
 
@@ -51,33 +60,31 @@ class StaffCreateForm(UserCreationForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        is_co = cleaned_data.get('is_commission_only')
         role = cleaned_data.get('role')
-        is_attendant = role and role.name == 'Attendant'
-        if is_attendant:
-            # Clear password errors — attendants don't need passwords
-            if 'password1' in self.errors:
-                del self.errors['password1']
-            if 'password2' in self.errors:
-                del self.errors['password2']
+        if is_co:
+            # Drop password validation errors — they don't apply.
+            self.errors.pop('password1', None)
+            self.errors.pop('password2', None)
         else:
-            # Non-attendants require passwords
-            pw1 = cleaned_data.get('password1')
-            pw2 = cleaned_data.get('password2')
-            if not pw1:
+            if not role:
+                self.add_error('role', 'Select a role.')
+            if not cleaned_data.get('password1'):
                 self.add_error('password1', 'This field is required.')
-            if not pw2:
+            if not cleaned_data.get('password2'):
                 self.add_error('password2', 'This field is required.')
         return cleaned_data
 
     def save(self, commit=True):
-        role = self.cleaned_data['role']
-        is_attendant = role.name == 'Attendant'
+        is_co = self.cleaned_data.get('is_commission_only')
+        role = self.cleaned_data.get('role')
         user = super().save(commit=False)
-        if is_attendant:
+        if is_co:
             user.set_unusable_password()
         if commit:
             user.save()
-            user.groups.set([role])
+            if role:
+                user.groups.set([role])
         return user
 
 

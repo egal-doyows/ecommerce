@@ -35,6 +35,14 @@ class StaffCompensation(models.Model):
     compensation_type = models.CharField(
         max_length=10, choices=COMPENSATION_TYPE_CHOICES,
     )
+    is_commission_only = models.BooleanField(
+        default=False,
+        help_text=(
+            "Non-login staff who exist only for commission attribution. "
+            "Replaces the legacy 'Attendant' group: login is blocked, but "
+            "the user is still included in commission queries."
+        ),
+    )
 
     # Commission fields
     commission_scope = models.CharField(

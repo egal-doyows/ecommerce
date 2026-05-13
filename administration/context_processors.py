@@ -16,7 +16,6 @@ def admin_role(request):
             'is_server':    False,
             'is_cashier':   False,
             'is_kitchen':   False,
-            'is_attendant': False,
             'is_promoter':  False,
         }
     else:
@@ -29,7 +28,6 @@ def admin_role(request):
             'is_server':    'Server'     in groups,
             'is_cashier':   'Cashier'    in groups,
             'is_kitchen':   'Kitchen'    in groups,
-            'is_attendant': 'Attendant'  in groups,
             'is_promoter':  'Promoter'   in groups,
         }
 

@@ -147,21 +147,25 @@ def staff_create(request):
             user = form.save(commit=False)
             user.is_active = True
             user.save()
-            role = form.cleaned_data['role']
-            user.groups.set([role])  # form.save(commit=False) skips group assignment
+            role = form.cleaned_data.get('role')
+            is_co = form.cleaned_data.get('is_commission_only')
+            if role:
+                user.groups.set([role])  # form.save(commit=False) skips group assignment
 
-            if role.name == 'Attendant':
-                # Attendants can't login — no login code, but get commission setup
+            if is_co:
+                # Commission-only staff: no login code, but flagged for
+                # commission attribution. Login is blocked at /my-login/.
                 StaffCompensation.objects.get_or_create(
                     user=user,
                     defaults={
                         'compensation_type': 'commission',
+                        'is_commission_only': True,
                         'commission_scope': 'both',
                         'commission_rate_regular': 0,
                         'commission_rate_premium': 0,
                     },
                 )
-            elif role.name == 'Promoter':
+            elif role and role.name == 'Promoter':
                 # Promoters can login and earn commission on orders they create
                 WaiterCode.objects.create(
                     user=user,

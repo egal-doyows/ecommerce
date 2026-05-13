@@ -11,13 +11,13 @@ Server        — Wait staff: take orders, manage own shifts, view menu/tables.
 Cashier       — Handle payments, manage cash drawer (starting cash required).
 Kitchen       — Read incoming orders + mark items prepared/ready. No payment,
                 no cash, no menu edits. Future-proofs for a KDS.
-Attendant     — Cannot login. Earns commission when assigned to orders by
-                Supervisors. (NOTE: this is a misuse of the Group system —
-                attendants are non-login staff records, not auth principals.
-                Slated to move to a model field. See backlog.)
-Promoter      — Creates orders on behalf of attendants and earns commission
-                on those orders. (Was "Marketing" pre-2026 — renamed because
-                "Marketing" usually means social/promo, not order-taking.)
+Promoter      — Creates orders on behalf of commission-only staff and earns
+                commission on those orders. (Was "Marketing" pre-2026 — renamed
+                because "Marketing" usually means social/promo, not order-taking.)
+
+Commission-only staff (formerly the "Attendant" group, retired in
+staff_compensation/migrations/0009) are tracked by
+StaffCompensation.is_commission_only — not by group membership.
 
 Run:  python manage.py setup_groups
 
@@ -127,11 +127,6 @@ KITCHEN_PERMS = [
     ('menu', 'inventoryitem',   ['view']),             # check stock when prepping
 ]
 
-# Attendants cannot login. They earn commission when a Supervisor
-# assigns them to an order. No Django permissions needed.
-# (TODO: move out of Groups into an Employee model field — see docstring.)
-ATTENDANT_PERMS = []
-
 PROMOTER_PERMS = [
     # Orders — create and manage own
     ('menu', 'order',           ['add', 'change', 'view']),
@@ -155,13 +150,12 @@ GROUPS = [
     ('Server',     SERVER_PERMS),
     ('Cashier',    CASHIER_PERMS),
     ('Kitchen',    KITCHEN_PERMS),
-    ('Attendant',  ATTENDANT_PERMS),
     ('Promoter',   PROMOTER_PERMS),
 ]
 
 
 class Command(BaseCommand):
-    help = 'Create Owner, Manager, Supervisor, Server, Cashier, Kitchen, Attendant, and Promoter groups'
+    help = 'Create Owner, Manager, Supervisor, Server, Cashier, Kitchen, and Promoter groups'
 
     def _rename_legacy_groups(self):
         """Rename legacy Group rows in place so user memberships are preserved."""

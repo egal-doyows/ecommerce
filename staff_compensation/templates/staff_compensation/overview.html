@@ -146,7 +146,7 @@
     <div class="sc-header">
         <div>
             <h2><i class="fa-solid fa-wallet" style="color: var(--pos-accent); margin-right: 8px;"></i>Staff Compensation</h2>
-            <p class="sc-header-sub">Commission &amp; earnings for Server, Attendant &amp; Promoter staff</p>
+            <p class="sc-header-sub">Commission &amp; earnings for Server, Promoter &amp; commission-only staff</p>
         </div>
         <span class="sc-month-label"><i class="fa-solid fa-calendar"></i> {{ current_month }}</span>
     </div>
@@ -180,8 +180,11 @@
                     {% if item.user.email %}<br><span style="font-size:12px; color:var(--pos-muted);">{{ item.user.email }}</span>{% endif %}
                 </td>
                 <td>
+                    {% if item.compensation.is_commission_only %}
+                        <span class="sc-badge" style="background:#fef3c7;color:#92400e;">Commission-only</span>
+                    {% endif %}
                     {% for g in item.user.groups.all %}
-                        <span class="sc-badge" style="{% if g.name == 'Attendant' %}background:#fef3c7;color:#92400e;{% elif g.name == 'Promoter' %}background:#dcfce7;color:#166534;{% else %}background:#FFF8EA;color:#8E2C12;{% endif %}">{{ g.name }}</span>
+                        <span class="sc-badge" style="{% if g.name == 'Promoter' %}background:#dcfce7;color:#166534;{% else %}background:#FFF8EA;color:#8E2C12;{% endif %}">{{ g.name }}</span>
                     {% endfor %}
                 </td>
                 <td>

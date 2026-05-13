@@ -132,9 +132,11 @@ def my_login(request):
                 auth_logger.warning('Failed login attempt for username=%s from IP=%s', username, request.META.get('REMOTE_ADDR'))
             if user is not None:
                 auth_logger.info('Successful login for user=%s from IP=%s', username, request.META.get('REMOTE_ADDR'))
-                # Block attendants from logging in
-                if user.groups.filter(name='Attendant').exists():
-                    messages.error(request, 'Attendants are not allowed to login. Please contact your manager.')
+                # Block commission-only staff from logging in (formerly the
+                # "Attendant" group; see staff_compensation/migrations/0009).
+                comp = getattr(user, 'compensation', None)
+                if comp and comp.is_commission_only:
+                    messages.error(request, 'This account is commission-only and cannot log in. Please contact your manager.')
                     return render(request, 'accounts/my-login.html', {'form': LoginForm()})
 
                 auth.login(request, user)
