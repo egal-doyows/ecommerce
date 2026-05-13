@@ -11,17 +11,8 @@ from django.conf import settings as django_settings
 
 logger = logging.getLogger(__name__)
 
-from django.contrib.auth.models import User
-
 from .models import Category, MenuItem, Table, Order, OrderItem, Shift, RestaurantSettings
 from cart.cart import Cart
-
-
-def _get_attendants():
-    """Return active users in the Attendant group."""
-    return User.objects.filter(
-        groups__name='Attendant', is_active=True,
-    ).order_by('username')
 
 
 def _is_supervisor(user):
@@ -39,13 +30,6 @@ def _is_manager_or_above(user):
     if user.is_superuser:
         return True
     return user.groups.filter(name__in=['Owner', 'Manager', 'Supervisor']).exists()
-
-
-def _must_select_attendant(user):
-    """Return True if user must select an attendant when creating orders."""
-    if user.is_superuser:
-        return True
-    return user.groups.filter(name__in=['Owner', 'Manager', 'Supervisor', 'Promoter']).exists()
 
 
 def _is_auto_shift_user(user):
@@ -114,12 +98,9 @@ def pos_home(request):
         .order_by('category__name', 'title')
     )
     tables = Table.objects.all()
-    show_attendant_select = _must_select_attendant(request.user)
     context = {
         'all_products': all_products,
         'tables': tables,
-        'show_attendant_select': show_attendant_select,
-        'attendants': _get_attendants() if show_attendant_select else [],
     }
     return render(request, 'menu/pos.html', context)
 
@@ -153,21 +134,8 @@ def place_order(request):
 
         table = get_object_or_404(Table, id=table_id)
 
-        # Determine who gets credit for the order (commission).
-        # Managers, Supervisors, Superusers, and Marketing must select an attendant.
-        # Promoter users are tracked as created_by and also earn commission.
         order_waiter = request.user
         order_created_by = None
-        if _must_select_attendant(request.user):
-            attendant_id = request.POST.get('attendant_id')
-            if not attendant_id:
-                return JsonResponse({'error': 'Select an attendant'}, status=400)
-            order_waiter = get_object_or_404(
-                User, id=attendant_id, groups__name='Attendant', is_active=True,
-            )
-            # Promoters earn commission on orders they create
-            if _is_promoter(request.user):
-                order_created_by = request.user
 
         active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
 

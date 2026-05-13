@@ -226,7 +226,7 @@
 
   /**
    * Place an order — online or offline.
-   * @param {Object} orderData - { table_id, items: [{id, qty, title, price}], notes, attendant_id }
+   * @param {Object} orderData - { table_id, items: [{id, qty, title, price}], notes }
    * @returns {Promise<Object>} - { success, order_id?, offline_id?, offline: bool }
    */
   window.POS.placeOrder = async function (orderData) {

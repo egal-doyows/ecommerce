@@ -798,18 +798,6 @@
                     </select>
                 </div>
 
-                {% if show_attendant_select %}
-                <div class="pos-table-select">
-                    <label><i class="fa fa-user"></i> Attendant</label>
-                    <select name="attendant_id" id="attendant-select" required>
-                        <option value="">Select attendant...</option>
-                        {% for attendant in attendants %}
-                        <option value="{{ attendant.id }}">{{ attendant.username|capfirst }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
-
                 <textarea class="pos-notes-input" name="notes" rows="2" placeholder="Order notes (optional)..."></textarea>
 
                 <div class="pos-order-summary">

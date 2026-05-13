@@ -7,14 +7,10 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
 from django.shortcuts import get_object_or_404
-from django.contrib.auth.models import User
 from django.utils import timezone
 
 from .models import Category, MenuItem, Table, Order, OrderItem, Shift
-from .views import (
-    _must_select_attendant, _is_supervisor, _is_promoter,
-    _is_auto_shift_user, _ensure_shift, _is_manager_or_above,
-)
+from .views import _is_supervisor, _is_auto_shift_user, _ensure_shift
 from .models import _InsufficientStock
 
 logger = logging.getLogger(__name__)
@@ -94,7 +90,6 @@ def api_place_order(request):
     table_id = data.get('table_id')
     items = data.get('items', [])
     notes = data.get('notes', '')
-    attendant_id = data.get('attendant_id')
     offline_id = data.get('offline_id', '')
 
     if not table_id or not items:
@@ -112,14 +107,6 @@ def api_place_order(request):
 
     order_waiter = request.user
     order_created_by = None
-    if _must_select_attendant(request.user):
-        if not attendant_id:
-            return JsonResponse({'error': 'Select an attendant'}, status=400)
-        order_waiter = get_object_or_404(
-            User, id=attendant_id, groups__name='Attendant', is_active=True,
-        )
-        if _is_promoter(request.user):
-            order_created_by = request.user
 
     cart_items = []
     for cart_item in items:
