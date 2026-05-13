@@ -319,6 +319,11 @@ def waste_pdf(request, pk):
     elements = []
 
     # Header
+    from menu.pdf_utils import restaurant_logo_image
+    logo = restaurant_logo_image(restaurant)
+    if logo:
+        elements.append(logo)
+        elements.append(Spacer(1, 2 * mm))
     elements.append(Paragraph(restaurant.name, styles['Heading2']))
     elements.append(Paragraph('WASTE REPORT', styles['DocTitle']))
     elements.append(Spacer(1, 4 * mm))
