@@ -1,0 +1,45 @@
+{% extends 'ml/_ml_base.html' %}
+{% load humanize %}
+
+{% block ml_title %}Upsell Pairs{% endblock %}
+{% block ml_breadcrumb %}Upsell{% endblock %}
+
+{% block ml_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-hourglass-half" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No association rules yet.</p>
+    {% if run.error %}<p style="font-size:12px;margin-top:8px;">{{ run.error }}</p>{% endif %}
+</div>
+{% else %}
+<p style="color:var(--adm-muted);margin-bottom:12px;">
+    Top {{ rows|length }} pairs by lift. <strong>Lift &gt; 1</strong> means the two items are ordered together
+    more often than chance &mdash; good upsell candidates. <strong>Confidence</strong> is the probability of
+    buying the consequent given the antecedent.
+</p>
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>If they order…</th>
+                <th>…suggest</th>
+                <th style="text-align:right;">Support</th>
+                <th style="text-align:right;">Confidence</th>
+                <th style="text-align:right;">Lift</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td style="font-weight:500;">{{ r.antecedent.title }}</td>
+                <td style="font-weight:500;">{{ r.consequent.title }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.support|floatformat:3 }}</td>
+                <td style="text-align:right;">{{ r.confidence|floatformat:2 }}</td>
+                <td style="text-align:right;font-weight:600;">{{ r.lift|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

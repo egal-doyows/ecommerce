@@ -1,0 +1,43 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{% block ml_title %}Insights{% endblock %}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'ml-index' %}" style="color:var(--adm-accent);text-decoration:none;">Insights</a>
+            / {% block ml_breadcrumb %}{% endblock %}
+        </div>
+    </div>
+    <div>{% block ml_actions %}{% endblock %}</div>
+</div>
+
+{% block ml_filters %}{% endblock %}
+
+{% block ml_baseline_banner %}
+{% if is_baseline %}
+<div class="adm-card" style="background:#fff8e6;border-left:3px solid var(--adm-warning);margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:12px;">
+        <i class="fa-solid fa-triangle-exclamation" style="color:var(--adm-warning);font-size:18px;"></i>
+        <div>
+            <strong>Baseline output</strong> &mdash; not enough historical data yet for a real ML fit, so this page is computed from a simple rolling baseline.
+            {% if run and run.error %}<div style="color:var(--adm-muted);font-size:12px;margin-top:4px;">{{ run.error }}</div>{% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block ml_body %}{% endblock %}
+
+{% if run %}
+<div style="color:var(--adm-muted);font-size:11px;margin-top:24px;">
+    Last trained: {{ run.started_at|date:"d M Y H:i" }} &middot; status: {{ run.get_status_display }}
+    {% if run.metric_name and run.metric_value is not None %}
+        &middot; {{ run.metric_name }} {{ run.metric_value|floatformat:3 }}
+        {% if run.baseline_value is not None %}(baseline {{ run.baseline_value|floatformat:3 }}){% endif %}
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

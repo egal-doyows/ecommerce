@@ -29,3 +29,10 @@ gunicorn
 
 # Static files
 whitenoise>=6.6,<7.0
+
+# ML (optional — trainers fall back to baselines if these aren't installed)
+pandas>=2.0
+scikit-learn>=1.3
+prophet>=1.1
+mlxtend>=0.23
+

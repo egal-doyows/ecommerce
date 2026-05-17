@@ -1,0 +1,40 @@
+{% extends 'ml/_ml_base.html' %}
+{% load humanize %}
+
+{% block ml_title %}Menu Engineering{% endblock %}
+{% block ml_breadcrumb %}Menu Engineering{% endblock %}
+
+{% block ml_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-hourglass-half" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No menu classification computed yet.</p>
+    <p style="font-size:12px;margin-top:8px;">CLI: <code>python manage.py train_now menu_class</code></p>
+</div>
+{% else %}
+<p style="color:var(--adm-muted);margin-bottom:12px;">
+    Window {{ window_start|date:"d M" }} &mdash; {{ window_end|date:"d M Y" }}.
+    Splits computed against the median margin % and median popularity for the window.
+</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:16px;">
+
+    {% with cls='star' icon='fa-star' colour='var(--adm-success)' label='Stars' tip='High popularity + high margin. Feature on menu, train staff to recommend.' %}
+    {% include 'ml/_class_card.html' with items=by_class.star cls=cls icon=icon colour=colour label=label tip=tip currency_symbol=currency_symbol %}
+    {% endwith %}
+
+    {% with cls='plowhorse' icon='fa-horse' colour='var(--adm-accent)' label='Plowhorses' tip='Popular but low margin. Reprice, renegotiate ingredient costs, or shrink portion.' %}
+    {% include 'ml/_class_card.html' with items=by_class.plowhorse cls=cls icon=icon colour=colour label=label tip=tip currency_symbol=currency_symbol %}
+    {% endwith %}
+
+    {% with cls='puzzle' icon='fa-puzzle-piece' colour='var(--adm-warning)' label='Puzzles' tip='Good margin, poor sellers. Promote, reposition on menu, push as specials.' %}
+    {% include 'ml/_class_card.html' with items=by_class.puzzle cls=cls icon=icon colour=colour label=label tip=tip currency_symbol=currency_symbol %}
+    {% endwith %}
+
+    {% with cls='dog' icon='fa-dog' colour='var(--adm-muted)' label='Dogs' tip='Low margin AND low sales. Candidates for removal in next menu redesign.' %}
+    {% include 'ml/_class_card.html' with items=by_class.dog cls=cls icon=icon colour=colour label=label tip=tip currency_symbol=currency_symbol %}
+    {% endwith %}
+
+</div>
+{% endif %}
+{% endblock %}

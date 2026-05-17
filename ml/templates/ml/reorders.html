@@ -1,0 +1,70 @@
+{% extends 'ml/_ml_base.html' %}
+{% load humanize %}
+
+{% block ml_title %}Suggested Reorders{% endblock %}
+{% block ml_breadcrumb %}Reorders{% endblock %}
+
+{% block ml_actions %}
+{% if show_resolved %}
+<a href="?" class="adm-btn adm-btn-outline">Only Open</a>
+{% else %}
+<a href="?show=all" class="adm-btn adm-btn-outline">Show all</a>
+{% endif %}
+{% endblock %}
+
+{% block ml_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-circle-check" style="font-size:32px;margin-bottom:12px;color:var(--adm-success);"></i>
+    <p>No reorders needed &mdash; stock projections cover the lead-time window.</p>
+</div>
+{% else %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Supplier</th>
+                <th style="text-align:right;">Suggested Qty</th>
+                <th style="text-align:right;">Days of Cover</th>
+                <th>Needed By</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td style="font-weight:500;">{{ r.inventory_item.name }}</td>
+                <td style="color:var(--adm-muted);">{{ r.inventory_item.preferred_supplier|default:"—" }}</td>
+                <td style="text-align:right;font-weight:600;">
+                    {{ r.suggested_qty|floatformat:2 }} {{ r.inventory_item.get_unit_display }}
+                </td>
+                <td style="text-align:right;">
+                    {% if r.days_of_cover < 2 %}<strong style="color:var(--adm-danger);">{{ r.days_of_cover|floatformat:1 }}</strong>
+                    {% else %}{{ r.days_of_cover|floatformat:1 }}{% endif %}
+                </td>
+                <td>{{ r.needed_by|date:"d M" }}</td>
+                <td>
+                    {% if r.status == 'open' %}<span style="color:var(--adm-accent);">Open</span>
+                    {% elif r.status == 'ordered' %}<span style="color:var(--adm-success);">Ordered</span>
+                    {% else %}<span style="color:var(--adm-muted);">Dismissed</span>{% endif %}
+                </td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ r.reason }}</td>
+                <td>
+                    {% if r.status == 'open' %}
+                    <form method="post" action="{% url 'ml-reorder-dismiss' r.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button name="status" value="ordered" class="adm-btn adm-btn-sm">Mark ordered</button>
+                        <button name="status" value="dismissed" class="adm-btn adm-btn-sm adm-btn-outline">Dismiss</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

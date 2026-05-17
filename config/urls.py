@@ -73,6 +73,7 @@ urlpatterns = [
         path('expenses/', include('expenses.urls')),
         path('hr/', include('hr.urls')),
         path('reports/', include('reports.urls')),
+        path('ml/', include('ml.urls')),
     ])),
 ]
 

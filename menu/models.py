@@ -67,6 +67,16 @@ class RestaurantSettings(models.Model):
     instagram_url = models.URLField(blank=True)
     twitter_url = models.URLField(blank=True, help_text='X / Twitter profile URL.')
 
+    # ── Geolocation (used by ML weather-aware forecasting) ──
+    latitude = models.DecimalField(
+        max_digits=8, decimal_places=5, null=True, blank=True,
+        help_text='Decimal degrees, e.g. -1.28333. Needed for weather-aware forecasting.',
+    )
+    longitude = models.DecimalField(
+        max_digits=8, decimal_places=5, null=True, blank=True,
+        help_text='Decimal degrees, e.g. 36.81667. Needed for weather-aware forecasting.',
+    )
+
     class Meta:
         verbose_name = 'Restaurant Settings'
         verbose_name_plural = 'Restaurant Settings'

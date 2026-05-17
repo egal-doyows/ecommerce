@@ -1,0 +1,72 @@
+{% extends 'ml/_ml_base.html' %}
+{% load humanize %}
+
+{% block ml_title %}Shift Exceptions{% endblock %}
+{% block ml_breadcrumb %}Exceptions{% endblock %}
+
+{% block ml_actions %}
+{% if show_dismissed %}
+<a href="?" class="adm-btn adm-btn-outline">Only Open</a>
+{% else %}
+<a href="?show=all" class="adm-btn adm-btn-outline">Show all</a>
+{% endif %}
+{% endblock %}
+
+{% block ml_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-circle-check" style="font-size:32px;margin-bottom:12px;color:var(--adm-success);"></i>
+    <p>No anomalies flagged.</p>
+    {% if run.status == 'skipped' %}
+    <p style="font-size:12px;margin-top:8px;">{{ run.error }}</p>
+    {% endif %}
+</div>
+{% else %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Person</th>
+                <th>Metric</th>
+                <th style="text-align:right;">Observed</th>
+                <th style="text-align:right;">Expected</th>
+                <th style="text-align:right;">σ</th>
+                <th>Direction</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr {% if r.dismissed %}style="opacity:0.5;"{% endif %}>
+                <td>{{ r.occurred_on|date:"d M" }}</td>
+                <td style="font-weight:500;">{{ r.subject_label }}</td>
+                <td>{{ r.get_metric_display }}</td>
+                <td style="text-align:right;">{{ r.observed_value|floatformat:2 }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.expected_value|floatformat:2 }}</td>
+                <td style="text-align:right;font-weight:600;">
+                    {% if r.z_score >= 3 %}<span style="color:var(--adm-danger);">{{ r.z_score|floatformat:1 }}σ</span>
+                    {% else %}<span style="color:var(--adm-warning);">{{ r.z_score|floatformat:1 }}σ</span>{% endif %}
+                </td>
+                <td>
+                    {% if r.direction == 'high' %}<i class="fa-solid fa-arrow-up" style="color:var(--adm-warning);"></i> High
+                    {% else %}<i class="fa-solid fa-arrow-down" style="color:var(--adm-accent);"></i> Low{% endif %}
+                </td>
+                <td>
+                    {% if not r.dismissed %}
+                    <form method="post" action="{% url 'ml-exception-dismiss' r.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="text" name="reason" placeholder="reason (optional)" style="padding:4px 8px;font-size:12px;width:160px;">
+                        <button class="adm-btn adm-btn-sm">Dismiss</button>
+                    </form>
+                    {% else %}
+                    <span style="color:var(--adm-muted);font-size:12px;">Dismissed {% if r.dismissed_by %}by {{ r.dismissed_by }}{% endif %}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

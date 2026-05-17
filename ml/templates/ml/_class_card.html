@@ -1,0 +1,33 @@
+{# Fragment used by menu_engineering.html for each quadrant card. #}
+<div class="adm-card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <i class="fa-solid {{ icon }}" style="font-size:18px;color:{{ colour }};"></i>
+        <strong>{{ label }}</strong>
+        <span style="margin-left:auto;color:var(--adm-muted);font-size:12px;">{{ items|length }} item{{ items|length|pluralize }}</span>
+    </div>
+    <p style="margin:0 0 12px;color:var(--adm-muted);font-size:12px;">{{ tip }}</p>
+    {% if items %}
+    <table class="adm-table" style="width:100%;font-size:13px;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th style="text-align:right;">Units</th>
+                <th style="text-align:right;">Margin %</th>
+                <th style="text-align:right;">Revenue</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in items %}
+            <tr>
+                <td>{{ r.menu_item.title }}</td>
+                <td style="text-align:right;">{{ r.units_sold|intcomma }}</td>
+                <td style="text-align:right;">{{ r.margin_pct|floatformat:1 }}%</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.revenue|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--adm-muted);font-size:12px;text-align:center;padding:12px;">No items in this quadrant.</p>
+    {% endif %}
+</div>

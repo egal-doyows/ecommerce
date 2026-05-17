@@ -1,0 +1,61 @@
+{% extends 'ml/_ml_base.html' %}
+
+{% block ml_title %}Insights{% endblock %}
+{% block ml_breadcrumb %}Index{% endblock %}
+
+{% block ml_body %}
+<p style="color:var(--adm-muted);margin-bottom:16px;">
+    Machine-learning outputs retrained automatically every night.
+    Each page shows a baseline banner if there isn't enough data yet for a real fit &mdash;
+    the system keeps working, predictions just get sharper as orders accumulate.
+</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:16px;">
+
+    <a href="{% url 'ml-prep-list' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-utensils" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Tomorrow's Prep List</strong>
+            {% with r=statuses.forecast %}{% if r %}<span style="margin-left:auto;font-size:11px;color:var(--adm-muted);">{{ r.get_status_display }}</span>{% endif %}{% endwith %}
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Forecasted demand per menu item for tomorrow &mdash; drives prep volumes.</p>
+    </a>
+
+    <a href="{% url 'ml-reorders' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-cart-plus" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Suggested Reorders</strong>
+            {% with r=statuses.reorder %}{% if r %}<span style="margin-left:auto;font-size:11px;color:var(--adm-muted);">{{ r.get_status_display }}</span>{% endif %}{% endwith %}
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Inventory items projected to run out within lead time + buffer. One-click dismiss or mark ordered.</p>
+    </a>
+
+    <a href="{% url 'ml-exceptions' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-flag" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Shift Exceptions</strong>
+            {% with r=statuses.anomaly %}{% if r %}<span style="margin-left:auto;font-size:11px;color:var(--adm-muted);">{{ r.get_status_display }}</span>{% endif %}{% endwith %}
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Shifts where cash variance, voids, comps or discount % deviate from the staffer's own baseline.</p>
+    </a>
+
+    <a href="{% url 'ml-upsell' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-people-arrows" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Upsell Pairs</strong>
+            {% with r=statuses.basket %}{% if r %}<span style="margin-left:auto;font-size:11px;color:var(--adm-muted);">{{ r.get_status_display }}</span>{% endif %}{% endwith %}
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Market-basket pairs ranked by lift &mdash; "if they order X, suggest Y".</p>
+    </a>
+
+    <a href="{% url 'ml-menu-engineering' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-grip" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Menu Engineering</strong>
+            {% with r=statuses.menu_class %}{% if r %}<span style="margin-left:auto;font-size:11px;color:var(--adm-muted);">{{ r.get_status_display }}</span>{% endif %}{% endwith %}
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Stars / Plowhorses / Puzzles / Dogs &mdash; which items to feature, reprice, promote, or drop.</p>
+    </a>
+
+</div>
+{% endblock %}

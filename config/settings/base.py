@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'hr',
     'reports',
     'careers',
+    'ml',
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
@@ -317,6 +318,38 @@ try:
         'low-stock-alerts': {
             'task': 'staff_compensation.tasks.send_low_stock_alerts',
             'schedule': crontab(hour=8, minute=0),
+        },
+        # ── ML retraining (overnight, after the day's orders are settled) ──
+        'ml-fetch-weather': {
+            # Runs first so the forecast trainer has fresh weather to join on.
+            'task': 'ml.fetch_weather',
+            'schedule': crontab(hour=1, minute=30),
+        },
+        'ml-train-forecast': {
+            'task': 'ml.train_forecast',
+            'schedule': crontab(hour=2, minute=0),
+        },
+        'ml-compute-reorder': {
+            'task': 'ml.compute_reorder',
+            'schedule': crontab(hour=2, minute=30),
+        },
+        'ml-train-anomaly': {
+            'task': 'ml.train_anomaly',
+            'schedule': crontab(hour=3, minute=0),
+        },
+        'ml-compute-menu-class': {
+            # Weekly — Monday early morning.
+            'task': 'ml.compute_menu_class',
+            'schedule': crontab(hour=4, minute=0, day_of_week=1),
+        },
+        'ml-train-basket': {
+            # Weekly — Sunday late so Monday's POS has fresh upsells.
+            'task': 'ml.train_basket',
+            'schedule': crontab(hour=3, minute=30, day_of_week=0),
+        },
+        'ml-cleanup-model-runs': {
+            'task': 'ml.cleanup_model_runs',
+            'schedule': crontab(hour=4, minute=30),
         },
     }
 except ImportError:

@@ -1,0 +1,57 @@
+{% extends 'ml/_ml_base.html' %}
+{% load humanize %}
+
+{% block ml_title %}Prep List &mdash; {{ target_date|date:"D d M Y" }}{% endblock %}
+{% block ml_breadcrumb %}Prep List{% endblock %}
+
+{% block ml_filters %}
+<form method="get" class="adm-card" style="display:flex;gap:12px;align-items:flex-end;margin-bottom:16px;">
+    <div>
+        <label class="adm-form-label">Forecast for</label>
+        <input type="date" name="date" value="{{ target_date|date:'Y-m-d' }}" style="padding:6px 10px;">
+    </div>
+    <button type="submit" class="adm-btn adm-btn-primary">Show</button>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+        <a href="?date={{ today|date:'Y-m-d' }}" class="adm-btn adm-btn-outline">Today</a>
+        <a href="?date={{ tomorrow|date:'Y-m-d' }}" class="adm-btn adm-btn-outline">Tomorrow</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block ml_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-hourglass-half" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No forecast for this date yet. Forecasts cover the next 14 days &mdash; pick a closer date, or trigger a training run.</p>
+    <p style="font-size:12px;margin-top:8px;">CLI: <code>python manage.py train_now forecast</code></p>
+</div>
+{% else %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Menu Item</th>
+                <th>Category</th>
+                <th style="text-align:right;">Forecast (P50)</th>
+                <th style="text-align:right;">Upper (P90)</th>
+                <th>Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td style="font-weight:500;">{{ r.menu_item.title }}</td>
+                <td style="color:var(--adm-muted);">{{ r.menu_item.category.name }}</td>
+                <td style="text-align:right;font-weight:600;">{{ r.qty_p50|floatformat:1 }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.qty_p90|floatformat:1 }}</td>
+                <td>
+                    {% if r.source == 'ml' %}<span style="color:var(--adm-success);">ML</span>
+                    {% else %}<span style="color:var(--adm-warning);">Baseline</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

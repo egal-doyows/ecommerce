@@ -5,6 +5,17 @@
 {% block period_selector %}{% endblock %}
 
 {% block report_body %}
+<div class="adm-card" style="margin-bottom:16px;background:linear-gradient(90deg, rgba(184,62,30,0.05) 0%, transparent 100%);">
+    <div style="display:flex;align-items:center;gap:12px;">
+        <i class="fa-solid fa-brain" style="font-size:22px;color:var(--adm-accent);"></i>
+        <div style="flex:1;">
+            <strong>Insights (ML)</strong>
+            <p style="margin:2px 0 0;color:var(--adm-muted);font-size:13px;">Forecast-driven prep lists, reorder suggestions, shift exception flags, upsell pairs, and menu engineering &mdash; retrained automatically every night.</p>
+        </div>
+        <a href="{% url 'ml-index' %}" class="adm-btn adm-btn-primary">Open Insights</a>
+    </div>
+</div>
+
 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:16px;">
 
     <a href="{% url 'reports-z-report' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
