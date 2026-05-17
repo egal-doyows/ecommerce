@@ -6,14 +6,11 @@ A 'source=baseline' indicator flips a banner on so users know the data is
 cold-start.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Max
-from django.http import HttpResponseRedirect
+from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -54,7 +51,7 @@ def prep_list(request):
     target_str = request.GET.get('date')
     try:
         target = (
-            timezone.datetime.strptime(target_str, '%Y-%m-%d').date()
+            datetime.strptime(target_str, '%Y-%m-%d').date()
             if target_str else today + timedelta(days=1)
         )
     except ValueError:

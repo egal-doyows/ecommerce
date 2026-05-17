@@ -374,6 +374,18 @@ REST_FRAMEWORK = {
 
 AUDITLOG_INCLUDE_ALL_MODELS = True
 
+# ML output tables are written by nightly trainers in batches of hundreds of
+# rows per run — auditing them would balloon the auditlog without value.
+AUDITLOG_EXCLUDE_TRACKING_MODELS = (
+    'ml.DemandForecast',
+    'ml.ReorderSuggestion',
+    'ml.AnomalyEvent',
+    'ml.BasketRule',
+    'ml.MenuClass',
+    'ml.ModelRun',
+    'ml.WeatherObservation',
+)
+
 
 # ── Rate limiting & cache ─────────────────────────────────────────────────
 

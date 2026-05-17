@@ -28,6 +28,13 @@ class RestaurantSettingsAdmin(ModelAdmin):
         ('Operational', {
             'fields': ('currency', 'default_markup_percent'),
         }),
+        ('Location', {
+            'description': (
+                'Decimal degrees, e.g. -1.28333 / 36.81667 for Nairobi CBD. '
+                'Needed for weather-aware demand forecasting — leave blank to disable.'
+            ),
+            'fields': ('latitude', 'longitude'),
+        }),
     )
 
     def has_add_permission(self, request):
