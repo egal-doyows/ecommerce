@@ -45,8 +45,17 @@ class Command(BaseCommand):
         self.stdout.write(f'BasketRule:              {BasketRule.objects.count()}')
         self.stdout.write(f'MenuClass:               {MenuClass.objects.count()}')
 
-        # ── Weather coverage ──
+        # ── Calendar features (always on) ──
         self.stdout.write('─' * 60)
+        from ml import calendar_features
+        cal = calendar_features.calendar_status()
+        src = 'holidays lib' if cal['using_lib'] else 'hardcoded fallback'
+        self.stdout.write(
+            f'Calendar:                {cal["holidays_in_range"]} KE holiday(s) '
+            f'({src}) + payday-window regressor'
+        )
+
+        # ── Weather coverage ──
         s = RestaurantSettings.load()
         if s.latitude is None or s.longitude is None:
             self.stdout.write(self.style.WARNING(

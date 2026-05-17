@@ -23,7 +23,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from menu.models import MenuItem, OrderItem
-from ml import gates, fallbacks
+from ml import calendar_features, fallbacks, gates
 from ml.models import DemandForecast, WeatherObservation
 from ml.trainers._runner import model_run
 
@@ -35,6 +35,9 @@ BACKTEST_TAIL_DAYS = 14
 # Regressors we pass to Prophet when weather is available. Only numerics —
 # is_rainy / weather_code are categorical and add little after precipitation.
 WEATHER_REGRESSORS = ('temp_max_c', 'precipitation_mm')
+
+# Always-on calendar regressor — pure date math, no external dep.
+CALENDAR_REGRESSORS = ('is_payday_window',)
 
 
 def _try_import_prophet():
@@ -108,18 +111,26 @@ def _moving_avg_baseline_forecast(series, horizon):
     return [avg] * horizon
 
 
-def _prophet_forecast(series, horizon, Prophet, weather_df=None):
+def _prophet_forecast(series, horizon, Prophet, weather_df=None, holidays_df=None):
     """
     Fit Prophet on `series`, predict `horizon` future days.
-    If `weather_df` is provided AND covers both training dates and all
-    horizon dates, regressors are added — otherwise weather is dropped
-    silently so a partial-coverage day still gets a usable forecast.
+
+    Always includes:
+      - Kenyan public holidays via Prophet's `holidays=` argument
+        (when a holidays_df is supplied).
+      - `is_payday_window` as an additional regressor (pure date math).
+
+    Optionally includes:
+      - Weather regressors (temp_max_c, precipitation_mm) when weather_df
+        covers both training dates AND all horizon dates. Falls back to
+        weather-free if horizon coverage is incomplete.
 
     Returns (p50_list, p90_list) or raises if Prophet itself fails.
     """
     import pandas as pd
     df = pd.DataFrame([{'ds': d, 'y': q} for d, q in series])
     df['ds'] = pd.to_datetime(df['ds'])
+    calendar_features.add_payday_column(df)
 
     use_weather = False
     if weather_df is not None:
@@ -133,29 +144,37 @@ def _prophet_forecast(series, horizon, Prophet, weather_df=None):
         weekly_seasonality=True,
         yearly_seasonality=False,
         interval_width=0.8,
+        holidays=holidays_df,
     )
+    for r in CALENDAR_REGRESSORS:
+        m.add_regressor(r)
     if use_weather:
         for r in WEATHER_REGRESSORS:
             m.add_regressor(r)
     m.fit(df)
 
     future = m.make_future_dataframe(periods=horizon)
+    calendar_features.add_payday_column(future)
     if use_weather:
         future = future.merge(weather_df, on='ds', how='left')
         if future[list(WEATHER_REGRESSORS)].isna().any().any():
-            # Future weather missing for some horizon days — drop regressors,
-            # refit without. Cheaper than carrying a half-broken model.
-            return _prophet_forecast(series, horizon, Prophet, weather_df=None)
+            # Future weather missing for some horizon days — drop weather
+            # regressors and refit. Cheaper than a half-broken model.
+            return _prophet_forecast(
+                series, horizon, Prophet,
+                weather_df=None, holidays_df=holidays_df,
+            )
     fc = m.predict(future).tail(horizon)
     p50 = fc['yhat'].clip(lower=0).tolist()
     p90 = fc['yhat_upper'].clip(lower=0).tolist()
     return p50, p90
 
 
-def _backtest_item(series, Prophet, weather_df):
+def _backtest_item(series, Prophet, weather_df, holidays_df):
     """
     Hold out the last BACKTEST_TAIL_DAYS days; return MAE for each strategy.
-    Returns dict with keys baseline / ml_no_weather / ml_weather (inf when N/A).
+    Both Prophet variants include holidays + pay-cycle (cheap, always-on);
+    the comparison is over whether weather regressors are worth adding.
     """
     if len(series) < BACKTEST_TAIL_DAYS * 2:
         return None
@@ -172,14 +191,20 @@ def _backtest_item(series, Prophet, weather_df):
         return out
 
     try:
-        p50, _ = _prophet_forecast(train, BACKTEST_TAIL_DAYS, Prophet, weather_df=None)
+        p50, _ = _prophet_forecast(
+            train, BACKTEST_TAIL_DAYS, Prophet,
+            weather_df=None, holidays_df=holidays_df,
+        )
         out['ml_no_weather'] = _mae(p50, holdout)
     except Exception as e:
         logger.warning('prophet (no-weather) backtest failed: %s', e)
 
     if weather_df is not None:
         try:
-            p50, _ = _prophet_forecast(train, BACKTEST_TAIL_DAYS, Prophet, weather_df=weather_df)
+            p50, _ = _prophet_forecast(
+                train, BACKTEST_TAIL_DAYS, Prophet,
+                weather_df=weather_df, holidays_df=holidays_df,
+            )
             out['ml_weather'] = _mae(p50, holdout)
         except Exception as e:
             logger.warning('prophet (weather) backtest failed: %s', e)
@@ -212,6 +237,16 @@ def train():
             if weather_df is not None else "weather: none (skipping regressors)"
         )
 
+        # Build holidays once for the full data + horizon span; Prophet
+        # will only apply rows that fall within each fit's training window.
+        cal = calendar_features.calendar_status()
+        holidays_df = calendar_features.holidays_dataframe(cal['start'], cal['end'])
+        cal_note = (
+            f"calendar: {cal['holidays_in_range']} holiday(s) "
+            f"({'holidays lib' if cal['using_lib'] else 'fallback table'}) "
+            f"+ payday-window regressor"
+        )
+
         all_rows = []
         winners = {'baseline': 0, 'ml_no_weather': 0, 'ml_weather': 0}
         winning_maes = []
@@ -224,12 +259,15 @@ def train():
             if not series:
                 continue
 
-            bt = _backtest_item(series, Prophet, weather_df) if item_ready else None
+            bt = (
+                _backtest_item(series, Prophet, weather_df, holidays_df)
+                if item_ready else None
+            )
             choice, choice_mae = _pick_strategy(bt)
 
             try:
                 p50, p90, source = _forecast_with(
-                    choice, series, HORIZON_DAYS, Prophet, weather_df,
+                    choice, series, HORIZON_DAYS, Prophet, weather_df, holidays_df,
                 )
             except Exception as e:
                 logger.warning('forecast failed for item %s, falling back: %s', item.pk, e)
@@ -262,7 +300,7 @@ def train():
             run.metric_value = mean(winning_maes)
             run.baseline_value = mean(baseline_maes) if baseline_maes else None
         run.error = (
-            f"{weather_note}. Strategy wins: "
+            f"{cal_note}. {weather_note}. Strategy wins: "
             f"baseline={winners['baseline']}, "
             f"ml_no_weather={winners['ml_no_weather']}, "
             f"ml_weather={winners['ml_weather']}."
@@ -284,13 +322,19 @@ def _pick_strategy(bt: Optional[dict]):
     return name, mae
 
 
-def _forecast_with(choice, series, horizon, Prophet, weather_df):
+def _forecast_with(choice, series, horizon, Prophet, weather_df, holidays_df):
     """Run the picked strategy and return (p50, p90, source_label)."""
     if choice == 'ml_weather' and Prophet is not None and weather_df is not None:
-        p50, p90 = _prophet_forecast(series, horizon, Prophet, weather_df=weather_df)
+        p50, p90 = _prophet_forecast(
+            series, horizon, Prophet,
+            weather_df=weather_df, holidays_df=holidays_df,
+        )
         return p50, p90, 'ml'
     if choice == 'ml_no_weather' and Prophet is not None:
-        p50, p90 = _prophet_forecast(series, horizon, Prophet, weather_df=None)
+        p50, p90 = _prophet_forecast(
+            series, horizon, Prophet,
+            weather_df=None, holidays_df=holidays_df,
+        )
         return p50, p90, 'ml'
     base = _moving_avg_baseline_forecast(series, horizon)
     return base, [v * 1.4 for v in base], 'baseline'
