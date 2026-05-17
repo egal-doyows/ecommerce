@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ cafe_name }} — Insights for {{ today|date:"D d M" }}</title>
+</head>
+<body style="margin:0;padding:24px;background:#fbf4e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#2b1810;">
+<table cellpadding="0" cellspacing="0" border="0" align="center" style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+<tr><td style="background:#b83e1e;color:#ffffff;padding:24px;">
+    <h1 style="margin:0;font-size:22px;">{{ cafe_name }}</h1>
+    <p style="margin:4px 0 0;opacity:0.9;font-size:14px;">Daily insights · {{ today|date:"l d M Y" }}</p>
+</td></tr>
+
+{% if prep_rows %}
+<tr><td style="padding:24px 24px 8px;">
+    <h2 style="margin:0 0 8px;font-size:16px;color:#b83e1e;">🍳 Tomorrow's prep list (top {{ prep_rows|length }})</h2>
+    <p style="margin:0 0 8px;color:#6b5240;font-size:13px;">Forecasted demand for {{ tomorrow|date:"l d M" }} — prep these first.</p>
+    <table cellpadding="6" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-size:14px;">
+        {% for r in prep_rows %}
+        <tr style="border-bottom:1px solid #f0e6d6;">
+            <td>{{ r.menu_item.title }} <span style="color:#6b5240;font-size:12px;">· {{ r.menu_item.category.name }}</span></td>
+            <td align="right" style="font-weight:600;">{{ r.qty_p50|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p style="margin:8px 0 0;font-size:12px;"><a href="{{ prep_url }}" style="color:#b83e1e;">Full prep list →</a></p>
+</td></tr>
+{% endif %}
+
+{% if reorder_rows %}
+<tr><td style="padding:16px 24px 8px;">
+    <h2 style="margin:0 0 8px;font-size:16px;color:#b83e1e;">📦 Reorders open ({{ reorder_total }})</h2>
+    <table cellpadding="6" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-size:14px;">
+        {% for r in reorder_rows %}
+        <tr style="border-bottom:1px solid #f0e6d6;">
+            <td>{{ r.inventory_item.name }}</td>
+            <td align="right">{{ r.suggested_qty|floatformat:2 }} {{ r.inventory_item.get_unit_display }}</td>
+            <td align="right" style="color:#6b5240;font-size:12px;">by {{ r.needed_by|date:"d M" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p style="margin:8px 0 0;font-size:12px;"><a href="{{ reorders_url }}" style="color:#b83e1e;">Action reorders →</a></p>
+</td></tr>
+{% endif %}
+
+{% if exception_rows %}
+<tr><td style="padding:16px 24px 8px;">
+    <h2 style="margin:0 0 8px;font-size:16px;color:#b83e1e;">🚩 Shift exceptions ({{ exception_total }} in last {{ exception_window_days }} days)</h2>
+    <table cellpadding="6" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;font-size:14px;">
+        {% for r in exception_rows %}
+        <tr style="border-bottom:1px solid #f0e6d6;">
+            <td>{{ r.subject_label }} <span style="color:#6b5240;font-size:12px;">· {{ r.get_metric_display }}</span></td>
+            <td align="right" style="font-weight:600;color:{% if r.z_score >= 3 %}#b83e1e{% else %}#d97706{% endif %};">{{ r.z_score|floatformat:1 }}σ</td>
+            <td align="right" style="color:#6b5240;font-size:12px;">{{ r.occurred_on|date:"d M" }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p style="margin:8px 0 0;font-size:12px;"><a href="{{ exceptions_url }}" style="color:#b83e1e;">Review exceptions →</a></p>
+</td></tr>
+{% endif %}
+
+{% if top_upsell %}
+<tr><td style="padding:16px 24px 8px;">
+    <h2 style="margin:0 0 8px;font-size:16px;color:#b83e1e;">💡 Top upsell pair</h2>
+    <p style="margin:0;font-size:14px;">When customers order <strong>{{ top_upsell.antecedent.title }}</strong>, suggest <strong>{{ top_upsell.consequent.title }}</strong> — lift {{ top_upsell.lift|floatformat:2 }}, confidence {{ top_upsell.confidence|floatformat:2 }}.</p>
+</td></tr>
+{% endif %}
+
+{% if health %}
+<tr><td style="padding:16px 24px 24px;border-top:1px solid #f0e6d6;color:#6b5240;font-size:12px;">
+    <strong>Model health:</strong>
+    {% for h in health %}{{ h.name }}: <span style="color:{% if h.ok %}#16a34a{% else %}#d97706{% endif %};">{{ h.status }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}
+    <br><a href="{{ dashboard_url }}" style="color:#b83e1e;">Open the dashboard →</a>
+</td></tr>
+{% endif %}
+</table>
+<p style="text-align:center;color:#6b5240;font-size:11px;margin:16px 0 0;">You're receiving this because you have manager access to {{ cafe_name }}.</p>
+</body>
+</html>

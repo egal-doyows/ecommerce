@@ -351,9 +351,44 @@ try:
             'task': 'ml.cleanup_model_runs',
             'schedule': crontab(hour=4, minute=30),
         },
+        'ml-daily-digest': {
+            # Fires after all trainers complete (latest is basket at 03:30 Sun),
+            # before the typical 8am open.
+            'task': 'ml.daily_digest',
+            'schedule': crontab(hour=7, minute=0),
+        },
     }
 except ImportError:
     pass
+
+
+# ── Error monitoring (Sentry) ─────────────────────────────────────────────
+# Opt-in. When SENTRY_DSN is set we initialise sentry-sdk with the Django
+# and Celery integrations; otherwise this is a no-op so local dev needs
+# nothing. Keep the imports inside the guard so the dep is optional too.
+
+SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
+SENTRY_ENVIRONMENT = os.environ.get('SENTRY_ENVIRONMENT', 'production' if not DEBUG else 'development')
+SENTRY_TRACES_SAMPLE_RATE = float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.05'))
+SENTRY_RELEASE = os.environ.get('SENTRY_RELEASE', '')
+
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.celery import CeleryIntegration
+        from sentry_sdk.integrations.django import DjangoIntegration
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=SENTRY_ENVIRONMENT,
+            release=SENTRY_RELEASE or None,
+            integrations=[DjangoIntegration(), CeleryIntegration()],
+            traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+            send_default_pii=False,   # don't ship usernames/emails by default
+        )
+    except ImportError:
+        # sentry-sdk not installed — silently skip rather than break startup.
+        pass
 
 
 # ── DRF ───────────────────────────────────────────────────────────────────

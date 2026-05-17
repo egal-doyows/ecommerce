@@ -5,8 +5,11 @@ Each task is a thin wrapper around a trainer module so beat scheduling and
 testability stay simple. Trainers handle their own ModelRun rows and errors.
 """
 
+import os
+
 from celery import shared_task
 
+from ml import digest as digest_mod
 from ml import weather as weather_mod
 from ml.trainers import anomaly, basket, forecast, menu_class, reorder
 
@@ -40,6 +43,13 @@ def train_basket():
 @shared_task(name='ml.compute_menu_class')
 def compute_menu_class():
     menu_class.train()
+
+
+@shared_task(name='ml.daily_digest')
+def daily_digest():
+    """Email a daily ML summary to managers. No-op if nothing actionable."""
+    base_url = os.environ.get('SITE_BASE_URL', '')
+    return digest_mod.send_daily_digest(base_url=base_url or None)
 
 
 @shared_task(name='ml.cleanup_model_runs')

@@ -1,0 +1,33 @@
+{{ cafe_name }} — Daily Insights
+{{ today|date:"l d M Y" }}
+================================{% if prep_rows %}
+
+TOMORROW'S PREP LIST ({{ tomorrow|date:"l d M" }})
+--------------------------------
+{% for r in prep_rows %}{{ r.menu_item.title }} — {{ r.qty_p50|floatformat:0 }}
+{% endfor %}
+Full list: {{ prep_url }}{% endif %}{% if reorder_rows %}
+
+REORDERS OPEN ({{ reorder_total }})
+--------------------------------
+{% for r in reorder_rows %}{{ r.inventory_item.name }} — {{ r.suggested_qty|floatformat:2 }} {{ r.inventory_item.get_unit_display }} by {{ r.needed_by|date:"d M" }}
+{% endfor %}
+Action: {{ reorders_url }}{% endif %}{% if exception_rows %}
+
+SHIFT EXCEPTIONS ({{ exception_total }} in last {{ exception_window_days }} days)
+--------------------------------
+{% for r in exception_rows %}{{ r.subject_label }} — {{ r.get_metric_display }} {{ r.z_score|floatformat:1 }}σ on {{ r.occurred_on|date:"d M" }}
+{% endfor %}
+Review: {{ exceptions_url }}{% endif %}{% if top_upsell %}
+
+TOP UPSELL
+--------------------------------
+When customers order {{ top_upsell.antecedent.title }}, suggest {{ top_upsell.consequent.title }}.
+(lift {{ top_upsell.lift|floatformat:2 }}, confidence {{ top_upsell.confidence|floatformat:2 }}){% endif %}{% if health %}
+
+MODEL HEALTH
+--------------------------------
+{% for h in health %}{{ h.name }}: {{ h.status }}
+{% endfor %}{% endif %}
+
+Dashboard: {{ dashboard_url }}

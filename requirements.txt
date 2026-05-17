@@ -30,6 +30,9 @@ gunicorn
 # Static files
 whitenoise>=6.6,<7.0
 
+# Error monitoring (optional — init is a no-op without SENTRY_DSN)
+sentry-sdk[django]>=2.0
+
 # ML (optional — trainers fall back to baselines if these aren't installed)
 pandas>=2.0
 scikit-learn>=1.3
