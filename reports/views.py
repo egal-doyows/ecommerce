@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
 from administration.models import Account, Transaction
-from menu.models import InventoryItem, Order, OrderItem, RestaurantSettings, Shift, StockAdjustment
+from menu.models import InventoryItem, MenuItem, Order, OrderItem, RestaurantSettings, Shift, StockAdjustment
 from waste.models import WasteItem
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
@@ -1094,6 +1094,95 @@ def sales_by_channel(request):
         'cross_rows': cross_rows,
         'total_revenue': total_revenue,
         'total_count': total_count,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── Menu Margin ────────────────────────────────────────────────────────
+
+@manager_required
+def menu_margin(request):
+    """
+    Per-menu-item cost (from linked inventory item or recipe), selling
+    price, margin amount and margin %.
+
+    Cost source = MenuItem.current_unit_cost(): direct-sale items use the
+    linked inventory item's buying_price; prepared items roll up the
+    recipe ingredients' buying_price × quantity_required. Items with no
+    inventory link and no recipe show cost = 0 and are flagged as
+    untracked (their margin % is not meaningful).
+    """
+    show_untracked = request.GET.get('show_untracked') == '1'
+    category_filter = request.GET.get('category', '')
+
+    items = (
+        MenuItem.objects
+        .select_related('category', 'inventory_item')
+        .prefetch_related('recipe_items__inventory_item')
+        .order_by('category__name', 'title')
+    )
+    if category_filter:
+        items = items.filter(category_id=category_filter)
+
+    rows = []
+    total_cost = Decimal('0')
+    total_price = Decimal('0')
+    for mi in items:
+        cost = mi.current_unit_cost()
+        price = mi.price or Decimal('0')
+        margin = price - cost
+        if price > 0:
+            margin_pct = (margin / price * 100)
+        else:
+            margin_pct = None
+        untracked = not mi.tracks_stock
+        if untracked and not show_untracked:
+            continue
+        rows.append({
+            'menu_item': mi,
+            'category': mi.category.name if mi.category else 'Uncategorised',
+            'cost': cost,
+            'price': price,
+            'margin': margin,
+            'margin_pct': margin_pct,
+            'untracked': untracked,
+            'is_direct_sale': mi.is_direct_sale,
+        })
+        total_cost += cost
+        total_price += price
+
+    total_margin = total_price - total_cost
+    avg_margin_pct = (total_margin / total_price * 100) if total_price else Decimal('0')
+
+    if request.GET.get('format') == 'csv':
+        header = ['category', 'item', 'source', 'cost', 'price', 'margin', 'margin_pct']
+        csv_rows = [
+            [
+                r['category'],
+                r['menu_item'].title,
+                'Direct' if r['is_direct_sale'] else ('Recipe' if not r['untracked'] else 'Untracked'),
+                r['cost'],
+                r['price'],
+                r['margin'],
+                f"{r['margin_pct']:.1f}" if r['margin_pct'] is not None else '',
+            ]
+            for r in rows
+        ]
+        return csv_response('menu_margin.csv', header, csv_rows)
+
+    from menu.models import Category
+    categories = Category.objects.order_by('name')
+
+    return render(request, 'reports/menu_margin.html', {
+        'rows': rows,
+        'total_cost': total_cost,
+        'total_price': total_price,
+        'total_margin': total_margin,
+        'avg_margin_pct': avg_margin_pct,
+        'show_untracked': show_untracked,
+        'categories': categories,
+        'category_filter': category_filter,
+        'item_count': len(rows),
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
 

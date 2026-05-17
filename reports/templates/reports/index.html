@@ -71,6 +71,14 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-item stock × cost with total inventory value. CSV export for offline counting.</p>
     </a>
 
+    <a href="{% url 'reports-menu-margin' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-percent" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Menu Margin</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-item cost (from linked inventory / recipe) vs selling price with margin and margin %.</p>
+    </a>
+
     <a href="{% url 'reports-stock-variance' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-clipboard-check" style="font-size:20px;color:var(--adm-accent);"></i>
