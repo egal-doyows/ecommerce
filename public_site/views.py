@@ -1,15 +1,26 @@
+from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.templatetags.static import static
 from django.views.decorators.cache import cache_control
 
-from menu.models import Category, MenuItem, RestaurantSettings
+from menu.cache import get_restaurant_settings
+from menu.models import Category, MenuItem
+
+
+# Public pages are read-only and content changes rarely. A 5-minute
+# public cache lets a CDN / reverse-proxy absorb the load and keeps the
+# DB quiet under traffic. Pages with admin-changeable content still feel
+# live because the cache is short and the context-processor cache is even
+# shorter (60s).
+PUBLIC_CACHE_SECONDS = 300
 
 
 def _settings():
-    return RestaurantSettings.objects.first()
+    return get_restaurant_settings()
 
 
+@cache_control(public=True, max_age=PUBLIC_CACHE_SECONDS)
 def home(request):
     featured = list(
         MenuItem.objects
@@ -22,6 +33,7 @@ def home(request):
     })
 
 
+@cache_control(public=True, max_age=PUBLIC_CACHE_SECONDS)
 def contact(request):
     return render(request, 'public_site/contact.html', {
         'settings': _settings(),
@@ -63,19 +75,20 @@ def robots_txt(request):
     return HttpResponse(body, content_type='text/plain; charset=utf-8')
 
 
+@cache_control(public=True, max_age=PUBLIC_CACHE_SECONDS)
 def menu(request):
+    # Prefetch only the items that should appear on the public menu, and
+    # pre-order them. The template then iterates the prefetched manager
+    # without re-filtering — that's what defeats the prefetch.
+    available_items = MenuItem.objects.filter(is_available=True).order_by('title')
     categories = (
         Category.objects
-        .prefetch_related('items')
+        .prefetch_related(Prefetch('items', queryset=available_items, to_attr='available_items'))
         .order_by('name')
     )
-    grouped = []
-    for cat in categories:
-        items = list(cat.items.filter(is_available=True).order_by('title'))
-        if items:
-            grouped.append((cat, items))
+    grouped = [(c, c.available_items) for c in categories if c.available_items]
     return render(request, 'public_site/menu.html', {
         'settings': _settings(),
         'grouped': grouped,
-        'has_any_items': MenuItem.objects.filter(is_available=True).exists(),
+        'has_any_items': any(items for _, items in grouped),
     })

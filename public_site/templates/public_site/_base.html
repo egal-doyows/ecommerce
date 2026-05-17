@@ -35,8 +35,38 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ settings.tagline|default:'Fresh-brewed coffee, hearty meals, and warm hospitality.' }}{% endblock %}">
     <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}">
 
+    {# ─────  Canonical URL  ───── #}
+    {# Strips query strings so utm_* parameters don't get indexed as duplicate URLs. #}
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+
     {# ─────  Stylesheet  ───── #}
     <link rel="stylesheet" href="{% static 'public_site/css/public.css' %}">
+
+    {# ─────  Schema.org structured data (LocalBusiness / Restaurant)  ───── #}
+    {# Helps Google build the knowledge-panel card (address, phone, hours, social).
+       Only fields actually populated in RestaurantSettings are emitted. #}
+    {% block structured_data %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      "name": "{{ settings.name|default:'Bean & Bite'|escapejs }}",
+      "url": "{{ request.scheme }}://{{ request.get_host }}{% url 'public-home' %}",
+      "image": "{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}",
+      "logo": "{{ request.scheme }}://{{ request.get_host }}{% if settings.logo %}{{ settings.logo.url }}{% else %}{% static 'public_site/img/logo.png' %}{% endif %}"
+      {% if settings.tagline %},"description": "{{ settings.tagline|escapejs }}"{% endif %}
+      {% if settings.phone %},"telephone": "{{ settings.phone|escapejs }}"{% endif %}
+      {% if settings.email %},"email": "{{ settings.email|escapejs }}"{% endif %}
+      {% if settings.address %},"address": {"@type": "PostalAddress", "streetAddress": "{{ settings.address|escapejs }}", "addressCountry": "KE"}{% endif %}
+      {% if settings.latitude and settings.longitude %},"geo": {"@type": "GeoCoordinates", "latitude": {{ settings.latitude }}, "longitude": {{ settings.longitude }}}{% endif %}
+      ,"sameAs": [
+        {% if settings.facebook_url %}"{{ settings.facebook_url|escapejs }}"{% endif %}
+        {% if settings.instagram_url %}{% if settings.facebook_url %},{% endif %}"{{ settings.instagram_url|escapejs }}"{% endif %}
+        {% if settings.twitter_url %}{% if settings.facebook_url or settings.instagram_url %},{% endif %}"{{ settings.twitter_url|escapejs }}"{% endif %}
+      ]
+    }
+    </script>
+    {% endblock %}
 </head>
 <body>
 <header class="ps-header">

@@ -65,12 +65,13 @@ def shift_required(view_func):
 
 
 def categories(request):
-    all_categories = Category.objects.all()
-    return {'all_categories': all_categories}
+    from .cache import get_categories
+    return {'all_categories': get_categories()}
 
 
 def restaurant_settings(request):
-    return {'restaurant': RestaurantSettings.load()}
+    from .cache import get_restaurant_settings
+    return {'restaurant': get_restaurant_settings()}
 
 
 @never_cache
