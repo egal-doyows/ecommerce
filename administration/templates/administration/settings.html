@@ -9,22 +9,32 @@
     </div>
 </div>
 
-<div style="max-width:640px;">
-    <div class="adm-card">
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            {% for field in form %}
+<div style="max-width:720px;">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="adm-card" style="border-left:3px solid var(--adm-danger);margin-bottom:16px;">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        {% for group_label, group_fields in form.iter_fieldsets %}
+        <div class="adm-card" style="margin-bottom:16px;">
+            <h2 style="margin:0 0 12px;font-size:15px;color:var(--adm-accent);text-transform:uppercase;letter-spacing:0.5px;">{{ group_label }}</h2>
+            {% for field in group_fields %}
             <div class="adm-form-group">
-                <label class="adm-form-label">{{ field.label }}</label>
+                <label class="adm-form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
                 {% if field.help_text %}<div class="adm-help-text">{{ field.help_text }}</div>{% endif %}
                 {{ field.errors }}
             </div>
             {% endfor %}
-            <div style="margin-top:24px;">
-                <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save Settings</button>
-            </div>
-        </form>
-    </div>
+        </div>
+        {% endfor %}
+
+        <div style="margin-top:8px;">
+            <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save Settings</button>
+        </div>
+    </form>
 </div>
 {% endblock %}

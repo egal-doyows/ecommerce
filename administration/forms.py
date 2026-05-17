@@ -236,20 +236,65 @@ class TableForm(forms.ModelForm):
 # ── Restaurant Settings ──────────────────────────────────────────────
 
 class RestaurantSettingsForm(forms.ModelForm):
+    # Fields grouped for the template — keeps the settings page navigable
+    # as the model grows. Add new fields here AND in Meta.fields.
+    FIELDSETS = [
+        ('Branding', ['name', 'tagline', 'logo']),
+        ('Operational', ['currency', 'default_markup_percent']),
+        ('Contact', [
+            'phone', 'whatsapp_number', 'email', 'website', 'address',
+            'map_embed_url', 'directions_url',
+        ]),
+        ('Social', ['facebook_url', 'instagram_url', 'twitter_url']),
+        ('Delivery commissions',
+         ['ubereats_commission_pct', 'glovo_commission_pct',
+          'bolt_commission_pct', 'jumia_commission_pct']),
+        ('Location',
+         ['latitude', 'longitude']),
+    ]
+
     class Meta:
         model = RestaurantSettings
-        fields = ['name', 'tagline', 'phone', 'website', 'logo', 'currency', 'default_markup_percent']
+        fields = [
+            'name', 'tagline', 'logo',
+            'currency', 'default_markup_percent',
+            'phone', 'whatsapp_number', 'email', 'website', 'address',
+            'map_embed_url', 'directions_url',
+            'facebook_url', 'instagram_url', 'twitter_url',
+            'ubereats_commission_pct', 'glovo_commission_pct',
+            'bolt_commission_pct', 'jumia_commission_pct',
+            'latitude', 'longitude',
+        ]
         widgets = {
             'name': forms.TextInput(attrs=_input),
             'tagline': forms.TextInput(attrs=_input),
-            'phone': forms.TextInput(attrs=_input),
-            'website': forms.TextInput(attrs=_input),
             'logo': forms.ClearableFileInput(attrs=_file),
             'currency': forms.Select(attrs=_select),
             'default_markup_percent': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0'}),
+            'phone': forms.TextInput(attrs=_input),
+            'whatsapp_number': forms.TextInput(attrs=_input),
+            'email': forms.EmailInput(attrs=_input),
+            'website': forms.TextInput(attrs=_input),
+            'address': forms.Textarea(attrs=_textarea),
+            'map_embed_url': forms.URLInput(attrs=_input),
+            'directions_url': forms.URLInput(attrs=_input),
+            'facebook_url': forms.URLInput(attrs=_input),
+            'instagram_url': forms.URLInput(attrs=_input),
+            'twitter_url': forms.URLInput(attrs=_input),
+            'ubereats_commission_pct': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0', 'max': '100'}),
+            'glovo_commission_pct':    forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0', 'max': '100'}),
+            'bolt_commission_pct':     forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0', 'max': '100'}),
+            'jumia_commission_pct':    forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0', 'max': '100'}),
+            'latitude':  forms.NumberInput(attrs={**_input, 'step': '0.00001', 'placeholder': 'e.g. -1.28333'}),
+            'longitude': forms.NumberInput(attrs={**_input, 'step': '0.00001', 'placeholder': 'e.g. 36.81667'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from menu.currencies import CURRENCY_CHOICES
         self.fields['currency'].widget = forms.Select(attrs=_select, choices=CURRENCY_CHOICES)
+
+    def iter_fieldsets(self):
+        """Yield (label, [bound_field, ...]) so the template can render groups."""
+        for label, names in self.FIELDSETS:
+            yield label, [self[name] for name in names]
