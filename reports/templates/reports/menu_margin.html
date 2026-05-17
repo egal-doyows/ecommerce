@@ -5,7 +5,7 @@
 {% block report_breadcrumb %}Menu Margin{% endblock %}
 
 {% block report_actions %}
-<a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}format=csv" class="adm-btn adm-btn-outline">
+<a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}{% if sort_key %}sort={{ sort_key }}&dir={{ sort_dir }}&{% endif %}format=csv" class="adm-btn adm-btn-outline">
     <i class="fa-solid fa-download"></i> CSV
 </a>
 {% endblock %}
@@ -68,8 +68,24 @@
                 <th>Source</th>
                 <th style="text-align:right;">Unit Cost</th>
                 <th style="text-align:right;">Selling Price</th>
-                <th style="text-align:right;">Margin</th>
-                <th style="text-align:right;">Margin %</th>
+                <th style="text-align:right;">
+                    {% if sort_key == 'margin' and sort_dir == 'desc' %}
+                        <a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}sort=margin&dir=asc" style="color:inherit;text-decoration:none;">Margin <i class="fa-solid fa-arrow-down"></i></a>
+                    {% elif sort_key == 'margin' and sort_dir == 'asc' %}
+                        <a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}" style="color:inherit;text-decoration:none;">Margin <i class="fa-solid fa-arrow-up"></i></a>
+                    {% else %}
+                        <a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}sort=margin&dir=desc" style="color:var(--adm-muted);text-decoration:none;">Margin <i class="fa-solid fa-sort" style="opacity:.4;"></i></a>
+                    {% endif %}
+                </th>
+                <th style="text-align:right;">
+                    {% if sort_key == 'margin_pct' and sort_dir == 'desc' %}
+                        <a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}sort=margin_pct&dir=asc" style="color:inherit;text-decoration:none;">Margin % <i class="fa-solid fa-arrow-down"></i></a>
+                    {% elif sort_key == 'margin_pct' and sort_dir == 'asc' %}
+                        <a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}" style="color:inherit;text-decoration:none;">Margin % <i class="fa-solid fa-arrow-up"></i></a>
+                    {% else %}
+                        <a href="?{% if show_untracked %}show_untracked=1&{% endif %}{% if category_filter %}category={{ category_filter }}&{% endif %}sort=margin_pct&dir=desc" style="color:var(--adm-muted);text-decoration:none;">Margin % <i class="fa-solid fa-sort" style="opacity:.4;"></i></a>
+                    {% endif %}
+                </th>
             </tr>
         </thead>
         <tbody>

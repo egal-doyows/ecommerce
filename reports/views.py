@@ -1154,6 +1154,26 @@ def menu_margin(request):
     total_margin = total_price - total_cost
     avg_margin_pct = (total_margin / total_price * 100) if total_price else Decimal('0')
 
+    # Sort: default is category then title (already applied by the queryset).
+    # Sortable columns: margin, margin_pct. None values sort to the end
+    # regardless of direction so untracked rows don't pollute the top.
+    sort_key = request.GET.get('sort', '')
+    sort_dir = request.GET.get('dir', 'desc')
+    reverse = sort_dir != 'asc'
+    if sort_key in ('margin', 'margin_pct'):
+        def _key(r):
+            v = r[sort_key]
+            # None → push to end in both directions
+            none_rank = 1 if v is None else 0
+            return (none_rank, v if v is not None else Decimal('0'))
+        rows.sort(key=_key, reverse=reverse)
+        # If we reversed, None items got pushed to the top because their
+        # none_rank flipped — fix by partitioning.
+        if reverse:
+            tracked = [r for r in rows if r[sort_key] is not None]
+            untracked_rows = [r for r in rows if r[sort_key] is None]
+            rows = tracked + untracked_rows
+
     if request.GET.get('format') == 'csv':
         header = ['category', 'item', 'source', 'cost', 'price', 'margin', 'margin_pct']
         csv_rows = [
@@ -1183,6 +1203,8 @@ def menu_margin(request):
         'categories': categories,
         'category_filter': category_filter,
         'item_count': len(rows),
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
 
