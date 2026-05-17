@@ -71,6 +71,14 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-item stock × cost with total inventory value. CSV export for offline counting.</p>
     </a>
 
+    <a href="{% url 'reports-best-selling' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-ranking-star" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Best Selling Items</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Top items by quantity sold in the period with revenue, cost (frozen COGS), margin and margin %.</p>
+    </a>
+
     <a href="{% url 'reports-menu-margin' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-percent" style="font-size:20px;color:var(--adm-accent);"></i>

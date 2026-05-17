@@ -1,0 +1,147 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Best Selling Items{% endblock %}
+{% block report_breadcrumb %}Best Selling{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% if category_filter %}&category={{ category_filter }}{% endif %}{% if sort_key %}&sort={{ sort_key }}&dir={{ sort_dir }}{% endif %}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block extra_filters %}
+<div>
+    <label class="adm-form-label">Category</label>
+    <select name="category" style="padding:6px 10px;">
+        <option value="">All categories</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if category_filter == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% if sort_key %}<input type="hidden" name="sort" value="{{ sort_key }}">{% endif %}
+{% if sort_dir %}<input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
+{% endblock %}
+
+{% block report_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-ranking-star" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No paid orders in this period.</p>
+</div>
+{% else %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Items Sold</div>
+            <div style="font-size:20px;font-weight:600;">{{ total_qty|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Revenue</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Cost</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Margin</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_margin|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Avg Margin %</div>
+            <div style="font-size:20px;font-weight:600;">{{ avg_margin_pct|floatformat:1 }}%</div>
+        </div>
+    </div>
+</div>
+
+{% with qbase="preset="|add:preset|add:"&start="|add:start|date:'Y-m-d'|add:"&end="|add:end|date:'Y-m-d' %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th>Category</th>
+                {# Qty sold #}
+                <th style="text-align:right;">
+                    {% if sort_key == 'qty' and sort_dir == 'desc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=qty&dir=asc" style="color:inherit;text-decoration:none;">Qty Sold <i class="fa-solid fa-arrow-down"></i></a>
+                    {% elif sort_key == 'qty' and sort_dir == 'asc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=qty&dir=desc" style="color:inherit;text-decoration:none;">Qty Sold <i class="fa-solid fa-arrow-up"></i></a>
+                    {% else %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=qty&dir=desc" style="color:var(--adm-muted);text-decoration:none;">Qty Sold <i class="fa-solid fa-sort" style="opacity:.4;"></i></a>
+                    {% endif %}
+                </th>
+                {# Revenue #}
+                <th style="text-align:right;">
+                    {% if sort_key == 'revenue' and sort_dir == 'desc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=revenue&dir=asc" style="color:inherit;text-decoration:none;">Revenue <i class="fa-solid fa-arrow-down"></i></a>
+                    {% elif sort_key == 'revenue' and sort_dir == 'asc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=revenue&dir=desc" style="color:inherit;text-decoration:none;">Revenue <i class="fa-solid fa-arrow-up"></i></a>
+                    {% else %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=revenue&dir=desc" style="color:var(--adm-muted);text-decoration:none;">Revenue <i class="fa-solid fa-sort" style="opacity:.4;"></i></a>
+                    {% endif %}
+                </th>
+                {# Cost #}
+                <th style="text-align:right;">
+                    {% if sort_key == 'cost' and sort_dir == 'desc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=cost&dir=asc" style="color:inherit;text-decoration:none;">Cost <i class="fa-solid fa-arrow-down"></i></a>
+                    {% elif sort_key == 'cost' and sort_dir == 'asc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=cost&dir=desc" style="color:inherit;text-decoration:none;">Cost <i class="fa-solid fa-arrow-up"></i></a>
+                    {% else %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=cost&dir=desc" style="color:var(--adm-muted);text-decoration:none;">Cost <i class="fa-solid fa-sort" style="opacity:.4;"></i></a>
+                    {% endif %}
+                </th>
+                {# Margin #}
+                <th style="text-align:right;">
+                    {% if sort_key == 'margin' and sort_dir == 'desc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=margin&dir=asc" style="color:inherit;text-decoration:none;">Margin <i class="fa-solid fa-arrow-down"></i></a>
+                    {% elif sort_key == 'margin' and sort_dir == 'asc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=margin&dir=desc" style="color:inherit;text-decoration:none;">Margin <i class="fa-solid fa-arrow-up"></i></a>
+                    {% else %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=margin&dir=desc" style="color:var(--adm-muted);text-decoration:none;">Margin <i class="fa-solid fa-sort" style="opacity:.4;"></i></a>
+                    {% endif %}
+                </th>
+                {# Margin % #}
+                <th style="text-align:right;">
+                    {% if sort_key == 'margin_pct' and sort_dir == 'desc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=margin_pct&dir=asc" style="color:inherit;text-decoration:none;">Margin % <i class="fa-solid fa-arrow-down"></i></a>
+                    {% elif sort_key == 'margin_pct' and sort_dir == 'asc' %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=margin_pct&dir=desc" style="color:inherit;text-decoration:none;">Margin % <i class="fa-solid fa-arrow-up"></i></a>
+                    {% else %}
+                        <a href="?{{ qbase }}{% if category_filter %}&category={{ category_filter }}{% endif %}&sort=margin_pct&dir=desc" style="color:var(--adm-muted);text-decoration:none;">Margin % <i class="fa-solid fa-sort" style="opacity:.4;"></i></a>
+                    {% endif %}
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td style="color:var(--adm-muted);">{{ forloop.counter }}</td>
+                <td style="font-weight:500;">{{ r.title }}</td>
+                <td style="color:var(--adm-muted);">{{ r.category }}</td>
+                <td style="text-align:right;font-weight:500;">{{ r.qty_sold|intcomma }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:500;{% if r.margin < 0 %}color:var(--adm-danger);{% endif %}">{{ currency_symbol }} {{ r.margin|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:500;{% if r.margin_pct < 0 %}color:var(--adm-danger);{% endif %}">{{ r.margin_pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td colspan="3" style="text-align:right;font-weight:700;">Totals</td>
+                <td style="text-align:right;font-weight:700;">{{ total_qty|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_margin|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ avg_margin_pct|floatformat:1 }}%</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endwith %}
+{% endif %}
+{% endblock %}

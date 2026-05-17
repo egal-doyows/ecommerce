@@ -1098,6 +1098,124 @@ def sales_by_channel(request):
     })
 
 
+# ── Best Selling Items ─────────────────────────────────────────────────
+
+@manager_required
+def best_selling(request):
+    """
+    Top menu items in the period, ranked by quantity sold by default.
+    Includes revenue, cost (from frozen OrderItem.unit_cost), margin
+    amount and margin %.
+
+    Cost is the snapshotted COGS at the time each unit was sold — not
+    the current inventory buying_price — so this report reflects the
+    actual profit realised in the period, even if ingredient prices
+    have since changed.
+    """
+    start, end, preset = parse_date_range(request)
+    category_filter = request.GET.get('category', '')
+
+    qs = OrderItem.objects.filter(
+        order__status='paid',
+        order__is_comp=False,
+        order__created_at__date__gte=start,
+        order__created_at__date__lte=end,
+    )
+    if category_filter:
+        qs = qs.filter(menu_item__category_id=category_filter)
+
+    aggregates = (
+        qs.values(
+            'menu_item_id',
+            'menu_item__title',
+            'menu_item__category__name',
+        )
+        .annotate(
+            qty_sold=Sum('quantity'),
+            revenue=Coalesce(
+                Sum(F('unit_price') * F('quantity'), output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+            cost=Coalesce(
+                Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+        )
+    )
+
+    rows = []
+    total_qty = 0
+    total_revenue = Decimal('0')
+    total_cost = Decimal('0')
+    for a in aggregates:
+        revenue = a['revenue'] or Decimal('0')
+        cost = a['cost'] or Decimal('0')
+        margin = revenue - cost
+        margin_pct = (margin / revenue * 100) if revenue else Decimal('0')
+        rows.append({
+            'menu_item_id': a['menu_item_id'],
+            'title': a['menu_item__title'],
+            'category': a['menu_item__category__name'] or 'Uncategorised',
+            'qty_sold': a['qty_sold'],
+            'revenue': revenue,
+            'cost': cost,
+            'margin': margin,
+            'margin_pct': margin_pct,
+        })
+        total_qty += a['qty_sold']
+        total_revenue += revenue
+        total_cost += cost
+
+    total_margin = total_revenue - total_cost
+    avg_margin_pct = (total_margin / total_revenue * 100) if total_revenue else Decimal('0')
+
+    # Sortable: qty (default), revenue, cost, margin, margin_pct.
+    sort_key = request.GET.get('sort', 'qty')
+    sort_dir = request.GET.get('dir', 'desc')
+    reverse = sort_dir != 'asc'
+    sort_field = {
+        'qty': 'qty_sold',
+        'revenue': 'revenue',
+        'cost': 'cost',
+        'margin': 'margin',
+        'margin_pct': 'margin_pct',
+    }.get(sort_key, 'qty_sold')
+    rows.sort(key=lambda r: r[sort_field], reverse=reverse)
+
+    if request.GET.get('format') == 'csv':
+        header = ['category', 'item', 'qty_sold', 'revenue', 'cost', 'margin', 'margin_pct']
+        csv_rows = [
+            [
+                r['category'], r['title'], r['qty_sold'],
+                r['revenue'], r['cost'], r['margin'], f"{r['margin_pct']:.1f}",
+            ]
+            for r in rows
+        ]
+        return csv_response(
+            f'best_selling_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    from menu.models import Category
+    categories = Category.objects.order_by('name')
+
+    return render(request, 'reports/best_selling.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'total_qty': total_qty,
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_margin': total_margin,
+        'avg_margin_pct': avg_margin_pct,
+        'categories': categories,
+        'category_filter': category_filter,
+        'item_count': len(rows),
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
 # ── Menu Margin ────────────────────────────────────────────────────────
 
 @manager_required
