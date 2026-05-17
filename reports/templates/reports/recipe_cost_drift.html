@@ -1,0 +1,94 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Recipe Cost Drift{% endblock %}
+{% block report_breadcrumb %}Recipe Cost Drift{% endblock %}
+
+{% block report_actions %}
+<a href="?lookback={{ lookback_days }}{% if sort_key %}&sort={{ sort_key }}&dir={{ sort_dir }}{% endif %}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block period_selector %}
+<form method="get" class="adm-card" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:16px;">
+    <div>
+        <label class="adm-form-label">Lookback (days)</label>
+        <input type="number" name="lookback" value="{{ lookback_days }}" min="7" max="365" style="padding:6px 10px;width:100px;">
+    </div>
+    <button type="submit" class="adm-btn adm-btn-primary">Apply</button>
+    {% if sort_key %}<input type="hidden" name="sort" value="{{ sort_key }}">{% endif %}
+    {% if sort_dir %}<input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
+    <div style="margin-left:auto;color:var(--adm-muted);font-size:12px;">
+        Historical window: {{ window_start|date:"d M Y" }} — {{ window_end|date:"d M Y" }}
+    </div>
+</form>
+{% endblock %}
+
+{% block report_body %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Items Analysed</div>
+            <div style="font-size:20px;font-weight:600;">{{ rows|length|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Drift &geq; 10%</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-warning);">{{ flagged_count|intcomma }}</div>
+        </div>
+    </div>
+    <p style="color:var(--adm-muted);font-size:12px;margin:12px 0 0;">
+        Historical cost = quantity-weighted average of <code>OrderItem.unit_cost</code> snapshots over the last {{ lookback_days }} days.
+        Current cost = today's inventory buying prices rolled up through the recipe.
+        Items with drift ≥ 10% are flagged — consider revising the menu price.
+    </p>
+</div>
+
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-chart-line" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No sales in the last {{ lookback_days }} days, so there's no historical baseline to compare against.</p>
+</div>
+{% else %}
+{% with qbase="lookback="|add:lookback_days %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Category</th>
+                <th style="text-align:right;">Qty Sold</th>
+                <th style="text-align:right;">Price</th>
+                <th style="text-align:right;">Historical Cost</th>
+                <th style="text-align:right;">Current Cost</th>
+                <th style="text-align:right;"><a href="?{{ qbase }}&sort=drift&dir={% if sort_key == 'drift' and sort_dir == 'desc' %}asc{% else %}desc{% endif %}" style="color:inherit;text-decoration:none;">Cost Drift{% if sort_key == 'drift' %} <i class="fa-solid fa-arrow-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}"></i>{% else %} <i class="fa-solid fa-sort" style="opacity:.4;"></i>{% endif %}</a></th>
+                <th style="text-align:right;">Margin Then</th>
+                <th style="text-align:right;">Margin Now</th>
+                <th style="text-align:right;"><a href="?{{ qbase }}&sort=margin_delta&dir={% if sort_key == 'margin_delta' and sort_dir == 'desc' %}asc{% else %}desc{% endif %}" style="color:inherit;text-decoration:none;">Δ Margin pts{% if sort_key == 'margin_delta' %} <i class="fa-solid fa-arrow-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}"></i>{% else %} <i class="fa-solid fa-sort" style="opacity:.4;"></i>{% endif %}</a></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr {% if r.flagged %}style="background:#fff3cd;"{% endif %}>
+                <td style="font-weight:500;">{{ r.title }}</td>
+                <td style="color:var(--adm-muted);">{{ r.category }}</td>
+                <td style="text-align:right;">{{ r.qty_sold|floatformat:0|intcomma }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.price|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ currency_symbol }} {{ r.historical_cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.current_cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:500;{% if r.drift_pct and r.drift_pct > 0 %}color:var(--adm-danger);{% elif r.drift_pct and r.drift_pct < 0 %}color:var(--adm-success);{% endif %}">
+                    {% if r.drift_pct is None %}—{% else %}{{ r.drift_pct|floatformat:1 }}%{% endif %}
+                </td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.historical_margin_pct|floatformat:1 }}%</td>
+                <td style="text-align:right;">{{ r.current_margin_pct|floatformat:1 }}%</td>
+                <td style="text-align:right;font-weight:500;{% if r.margin_delta_pct < 0 %}color:var(--adm-danger);{% elif r.margin_delta_pct > 0 %}color:var(--adm-success);{% endif %}">
+                    {{ r.margin_delta_pct|floatformat:1 }} pts
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endwith %}
+{% endif %}
+{% endblock %}

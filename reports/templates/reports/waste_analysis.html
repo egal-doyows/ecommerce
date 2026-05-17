@@ -1,0 +1,135 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Waste Analysis{% endblock %}
+{% block report_breadcrumb %}Waste Analysis{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% if reason_filter %}&reason={{ reason_filter }}{% endif %}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block extra_filters %}
+<div>
+    <label class="adm-form-label">Reason</label>
+    <select name="reason" style="padding:6px 10px;">
+        <option value="">All reasons</option>
+        {% for code, label in reason_choices %}
+        <option value="{{ code }}" {% if reason_filter == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block report_body %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Total Cost</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-danger);">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Events</div>
+            <div style="font-size:20px;font-weight:600;">{{ event_count|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Items Wasted</div>
+            <div style="font-size:20px;font-weight:600;">{{ total_qty|floatformat:2|intcomma }}</div>
+        </div>
+    </div>
+</div>
+
+{% if not item_rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-trash-can" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No waste logged in this period.</p>
+</div>
+{% else %}
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="adm-card">
+        <h3 style="margin-top:0;font-size:14px;text-transform:uppercase;color:var(--adm-muted);">By Reason</h3>
+        <table class="adm-table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Reason</th>
+                    <th style="text-align:right;">Events</th>
+                    <th style="text-align:right;">Cost</th>
+                    <th style="text-align:right;">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reason_rows %}
+                <tr>
+                    <td style="font-weight:500;">{{ r.reason }}</td>
+                    <td style="text-align:right;">{{ r.count }}</td>
+                    <td style="text-align:right;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;color:var(--adm-muted);">{{ r.pct|floatformat:1 }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="adm-card">
+        <h3 style="margin-top:0;font-size:14px;text-transform:uppercase;color:var(--adm-muted);">By Staff</h3>
+        <table class="adm-table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th style="text-align:right;">Events</th>
+                    <th style="text-align:right;">Cost</th>
+                    <th style="text-align:right;">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in staff_rows %}
+                <tr>
+                    <td style="font-weight:500;">{{ r.username }}</td>
+                    <td style="text-align:right;">{{ r.count }}</td>
+                    <td style="text-align:right;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                    <td style="text-align:right;color:var(--adm-muted);">{{ r.pct|floatformat:1 }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="adm-card">
+    <h3 style="margin-top:0;font-size:14px;text-transform:uppercase;color:var(--adm-muted);">By Item</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Qty Wasted</th>
+                <th style="text-align:right;">Events</th>
+                <th style="text-align:right;">Cost</th>
+                <th style="text-align:right;">% of Waste</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in item_rows %}
+            <tr>
+                <td style="font-weight:500;">{{ r.name }}</td>
+                <td style="color:var(--adm-muted);">{{ r.unit }}</td>
+                <td style="text-align:right;">{{ r.qty|floatformat:2 }}</td>
+                <td style="text-align:right;">{{ r.events }}</td>
+                <td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td colspan="4" style="text-align:right;font-weight:700;">Total</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">100.0%</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -18,4 +18,9 @@ urlpatterns = [
     path('online-sales/', views.online_sales, name='reports-online-sales'),
     path('menu-margin/', views.menu_margin, name='reports-menu-margin'),
     path('best-selling/', views.best_selling, name='reports-best-selling'),
+    path('category-performance/', views.category_performance, name='reports-category-performance'),
+    path('waste-analysis/', views.waste_analysis, name='reports-waste-analysis'),
+    path('slow-movers/', views.slow_movers, name='reports-slow-movers'),
+    path('recipe-cost-drift/', views.recipe_cost_drift, name='reports-recipe-cost-drift'),
+    path('channel-margin/', views.channel_margin, name='reports-channel-margin'),
 ]

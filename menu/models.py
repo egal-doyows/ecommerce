@@ -21,6 +21,24 @@ class RestaurantSettings(models.Model):
         help_text='Default markup applied to cost when suggesting menu prices',
     )
 
+    # ── Delivery-platform commission rates (used by Channel Margin report) ──
+    ubereats_commission_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('27'),
+        help_text='Uber Eats commission percentage taken on gross revenue.',
+    )
+    glovo_commission_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('28'),
+        help_text='Glovo commission percentage taken on gross revenue.',
+    )
+    bolt_commission_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('25'),
+        help_text='Bolt Food commission percentage taken on gross revenue.',
+    )
+    jumia_commission_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('20'),
+        help_text='Jumia Food commission percentage taken on gross revenue.',
+    )
+
     # ── Public-site contact details (all optional) ──
     email = models.EmailField(
         blank=True,

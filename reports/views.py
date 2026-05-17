@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from administration.models import Account, Transaction
 from menu.models import InventoryItem, MenuItem, Order, OrderItem, RestaurantSettings, Shift, StockAdjustment
-from waste.models import WasteItem
+from waste.models import WasteItem, WasteLog
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
 from debtor.models import Debtor, DebtorTransaction
@@ -1094,6 +1094,608 @@ def sales_by_channel(request):
         'cross_rows': cross_rows,
         'total_revenue': total_revenue,
         'total_count': total_count,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── Channel Margin ─────────────────────────────────────────────────────
+
+@manager_required
+def channel_margin(request):
+    """
+    Revenue by source NET of platform commission fees. Walk-in /
+    in-house channels (POS, phone) keep 100% of revenue; marketplaces
+    (Uber Eats, Glovo, Bolt, Jumia) lose the commission percentage
+    configured on RestaurantSettings.
+
+    True margin = gross revenue − platform fee − COGS. Margin % is
+    against gross revenue (the headline customer paid) so it's
+    comparable across channels.
+    """
+    start, end, preset = parse_date_range(request)
+    settings = RestaurantSettings.load()
+    source_labels = dict(Order.SOURCE_CHOICES)
+
+    commission_map = {
+        'ubereats': settings.ubereats_commission_pct,
+        'glovo': settings.glovo_commission_pct,
+        'bolt': settings.bolt_commission_pct,
+        'jumia': settings.jumia_commission_pct,
+        'pos': Decimal('0'),
+        'phone': Decimal('0'),
+        'other': Decimal('0'),
+    }
+
+    qs = OrderItem.objects.filter(
+        order__status='paid', order__is_comp=False,
+        order__created_at__date__gte=start,
+        order__created_at__date__lte=end,
+    )
+
+    aggregates = (
+        qs.values('order__source')
+        .annotate(
+            qty_sold=Sum('quantity'),
+            revenue=Coalesce(
+                Sum(F('unit_price') * F('quantity'), output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+            cost=Coalesce(
+                Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+        )
+    )
+
+    rows = []
+    total_revenue = Decimal('0')
+    total_cost = Decimal('0')
+    total_fee = Decimal('0')
+    total_qty = 0
+    for a in aggregates:
+        source = a['order__source']
+        revenue = a['revenue'] or Decimal('0')
+        cost = a['cost'] or Decimal('0')
+        commission_pct = commission_map.get(source, Decimal('0'))
+        fee = (revenue * commission_pct / Decimal('100')).quantize(Decimal('0.01'))
+        net_revenue = revenue - fee
+        margin = net_revenue - cost
+        gross_margin = revenue - cost
+        margin_pct = (margin / revenue * 100) if revenue else Decimal('0')
+        gross_margin_pct = (gross_margin / revenue * 100) if revenue else Decimal('0')
+
+        rows.append({
+            'source': source,
+            'label': source_labels.get(source, source),
+            'qty_sold': a['qty_sold'],
+            'commission_pct': commission_pct,
+            'revenue': revenue,
+            'fee': fee,
+            'net_revenue': net_revenue,
+            'cost': cost,
+            'gross_margin': gross_margin,
+            'gross_margin_pct': gross_margin_pct,
+            'margin': margin,
+            'margin_pct': margin_pct,
+        })
+        total_revenue += revenue
+        total_cost += cost
+        total_fee += fee
+        total_qty += a['qty_sold']
+
+    # % of revenue mix.
+    for r in rows:
+        r['mix_pct'] = (r['revenue'] / total_revenue * 100) if total_revenue else Decimal('0')
+
+    total_net_revenue = total_revenue - total_fee
+    total_margin = total_net_revenue - total_cost
+    total_margin_pct = (total_margin / total_revenue * 100) if total_revenue else Decimal('0')
+
+    rows.sort(key=lambda r: r['margin'], reverse=True)
+
+    if request.GET.get('format') == 'csv':
+        header = [
+            'source', 'qty_sold', 'gross_revenue', 'commission_pct',
+            'platform_fee', 'net_revenue', 'cost', 'true_margin',
+            'true_margin_pct', 'mix_pct',
+        ]
+        csv_rows = [
+            [
+                r['label'], r['qty_sold'], r['revenue'],
+                f"{r['commission_pct']:.2f}", r['fee'], r['net_revenue'],
+                r['cost'], r['margin'],
+                f"{r['margin_pct']:.1f}", f"{r['mix_pct']:.1f}",
+            ]
+            for r in rows
+        ]
+        return csv_response(
+            f'channel_margin_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    return render(request, 'reports/channel_margin.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'total_qty': total_qty,
+        'total_revenue': total_revenue,
+        'total_fee': total_fee,
+        'total_net_revenue': total_net_revenue,
+        'total_cost': total_cost,
+        'total_margin': total_margin,
+        'total_margin_pct': total_margin_pct,
+        'currency_symbol': settings.currency_symbol,
+    })
+
+
+# ── Recipe Cost Drift ──────────────────────────────────────────────────
+
+@manager_required
+def recipe_cost_drift(request):
+    """
+    Compare each menu item's CURRENT cost (computed from today's
+    inventory buying_prices) against the AVERAGE cost we recorded when
+    the item was actually sold N days ago (frozen OrderItem.unit_cost).
+
+    Cost going up faster than price = margin quietly eroded. The report
+    surfaces items where the cost has drifted enough that the menu
+    price should probably be re-examined.
+
+    Only items with at least one paid sale in the historical window are
+    shown — without sales there's no historical baseline to compare to.
+    """
+    from django.utils import timezone
+
+    try:
+        lookback_days = int(request.GET.get('lookback', '90'))
+    except (ValueError, TypeError):
+        lookback_days = 90
+    lookback_days = max(7, min(lookback_days, 365))
+
+    today = timezone.localdate()
+    window_end = today
+    window_start = today - timedelta(days=lookback_days)
+
+    # Historical avg cost per menu item, weighted by quantity sold.
+    historical = (
+        OrderItem.objects
+        .filter(
+            order__status='paid', order__is_comp=False,
+            order__created_at__date__gte=window_start,
+            order__created_at__date__lte=window_end,
+        )
+        .values('menu_item_id')
+        .annotate(
+            qty=Sum('quantity'),
+            cost_sum=Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
+        )
+    )
+
+    menu_items = (
+        MenuItem.objects
+        .select_related('category', 'inventory_item')
+        .prefetch_related('recipe_items__inventory_item')
+    )
+    by_id = {mi.id: mi for mi in menu_items}
+
+    rows = []
+    for h in historical:
+        mi = by_id.get(h['menu_item_id'])
+        if mi is None:
+            continue
+        qty = Decimal(str(h['qty'] or 0))
+        if qty <= 0:
+            continue
+        cost_sum = h['cost_sum'] or Decimal('0')
+        historical_avg_cost = cost_sum / qty
+        current_cost = mi.current_unit_cost()
+        delta = current_cost - historical_avg_cost
+        if historical_avg_cost > 0:
+            drift_pct = (delta / historical_avg_cost * 100)
+        else:
+            drift_pct = None
+
+        price = mi.price or Decimal('0')
+        historical_margin = price - historical_avg_cost
+        current_margin = price - current_cost
+        historical_margin_pct = (historical_margin / price * 100) if price else Decimal('0')
+        current_margin_pct = (current_margin / price * 100) if price else Decimal('0')
+        margin_delta_pct = current_margin_pct - historical_margin_pct
+
+        rows.append({
+            'menu_item': mi,
+            'title': mi.title,
+            'category': mi.category.name if mi.category else 'Uncategorised',
+            'qty_sold': qty,
+            'price': price,
+            'historical_cost': historical_avg_cost,
+            'current_cost': current_cost,
+            'cost_delta': delta,
+            'drift_pct': drift_pct,
+            'historical_margin_pct': historical_margin_pct,
+            'current_margin_pct': current_margin_pct,
+            'margin_delta_pct': margin_delta_pct,
+            'flagged': drift_pct is not None and drift_pct >= 10,
+        })
+
+    sort_key = request.GET.get('sort', 'drift')
+    sort_dir = request.GET.get('dir', 'desc')
+    reverse = sort_dir != 'asc'
+    sort_field = {
+        'title': 'title',
+        'qty': 'qty_sold',
+        'historical_cost': 'historical_cost',
+        'current_cost': 'current_cost',
+        'drift': 'drift_pct',
+        'margin_delta': 'margin_delta_pct',
+    }.get(sort_key, 'drift_pct')
+
+    def _key(r):
+        v = r[sort_field]
+        return (1 if v is None else 0, v if v is not None else Decimal('0'))
+    rows.sort(key=_key, reverse=reverse)
+
+    if request.GET.get('format') == 'csv':
+        header = [
+            'category', 'item', 'qty_sold', 'price',
+            'historical_cost', 'current_cost', 'cost_drift_pct',
+            'historical_margin_pct', 'current_margin_pct', 'margin_delta_pct',
+        ]
+        csv_rows = [
+            [
+                r['category'], r['title'], r['qty_sold'], r['price'],
+                r['historical_cost'], r['current_cost'],
+                f"{r['drift_pct']:.1f}" if r['drift_pct'] is not None else '',
+                f"{r['historical_margin_pct']:.1f}",
+                f"{r['current_margin_pct']:.1f}",
+                f"{r['margin_delta_pct']:.1f}",
+            ]
+            for r in rows
+        ]
+        return csv_response(f'recipe_cost_drift_{lookback_days}d.csv', header, csv_rows)
+
+    return render(request, 'reports/recipe_cost_drift.html', {
+        'rows': rows,
+        'lookback_days': lookback_days,
+        'window_start': window_start,
+        'window_end': window_end,
+        'flagged_count': sum(1 for r in rows if r['flagged']),
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── Slow Movers / Dead Stock ───────────────────────────────────────────
+
+@manager_required
+def slow_movers(request):
+    """
+    Inventory items with low or zero movement in the period, ranked by
+    current stock value (capital tied up that isn't earning).
+
+    Movement = direct sales + recipe consumption + waste.
+    Days of cover = stock_quantity / (movement / days_in_period). 'inf'
+    means no movement at all in the period.
+    """
+    from menu.models import Recipe
+
+    start, end, preset = parse_date_range(request)
+    days_in_period = (end - start).days + 1
+    threshold_days = request.GET.get('threshold', '60')
+    try:
+        threshold_days = int(threshold_days)
+    except (ValueError, TypeError):
+        threshold_days = 60
+
+    # Direct-sale consumption: OrderItem.quantity per inventory_item via menu_item.
+    direct = (
+        OrderItem.objects
+        .filter(
+            order__status='paid', order__is_comp=False,
+            order__created_at__date__gte=start,
+            order__created_at__date__lte=end,
+            menu_item__inventory_item__isnull=False,
+        )
+        .values('menu_item__inventory_item_id')
+        .annotate(qty=Sum('quantity'))
+    )
+    movement = {d['menu_item__inventory_item_id']: Decimal(str(d['qty'] or 0)) for d in direct}
+
+    # Recipe consumption: for each OrderItem, walk recipe rows.
+    recipe_items = (
+        OrderItem.objects
+        .filter(
+            order__status='paid', order__is_comp=False,
+            order__created_at__date__gte=start,
+            order__created_at__date__lte=end,
+            menu_item__recipe_items__isnull=False,
+        )
+        .values('menu_item_id')
+        .annotate(qty=Sum('quantity'))
+    )
+    menu_qtys = {r['menu_item_id']: Decimal(str(r['qty'] or 0)) for r in recipe_items}
+    if menu_qtys:
+        recipes = Recipe.objects.filter(menu_item_id__in=menu_qtys.keys())
+        for r in recipes:
+            used = menu_qtys[r.menu_item_id] * r.quantity_required
+            movement[r.inventory_item_id] = movement.get(r.inventory_item_id, Decimal('0')) + used
+
+    # Waste in the period also counts as movement.
+    waste = (
+        WasteItem.objects
+        .filter(waste_log__date__gte=start, waste_log__date__lte=end)
+        .values('inventory_item_id')
+        .annotate(qty=Sum('quantity'))
+    )
+    for w in waste:
+        movement[w['inventory_item_id']] = movement.get(w['inventory_item_id'], Decimal('0')) + w['qty']
+
+    items = InventoryItem.objects.select_related('preferred_supplier').all()
+    rows = []
+    flagged_value = Decimal('0')
+    for it in items:
+        mvt = movement.get(it.id, Decimal('0'))
+        stock_value = (it.stock_quantity or Decimal('0')) * (it.buying_price or Decimal('0'))
+        if mvt > 0 and days_in_period > 0:
+            daily_burn = mvt / Decimal(str(days_in_period))
+            days_cover = (it.stock_quantity / daily_burn) if daily_burn else None
+        else:
+            days_cover = None  # no movement → infinite cover
+
+        # "Slow" = no movement OR cover exceeds the threshold.
+        is_slow = (mvt == 0) or (days_cover is not None and days_cover > threshold_days)
+        if not is_slow:
+            continue
+        rows.append({
+            'item': it,
+            'stock': it.stock_quantity,
+            'unit': it.get_unit_display(),
+            'cost': it.buying_price,
+            'stock_value': stock_value,
+            'movement': mvt,
+            'days_cover': days_cover,
+            'supplier': it.preferred_supplier.name if it.preferred_supplier else '',
+            'no_movement': mvt == 0,
+        })
+        flagged_value += stock_value
+
+    rows.sort(key=lambda r: r['stock_value'], reverse=True)
+
+    if request.GET.get('format') == 'csv':
+        header = ['item', 'unit', 'stock', 'cost', 'stock_value',
+                  'movement_in_period', 'days_cover', 'supplier']
+        csv_rows = [
+            [
+                r['item'].name, r['unit'], r['stock'], r['cost'],
+                r['stock_value'], r['movement'],
+                f"{r['days_cover']:.1f}" if r['days_cover'] is not None else 'no movement',
+                r['supplier'],
+            ]
+            for r in rows
+        ]
+        return csv_response(
+            f'slow_movers_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    return render(request, 'reports/slow_movers.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'flagged_value': flagged_value,
+        'flagged_count': len(rows),
+        'days_in_period': days_in_period,
+        'threshold_days': threshold_days,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── Waste Analysis ─────────────────────────────────────────────────────
+
+@manager_required
+def waste_analysis(request):
+    """
+    Waste in the period broken down three ways: by inventory item, by
+    reason, and by staff member who logged it. Uses WasteItem.unit_cost
+    (snapshotted at the time of waste) so values reflect the cost on
+    the day of the loss, not today's buying price.
+    """
+    start, end, preset = parse_date_range(request)
+    reason_filter = request.GET.get('reason', '')
+
+    waste_items = (
+        WasteItem.objects
+        .filter(
+            waste_log__date__gte=start,
+            waste_log__date__lte=end,
+        )
+        .select_related('inventory_item', 'waste_log', 'waste_log__logged_by')
+    )
+    if reason_filter:
+        waste_items = waste_items.filter(waste_log__reason=reason_filter)
+
+    by_item = {}
+    by_reason = {}
+    by_staff = {}
+    total_cost = Decimal('0')
+    total_qty = Decimal('0')
+    event_ids = set()
+
+    for wi in waste_items:
+        line_cost = wi.cost
+        total_cost += line_cost
+        total_qty += wi.quantity
+        event_ids.add(wi.waste_log_id)
+
+        # By item
+        b = by_item.setdefault(wi.inventory_item_id, {
+            'name': wi.inventory_item.name,
+            'unit': wi.inventory_item.get_unit_display(),
+            'qty': Decimal('0'),
+            'cost': Decimal('0'),
+            'events': 0,
+        })
+        b['qty'] += wi.quantity
+        b['cost'] += line_cost
+        b['events'] += 1
+
+        # By reason
+        reason = wi.waste_log.get_reason_display()
+        r = by_reason.setdefault(reason, {
+            'reason': reason,
+            'count': 0,
+            'cost': Decimal('0'),
+        })
+        r['count'] += 1
+        r['cost'] += line_cost
+
+        # By staff
+        logged_by = wi.waste_log.logged_by
+        key = logged_by.id if logged_by else None
+        username = logged_by.username if logged_by else '(unknown)'
+        s = by_staff.setdefault(key, {
+            'username': username,
+            'count': 0,
+            'cost': Decimal('0'),
+        })
+        s['count'] += 1
+        s['cost'] += line_cost
+
+    item_rows = sorted(by_item.values(), key=lambda x: x['cost'], reverse=True)
+    reason_rows = sorted(by_reason.values(), key=lambda x: x['cost'], reverse=True)
+    staff_rows = sorted(by_staff.values(), key=lambda x: x['cost'], reverse=True)
+
+    # Mix % across each breakdown — sums to 100% within each group.
+    for r in item_rows:
+        r['pct'] = (r['cost'] / total_cost * 100) if total_cost else Decimal('0')
+    for r in reason_rows:
+        r['pct'] = (r['cost'] / total_cost * 100) if total_cost else Decimal('0')
+    for r in staff_rows:
+        r['pct'] = (r['cost'] / total_cost * 100) if total_cost else Decimal('0')
+
+    if request.GET.get('format') == 'csv':
+        header = ['breakdown', 'label', 'qty_or_count', 'cost', 'pct']
+        rows = []
+        for r in item_rows:
+            rows.append(['Item', r['name'], r['qty'], r['cost'], f"{r['pct']:.1f}"])
+        for r in reason_rows:
+            rows.append(['Reason', r['reason'], r['count'], r['cost'], f"{r['pct']:.1f}"])
+        for r in staff_rows:
+            rows.append(['Staff', r['username'], r['count'], r['cost'], f"{r['pct']:.1f}"])
+        return csv_response(
+            f'waste_analysis_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, rows,
+        )
+
+    return render(request, 'reports/waste_analysis.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'item_rows': item_rows,
+        'reason_rows': reason_rows,
+        'staff_rows': staff_rows,
+        'total_cost': total_cost,
+        'total_qty': total_qty,
+        'event_count': len(event_ids),
+        'reason_choices': WasteLog.REASON_CHOICES,
+        'reason_filter': reason_filter,
+        'currency_symbol': RestaurantSettings.load().currency_symbol,
+    })
+
+
+# ── Category Performance ───────────────────────────────────────────────
+
+@manager_required
+def category_performance(request):
+    """
+    Revenue, cost, margin, margin % and % of revenue mix per menu
+    category over the period. Uses frozen OrderItem.unit_cost.
+    """
+    start, end, preset = parse_date_range(request)
+
+    qs = OrderItem.objects.filter(
+        order__status='paid',
+        order__is_comp=False,
+        order__created_at__date__gte=start,
+        order__created_at__date__lte=end,
+    )
+
+    aggregates = (
+        qs.values('menu_item__category_id', 'menu_item__category__name')
+        .annotate(
+            qty_sold=Sum('quantity'),
+            revenue=Coalesce(
+                Sum(F('unit_price') * F('quantity'), output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+            cost=Coalesce(
+                Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+        )
+    )
+
+    rows = []
+    total_qty = 0
+    total_revenue = Decimal('0')
+    total_cost = Decimal('0')
+    for a in aggregates:
+        revenue = a['revenue'] or Decimal('0')
+        cost = a['cost'] or Decimal('0')
+        margin = revenue - cost
+        margin_pct = (margin / revenue * 100) if revenue else Decimal('0')
+        rows.append({
+            'category': a['menu_item__category__name'] or 'Uncategorised',
+            'qty_sold': a['qty_sold'],
+            'revenue': revenue,
+            'cost': cost,
+            'margin': margin,
+            'margin_pct': margin_pct,
+        })
+        total_qty += a['qty_sold']
+        total_revenue += revenue
+        total_cost += cost
+
+    # % of revenue mix — based on the period total, computed after sums.
+    for r in rows:
+        r['mix_pct'] = (r['revenue'] / total_revenue * 100) if total_revenue else Decimal('0')
+
+    total_margin = total_revenue - total_cost
+    avg_margin_pct = (total_margin / total_revenue * 100) if total_revenue else Decimal('0')
+
+    sort_key = request.GET.get('sort', 'revenue')
+    sort_dir = request.GET.get('dir', 'desc')
+    reverse = sort_dir != 'asc'
+    sort_field = {
+        'category': 'category',
+        'qty': 'qty_sold',
+        'revenue': 'revenue',
+        'cost': 'cost',
+        'margin': 'margin',
+        'margin_pct': 'margin_pct',
+        'mix': 'mix_pct',
+    }.get(sort_key, 'revenue')
+    rows.sort(key=lambda r: r[sort_field], reverse=reverse)
+
+    if request.GET.get('format') == 'csv':
+        header = ['category', 'qty_sold', 'revenue', 'cost', 'margin', 'margin_pct', 'mix_pct']
+        csv_rows = [
+            [r['category'], r['qty_sold'], r['revenue'], r['cost'],
+             r['margin'], f"{r['margin_pct']:.1f}", f"{r['mix_pct']:.1f}"]
+            for r in rows
+        ]
+        return csv_response(
+            f'category_performance_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    return render(request, 'reports/category_performance.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'total_qty': total_qty,
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_margin': total_margin,
+        'avg_margin_pct': avg_margin_pct,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
     })
 

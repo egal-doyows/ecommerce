@@ -1,0 +1,92 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Slow Movers / Dead Stock{% endblock %}
+{% block report_breadcrumb %}Slow Movers{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&threshold={{ threshold_days }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block extra_filters %}
+<div>
+    <label class="adm-form-label">Slow if cover &gt; (days)</label>
+    <input type="number" name="threshold" value="{{ threshold_days }}" min="1" max="365" style="padding:6px 10px;width:80px;">
+</div>
+{% endblock %}
+
+{% block report_body %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Flagged Items</div>
+            <div style="font-size:20px;font-weight:600;">{{ flagged_count|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Capital Tied Up</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-warning);">{{ currency_symbol }} {{ flagged_value|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Period</div>
+            <div style="font-size:20px;font-weight:600;">{{ days_in_period }} day{{ days_in_period|pluralize }}</div>
+        </div>
+    </div>
+    <p style="color:var(--adm-muted);font-size:12px;margin:12px 0 0;">
+        Items flagged if they had no movement (sales + recipe usage + waste) in the period,
+        or if current stock would last more than {{ threshold_days }} days at the period's burn rate.
+    </p>
+</div>
+
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-circle-check" style="font-size:32px;margin-bottom:12px;color:var(--adm-success);"></i>
+    <p>Nothing's collecting dust — every tracked inventory item moved within the threshold.</p>
+</div>
+{% else %}
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Stock</th>
+                <th style="text-align:right;">Unit Cost</th>
+                <th style="text-align:right;">Stock Value</th>
+                <th style="text-align:right;">Movement</th>
+                <th style="text-align:right;">Days of Cover</th>
+                <th>Preferred Supplier</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr {% if r.no_movement %}style="background:#fff3cd;"{% endif %}>
+                <td style="font-weight:500;">
+                    {{ r.item.name }}
+                    {% if r.no_movement %}<span style="color:var(--adm-warning);font-size:11px;margin-left:6px;">NO MOVEMENT</span>{% endif %}
+                </td>
+                <td style="color:var(--adm-muted);">{{ r.unit }}</td>
+                <td style="text-align:right;">{{ r.stock|floatformat:2 }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ r.stock_value|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.movement|floatformat:2 }}</td>
+                <td style="text-align:right;">
+                    {% if r.days_cover is None %}<span style="color:var(--adm-muted);">∞</span>
+                    {% else %}{{ r.days_cover|floatformat:0 }}{% endif %}
+                </td>
+                <td style="color:var(--adm-muted);">{{ r.supplier|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td colspan="4" style="text-align:right;font-weight:700;">Total Capital Tied Up</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ flagged_value|floatformat:2|intcomma }}</td>
+                <td colspan="3"></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

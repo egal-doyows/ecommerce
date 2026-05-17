@@ -71,6 +71,46 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-item stock × cost with total inventory value. CSV export for offline counting.</p>
     </a>
 
+    <a href="{% url 'reports-category-performance' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-layer-group" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Category Performance</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Revenue, cost, margin and % of mix per menu category over a period.</p>
+    </a>
+
+    <a href="{% url 'reports-channel-margin' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-tower-broadcast" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Channel Margin</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-channel revenue net of platform commission fees — true margin after Uber Eats / Glovo / Bolt / Jumia take their cut.</p>
+    </a>
+
+    <a href="{% url 'reports-recipe-cost-drift' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-arrow-trend-up" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Recipe Cost Drift</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Current cost vs cost when sold N days ago — flags menu items where ingredient inflation has eaten margin.</p>
+    </a>
+
+    <a href="{% url 'reports-waste-analysis' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-trash-can" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Waste Analysis</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Waste cost broken down by item, reason and staff member for a period.</p>
+    </a>
+
+    <a href="{% url 'reports-slow-movers' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-snowflake" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Slow Movers / Dead Stock</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Inventory with low or no movement, ranked by capital tied up. Configurable days-of-cover threshold.</p>
+    </a>
+
     <a href="{% url 'reports-best-selling' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-ranking-star" style="font-size:20px;color:var(--adm-accent);"></i>

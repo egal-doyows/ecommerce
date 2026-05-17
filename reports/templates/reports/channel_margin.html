@@ -1,0 +1,109 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Channel Margin{% endblock %}
+{% block report_breadcrumb %}Channel Margin{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block report_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-store" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No paid orders in this period.</p>
+</div>
+{% else %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Gross Revenue</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Platform Fees</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-danger);">−{{ currency_symbol }} {{ total_fee|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Net Revenue</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_net_revenue|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">COGS</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">True Margin</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_margin|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Margin %</div>
+            <div style="font-size:20px;font-weight:600;">{{ total_margin_pct|floatformat:1 }}%</div>
+        </div>
+    </div>
+</div>
+
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Channel</th>
+                <th style="text-align:right;">Orders</th>
+                <th style="text-align:right;">Gross Revenue</th>
+                <th style="text-align:right;">Fee %</th>
+                <th style="text-align:right;">Platform Fee</th>
+                <th style="text-align:right;">Net Revenue</th>
+                <th style="text-align:right;">COGS</th>
+                <th style="text-align:right;">Margin %<br><span style="font-weight:normal;font-size:11px;color:var(--adm-muted);">(before fee)</span></th>
+                <th style="text-align:right;">True Margin<br><span style="font-weight:normal;font-size:11px;color:var(--adm-muted);">(after fee)</span></th>
+                <th style="text-align:right;">True Margin %</th>
+                <th style="text-align:right;">% of Revenue</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td style="font-weight:500;">{{ r.label }}</td>
+                <td style="text-align:right;">{{ r.qty_sold|intcomma }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">
+                    {% if r.commission_pct > 0 %}{{ r.commission_pct|floatformat:1 }}%{% else %}—{% endif %}
+                </td>
+                <td style="text-align:right;color:var(--adm-danger);">
+                    {% if r.fee > 0 %}−{{ currency_symbol }} {{ r.fee|floatformat:2|intcomma }}{% else %}—{% endif %}
+                </td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.net_revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ r.gross_margin_pct|floatformat:1 }}%</td>
+                <td style="text-align:right;font-weight:500;{% if r.margin < 0 %}color:var(--adm-danger);{% endif %}">{{ currency_symbol }} {{ r.margin|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:500;{% if r.margin_pct < 0 %}color:var(--adm-danger);{% endif %}">{{ r.margin_pct|floatformat:1 }}%</td>
+                <td style="text-align:right;">{{ r.mix_pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td style="text-align:right;font-weight:700;">Totals</td>
+                <td style="text-align:right;font-weight:700;">{{ total_qty|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_revenue|floatformat:2|intcomma }}</td>
+                <td></td>
+                <td style="text-align:right;font-weight:700;color:var(--adm-danger);">−{{ currency_symbol }} {{ total_fee|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_net_revenue|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</td>
+                <td></td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_margin|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ total_margin_pct|floatformat:1 }}%</td>
+                <td style="text-align:right;font-weight:700;">100.0%</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+<p style="color:var(--adm-muted);font-size:12px;margin-top:8px;">
+    <i class="fa-solid fa-circle-info"></i>
+    Commission rates are configured in <strong>Restaurant Settings</strong>. Defaults: Uber Eats 27%, Glovo 28%, Bolt 25%, Jumia 20%.
+</p>
+{% endif %}
+{% endblock %}
