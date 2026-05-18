@@ -7,6 +7,8 @@ set, so this include is safe to drop on any page without conditionals.
 Optional context:
   heading — string shown above the buttons (default: "Order online")
   variant — 'inline' (default) or 'compact' (smaller, no heading)
+  item    — MenuItem instance. If supplied, the WhatsApp button
+            pre-fills the chat with the item title + item URL.
 {% endcomment %}
 {% if settings.ubereats_url or settings.glovo_url or settings.bolt_url or settings.phone or settings.whatsapp_number %}
 <div class="ps-order-on">
@@ -64,9 +66,11 @@ Optional context:
         </a>
         {% endif %}
         {% if settings.whatsapp_number %}
-        <a href="https://wa.me/{{ settings.whatsapp_number|cut:' '|cut:'+'|cut:'-' }}"
+        {% if item %}{% url 'public-item-detail' item.slug as item_path %}{% endif %}
+        <a href="https://wa.me/{{ settings.whatsapp_number|cut:' '|cut:'+'|cut:'-' }}{% if item %}?text=Hi%21%20I%27d%20like%20to%20order%3A%20{{ item.title|urlencode }}%0A{{ request.scheme }}%3A%2F%2F{{ request.get_host|urlencode }}{{ item_path|urlencode }}{% endif %}"
            rel="noopener" target="_blank"
-           class="ps-order-on-btn ps-order-on-whatsapp" aria-label="Chat on WhatsApp">
+           class="ps-order-on-btn ps-order-on-whatsapp"
+           aria-label="{% if item %}Order {{ item.title }} on WhatsApp{% else %}Chat on WhatsApp{% endif %}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
                  fill="currentColor" aria-hidden="true">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15

@@ -41,8 +41,7 @@ Optional context:
     {% endif %}
     {% if settings.whatsapp_number %}
     {% if item %}{% url 'public-item-detail' item.slug as item_path %}{% endif %}
-    {% with item_link=request.scheme|add:'://'|add:request.get_host|add:item_path %}
-    <a href="https://wa.me/{{ settings.whatsapp_number|cut:' '|cut:'+'|cut:'-' }}{% if item %}?text=Hi%21%20I%27d%20like%20to%20order%3A%20{{ item.title|urlencode }}%0A{{ item_link|urlencode }}{% endif %}"
+    <a href="https://wa.me/{{ settings.whatsapp_number|cut:' '|cut:'+'|cut:'-' }}{% if item %}?text=Hi%21%20I%27d%20like%20to%20order%3A%20{{ item.title|urlencode }}%0A{{ request.scheme }}%3A%2F%2F{{ request.get_host|urlencode }}{{ item_path|urlencode }}{% endif %}"
        rel="noopener" target="_blank"
        class="ps-item-icon ps-item-icon-whatsapp"
        title="{% if item %}Order {{ item.title }} on WhatsApp{% else %}Chat on WhatsApp{% endif %}"
@@ -67,6 +66,5 @@ Optional context:
                      -11.893a11.821 11.821 0 0 0-3.48-8.413"/>
         </svg>
     </a>
-    {% endwith %}
     {% endif %}
 </div>

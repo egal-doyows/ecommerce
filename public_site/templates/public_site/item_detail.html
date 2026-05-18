@@ -47,8 +47,7 @@
                     <div class="ps-item-detail-desc">{{ item.description|linebreaks }}</div>
                 {% endif %}
 
-                {% include 'public_site/_order_buttons.html' with heading="Order this dish" %}
-                {% include 'public_site/_order_icons.html' with item=item %}
+                {% include 'public_site/_order_buttons.html' with heading="Order this dish" item=item %}
 
                 <p class="ps-item-detail-back">
                     <a href="{% url 'public-menu' %}">← Back to menu</a>
