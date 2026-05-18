@@ -122,7 +122,9 @@ def admin_dashboard(request):
         .order_by('-z_score')[:5]
     )
 
-    low_stock_items = [i for i in InventoryItem.objects.all() if i.is_low_stock]
+    low_stock_items = list(
+        InventoryItem.objects.filter(stock_quantity__lte=F('low_stock_threshold'))
+    )
 
     staff_count = User.objects.filter(is_superuser=False, is_active=True).count()
     table_stats = {
@@ -438,7 +440,7 @@ def inventory_list(request):
     items = InventoryItem.objects.all()
     show = request.GET.get('show')
     if show == 'low':
-        items = [i for i in items if i.is_low_stock]
+        items = list(items.filter(stock_quantity__lte=F('low_stock_threshold')))
     else:
         items = list(items)
     return render(request, 'administration/inventory_list.html', {

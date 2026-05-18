@@ -428,10 +428,21 @@ class Shift(models.Model):
         return self.orders.count()
 
     def get_total_sales(self):
-        return sum(order.get_total() for order in self.orders.filter(status='paid'))
+        # SQL aggregate avoids loading every paid order + its items into
+        # Python just to sum them.
+        from django.db.models import Sum, F, DecimalField
+        return (
+            OrderItem.objects.filter(order__shift=self, order__status='paid')
+            .aggregate(t=Sum(F('unit_price') * F('quantity'), output_field=DecimalField()))
+            ['t']
+        ) or Decimal('0')
 
     def get_total_items(self):
-        return sum(order.get_item_count() for order in self.orders.all())
+        from django.db.models import Sum
+        return (
+            OrderItem.objects.filter(order__shift=self)
+            .aggregate(t=Sum('quantity'))['t']
+        ) or 0
 
 
 class Order(models.Model):

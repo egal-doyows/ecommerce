@@ -166,7 +166,7 @@ class StaffCompensation(models.Model):
 
     def get_current_month_sales(self):
         start, end = self.get_current_month_range()
-        return sum(order.get_total() for order in self._get_orders(start, end))
+        return self._sum_orders(self._get_orders(start, end))
 
     def get_current_month_eligible_sales(self):
         start, end = self.get_current_month_range()
@@ -177,7 +177,19 @@ class StaffCompensation(models.Model):
         return self._get_orders(start, end).count()
 
     def get_total_sales(self, start_date=None, end_date=None):
-        return sum(order.get_total() for order in self._get_orders(start_date, end_date))
+        return self._sum_orders(self._get_orders(start_date, end_date))
+
+    @staticmethod
+    def _sum_orders(orders_qs):
+        """SQL-side sum of unit_price × quantity across the given orders."""
+        from decimal import Decimal
+        from django.db.models import Sum, F, DecimalField
+        from menu.models import OrderItem
+        return (
+            OrderItem.objects.filter(order__in=orders_qs)
+            .aggregate(t=Sum(F('unit_price') * F('quantity'), output_field=DecimalField()))
+            ['t']
+        ) or Decimal('0')
 
     def get_order_count(self, start_date=None, end_date=None):
         return self._get_orders(start_date, end_date).count()
