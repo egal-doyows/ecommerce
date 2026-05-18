@@ -13,7 +13,8 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
 from administration.models import Account, Transaction
-from menu.models import InventoryItem, MenuItem, Order, OrderItem, RestaurantSettings, Shift, StockAdjustment
+from menu.cache import get_restaurant_settings
+from menu.models import InventoryItem, MenuItem, Order, OrderItem, Shift, StockAdjustment
 from waste.models import WasteItem, WasteLog
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
@@ -135,7 +136,7 @@ def profit_loss(request):
         'current': current,
         'previous': previous,
         'deltas': deltas,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -182,7 +183,7 @@ def stock_on_hand(request):
         'total_value': total_value,
         'low_stock_only': low_stock_only,
         'item_count': len(rows),
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -260,7 +261,7 @@ def aged_receivables(request):
         'rows': rows,
         'totals': totals,
         'as_of': as_of,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -636,7 +637,7 @@ def z_report_detail(request, shift_id):
         'counted_cash': counted_cash,
         'variance': variance,
         'top_items': top_items,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
         'unpaid_count': sum(1 for o in orders if o.status == 'active'),
         'can_record_count': (
             _is_manager(request.user)
@@ -800,7 +801,7 @@ def daily_sales(request):
         'last_week_data': last_week_data,
         'revenue_change': revenue_change,
         'pm_rows': pm_rows,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -906,7 +907,7 @@ def voids_log(request):
         'auth_filter': auth_filter,
         'waiters': waiters,
         'authorizers': authorizers,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1006,7 +1007,7 @@ def cash_drawer(request):
         'cashier_summary': cashier_summary,
         'cashiers': cashiers,
         'cashier_filter': cashier_filter,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1039,7 +1040,7 @@ def stock_variance(request):
             'rows': rows,
             'phase': 'enter',
             'total_shrinkage': Decimal('0'),
-            'currency_symbol': RestaurantSettings.load().currency_symbol,
+            'currency_symbol': get_restaurant_settings().currency_symbol,
         })
 
     # POST — parse the submitted counts.
@@ -1113,7 +1114,7 @@ def stock_variance(request):
             'phase': 'enter',
             'total_shrinkage': Decimal('0'),
             'posted_count': posted_count,
-            'currency_symbol': RestaurantSettings.load().currency_symbol,
+            'currency_symbol': get_restaurant_settings().currency_symbol,
         })
 
     return render(request, 'reports/stock_variance.html', {
@@ -1121,7 +1122,7 @@ def stock_variance(request):
         'phase': 'preview',
         'total_shrinkage': total_shrinkage,
         'has_variances': bool(nonzero_variances),
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1233,7 +1234,7 @@ def sales_by_channel(request):
         'cross_rows': cross_rows,
         'total_revenue': total_revenue,
         'total_count': total_count,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1252,7 +1253,7 @@ def channel_margin(request):
     comparable across channels.
     """
     start, end, preset = parse_date_range(request)
-    settings = RestaurantSettings.load()
+    settings = get_restaurant_settings()
     source_labels = dict(Order.SOURCE_CHOICES)
 
     commission_map = {
@@ -1500,7 +1501,7 @@ def recipe_cost_drift(request):
         'flagged_count': sum(1 for r in rows if r['flagged']),
         'sort_key': sort_key,
         'sort_dir': sort_dir,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1624,7 +1625,7 @@ def slow_movers(request):
         'flagged_count': len(rows),
         'days_in_period': days_in_period,
         'threshold_days': threshold_days,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1735,7 +1736,7 @@ def waste_analysis(request):
         'event_count': len(event_ids),
         'reason_choices': WasteLog.REASON_CHOICES,
         'reason_filter': reason_filter,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1835,7 +1836,7 @@ def category_performance(request):
         'avg_margin_pct': avg_margin_pct,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -1953,7 +1954,7 @@ def best_selling(request):
         'item_count': len(rows),
         'sort_key': sort_key,
         'sort_dir': sort_dir,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -2064,7 +2065,7 @@ def menu_margin(request):
         'item_count': len(rows),
         'sort_key': sort_key,
         'sort_dir': sort_dir,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
 
@@ -2200,5 +2201,5 @@ def online_sales(request):
         'total_count': total_count,
         'total_outstanding': total_outstanding,
         'settlement_total': settlement_total,
-        'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
     })

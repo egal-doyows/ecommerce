@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from menu.models import RestaurantSettings
+from menu.cache import get_restaurant_settings
 from ml.models import (
     AnomalyEvent, BasketRule, DemandForecast, MenuClass, ModelRun,
     ReorderSuggestion,
@@ -23,7 +23,7 @@ from reports.utils import manager_required, supervisor_or_manager_required
 
 
 def _settings_ctx():
-    s = RestaurantSettings.load()
+    s = get_restaurant_settings()
     return {'currency_symbol': s.currency_symbol}
 
 

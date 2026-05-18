@@ -10,7 +10,8 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone as tz
 
-from menu.models import InventoryItem, RestaurantSettings
+from menu.cache import get_restaurant_settings
+from menu.models import InventoryItem
 
 from .models import WasteLog, WasteItem
 
@@ -75,7 +76,7 @@ def waste_list(request):
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
 
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
 
     return render(request, 'waste/waste_list.html', {
         'logs': page_obj,
@@ -97,7 +98,7 @@ def waste_list(request):
 def waste_create(request):
     items = InventoryItem.objects.filter(stock_quantity__gt=0).order_by('name')
     all_items = InventoryItem.objects.order_by('name')
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
 
     if request.method == 'POST':
         reason = request.POST.get('reason', '')
@@ -192,7 +193,7 @@ def waste_detail(request, pk):
         pk=pk,
     )
     items = log.items.select_related('inventory_item').all()
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
 
     return render(request, 'waste/waste_detail.html', {
         'log': log,
@@ -208,7 +209,7 @@ def waste_detail(request, pk):
 
 @staff_required
 def waste_summary(request):
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
 
     # Date range defaults to current month
     today = tz.now().date()
@@ -301,7 +302,7 @@ def waste_pdf(request, pk):
         WasteLog.objects.select_related('logged_by'), pk=pk,
     )
     items = log.items.select_related('inventory_item').all()
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
     cs = restaurant.currency_symbol
 
     buf = io.BytesIO()

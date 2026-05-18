@@ -122,8 +122,8 @@ def transaction_create(request, pk):
             txn.created_by = request.user
             txn.save()
 
-            from menu.models import RestaurantSettings
-            symbol = RestaurantSettings.load().currency_symbol
+            from menu.cache import get_restaurant_settings
+            symbol = get_restaurant_settings().currency_symbol
             messages.success(request, f'Invoice recorded — {symbol} {txn.amount:,.2f}')
             return redirect('debtor-detail', pk=debtor.pk)
     else:
@@ -196,13 +196,13 @@ def receive_payment(request, pk):
                 created_by=request.user,
             )
 
-        from menu.models import RestaurantSettings
-        symbol = RestaurantSettings.load().currency_symbol
+        from menu.cache import get_restaurant_settings
+        symbol = get_restaurant_settings().currency_symbol
         messages.success(request, f'Payment of {symbol} {payment_amount:,.2f} received from {debtor.name}.')
         return redirect('debtor-detail', pk=debtor.pk)
 
-    from menu.models import RestaurantSettings
-    symbol = RestaurantSettings.load().currency_symbol
+    from menu.cache import get_restaurant_settings
+    symbol = get_restaurant_settings().currency_symbol
 
     context = {
         'debtor': debtor,

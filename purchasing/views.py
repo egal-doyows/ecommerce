@@ -135,8 +135,9 @@ def po_detail(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier', 'created_by', 'approved_by'), pk=pk)
     items = po.items.select_related('inventory_item').all()
 
-    from menu.models import RestaurantSettings, InventoryItem
-    symbol = RestaurantSettings.load().currency_symbol
+    from menu.cache import get_restaurant_settings
+    from menu.models import InventoryItem
+    symbol = get_restaurant_settings().currency_symbol
 
     # For the inline add-item panel on editable POs
     inventory_items = []
@@ -411,8 +412,8 @@ def po_pdf(request, pk):
     )
     items = po.items.select_related('inventory_item').all()
 
-    from menu.models import RestaurantSettings
-    rs = RestaurantSettings.load()
+    from menu.cache import get_restaurant_settings
+    rs = get_restaurant_settings()
     symbol = rs.currency_symbol
 
     buf = io.BytesIO()

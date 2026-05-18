@@ -199,8 +199,8 @@ def pay_staff(request, pk):
             from administration.models import record_staff_payment
             record_staff_payment(payment, account=account, created_by=request.user, amount=pay_amount)
 
-            from menu.models import RestaurantSettings
-            symbol = RestaurantSettings.load().currency_symbol
+            from menu.cache import get_restaurant_settings
+            symbol = get_restaurant_settings().currency_symbol
             if payment.status == 'paid':
                 messages.success(
                     request,

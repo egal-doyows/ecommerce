@@ -125,8 +125,8 @@ def receipt_create(request, po_pk):
         messages.info(request, f'All items on {po.po_number} have already been fully received.')
         return redirect('receipt-list')
 
-    from menu.models import RestaurantSettings
-    symbol = RestaurantSettings.load().currency_symbol
+    from menu.cache import get_restaurant_settings
+    symbol = get_restaurant_settings().currency_symbol
 
     if request.method == 'POST':
         notes = request.POST.get('notes', '').strip()
@@ -241,8 +241,8 @@ def receipt_detail(request, pk):
     )
     items = receipt.items.select_related('po_item__inventory_item').all()
 
-    from menu.models import RestaurantSettings
-    symbol = RestaurantSettings.load().currency_symbol
+    from menu.cache import get_restaurant_settings
+    symbol = get_restaurant_settings().currency_symbol
 
     return render(request, 'receiving/receipt_detail.html', {
         'receipt': receipt,
@@ -275,8 +275,8 @@ def po_receiving_summary(request, po_pk):
             'fully_received': total_received >= item.quantity,
         })
 
-    from menu.models import RestaurantSettings
-    symbol = RestaurantSettings.load().currency_symbol
+    from menu.cache import get_restaurant_settings
+    symbol = get_restaurant_settings().currency_symbol
 
     return render(request, 'receiving/po_summary.html', {
         'po': po,
@@ -325,8 +325,8 @@ def receipt_pdf(request, pk):
     items = receipt.items.select_related('po_item__inventory_item').all()
     po = receipt.purchase_order
 
-    from menu.models import RestaurantSettings
-    rs = RestaurantSettings.load()
+    from menu.cache import get_restaurant_settings
+    rs = get_restaurant_settings()
     symbol = rs.currency_symbol
 
     buf = io.BytesIO()

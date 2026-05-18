@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.contrib import messages
 from django.db.models import Sum, Count, Q
 
+from menu.cache import get_restaurant_settings
 from menu.models import (
     Category, MenuItem, InventoryItem, Recipe, Table, Order, OrderItem, Shift,
     RestaurantSettings,
@@ -364,7 +365,7 @@ def menu_item_edit(request, pk):
     else:
         form = MenuItemForm(instance=item)
     recipes = item.recipe_items.select_related('inventory_item').all()
-    settings = RestaurantSettings.load()
+    settings = get_restaurant_settings()
     return render(request, 'administration/menu_item_form.html', {
         'form': form, 'title': f'Edit {item.title}', 'menu_item': item, 'recipes': recipes,
         'current_unit_cost': item.current_unit_cost(),
@@ -934,7 +935,7 @@ def transfer_funds(request):
             debit_txn.reference_id = credit_txn.id
             debit_txn.save(update_fields=['reference_id'])
 
-        restaurant = RestaurantSettings.load()
+        restaurant = get_restaurant_settings()
         symbol = restaurant.currency_symbol
         messages.success(
             request,
