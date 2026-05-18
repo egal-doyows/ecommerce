@@ -18,7 +18,7 @@
                     <a href="tel:{{ settings.phone }}" class="ps-btn ps-btn-outline">Call {{ settings.phone }}</a>
                 {% endif %}
             </div>
-            {% include 'public_site/_order_buttons.html' with heading="Or order for delivery" %}
+            {% include 'public_site/_order_buttons.html' with heading="Or order for delivery" hide_call=True %}
             <div class="ps-hero-meta">
                 <div>
                     <strong>7am</strong>

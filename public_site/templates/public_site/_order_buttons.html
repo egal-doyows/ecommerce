@@ -5,10 +5,12 @@ is set on RestaurantSettings. The whole block disappears if none are
 set, so this include is safe to drop on any page without conditionals.
 
 Optional context:
-  heading — string shown above the buttons (default: "Order online")
-  variant — 'inline' (default) or 'compact' (smaller, no heading)
-  item    — MenuItem instance. If supplied, the WhatsApp button
-            pre-fills the chat with the item title + item URL.
+  heading   — string shown above the buttons (default: "Order online")
+  variant   — 'inline' (default) or 'compact' (smaller, no heading)
+  item      — MenuItem instance. If supplied, the WhatsApp button
+              pre-fills the chat with the item title + item URL.
+  hide_call — if truthy, the "Call us" button is omitted (use when the
+              parent template already renders its own call CTA).
 {% endcomment %}
 {% if settings.ubereats_url or settings.glovo_url or settings.bolt_url or settings.phone or settings.whatsapp_number %}
 <div class="ps-order-on">
@@ -52,7 +54,7 @@ Optional context:
             Order on Bolt Food
         </a>
         {% endif %}
-        {% if settings.phone %}
+        {% if settings.phone and not hide_call %}
         <a href="tel:{{ settings.phone|cut:' '|cut:'-'|cut:'('|cut:')' }}"
            class="ps-order-on-btn ps-order-on-call" aria-label="Call {{ settings.name }}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
