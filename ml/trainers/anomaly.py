@@ -6,11 +6,22 @@ Computes simple z-scores against each user's own historical baseline
 to explain to managers). Flags shifts where any metric is > 2σ from the
 person's own mean.
 
-Metrics watched per shift:
+Per-waiter (server) metrics:
   - cash_variance        (counted_cash - expected_cash) / expected
   - voids_per_shift      cancelled orders / shift
   - comps_per_shift      is_comp=True orders / shift
   - discount_pct         sum(discount_amount) / sum(get_total)
+  - combined_loss_risk   sqrt(z_cash² + z_voids²); only flagged when
+                         both individual z's are >1σ so the joint
+                         signal doesn't duplicate per-metric flags
+
+Per-supervisor metrics (subject = the user who counted the till):
+  - supervisor_cash_variance  same variance, attributed to whoever
+                              counted (catches lax counters / pairs
+                              where variance only spikes with specific
+                              supervisor + server combos)
+  - count_latency_minutes     pending_close_at → counted_at gap.
+                              Long gaps = cash sat un-counted.
 """
 
 import logging
@@ -66,6 +77,24 @@ def _shift_metrics(shift):
     }
 
 
+def _supervisor_shift_metrics(shift):
+    """Per-supervisor metrics for a shift they counted.
+
+    Returns None if the shift wasn't recorded through the supervisor
+    flow (no counted_by, no pending_close_at, or no counted_at).
+    """
+    if not shift.counted_by_id or shift.counted_at is None or shift.pending_close_at is None:
+        return None
+    base = _shift_metrics(shift)
+    if base is None:
+        return None
+    latency = (shift.counted_at - shift.pending_close_at).total_seconds() / 60.0
+    return {
+        'supervisor_cash_variance': base['cash_variance'],
+        'count_latency_minutes': float(latency),
+    }
+
+
 def _z(value, sample):
     """Z-score of `value` against `sample` (list of floats). 0 if undefined."""
     if len(sample) < 5:
@@ -90,13 +119,13 @@ def train():
             return
 
         cutoff = timezone.now() - timedelta(days=LOOKBACK_DAYS)
-        recent_shifts = (
+        recent_shifts = list(
             Shift.objects.filter(is_active=False, started_at__gte=cutoff)
-            .select_related('waiter')
+            .select_related('waiter', 'counted_by')
             .order_by('-started_at')
         )
 
-        # Per-user metric history for baselining.
+        # Per-waiter metric history.
         history = defaultdict(lambda: defaultdict(list))
         for s in recent_shifts:
             m = _shift_metrics(s)
@@ -105,15 +134,30 @@ def train():
             for k, v in m.items():
                 history[s.waiter_id][k].append(v)
 
-        # Only flag the most recent shift per user (we re-run daily).
+        # Per-supervisor metric history (only shifts they counted).
+        sup_history = defaultdict(lambda: defaultdict(list))
+        for s in recent_shifts:
+            sm = _supervisor_shift_metrics(s)
+            if sm is None:
+                continue
+            for k, v in sm.items():
+                sup_history[s.counted_by_id][k].append(v)
+
+        # Only flag the most recent shift per user/supervisor (we re-run daily).
         latest_per_user = {}
         for s in recent_shifts:
             if s.waiter_id not in latest_per_user:
                 latest_per_user[s.waiter_id] = s
+        latest_per_supervisor = {}
+        for s in recent_shifts:
+            if s.counted_by_id and s.counted_by_id not in latest_per_supervisor:
+                latest_per_supervisor[s.counted_by_id] = s
 
         events = []
+
+        # ── Waiter-attributed metrics + joint loss risk ──────────────────
         for user_id, shift in latest_per_user.items():
-            user_ready, n = gates.user_anomaly_ready(user_id)
+            user_ready, _ = gates.user_anomaly_ready(user_id)
             if not user_ready:
                 continue
             m = _shift_metrics(shift)
@@ -121,18 +165,75 @@ def train():
                 continue
             today = shift.started_at.date()
 
+            # Track the cash / voids z-scores so we can compute joint risk
+            # without re-running _z. None means below the per-metric flag
+            # threshold; we still need the raw z to combine, so re-compute.
+            z_cash = z_voids = 0.0
             for metric, value in m.items():
-                # Compare against same user's history excluding the current shift.
-                sample = [
-                    h for h in history[user_id][metric] if h != value
-                ] or history[user_id][metric]
+                sample = [h for h in history[user_id][metric] if h != value] or history[user_id][metric]
                 z, baseline = _z(value, sample)
+                if metric == 'cash_variance':
+                    z_cash = z
+                elif metric == 'voids_per_shift':
+                    z_voids = z
                 if abs(z) < Z_THRESHOLD:
                     continue
                 events.append(AnomalyEvent(
                     subject_type='user',
                     subject_id=user_id,
                     subject_label=shift.waiter.get_username(),
+                    metric=metric,
+                    shift=shift,
+                    observed_value=value,
+                    expected_value=baseline,
+                    z_score=abs(z),
+                    direction='high' if z > 0 else 'low',
+                    occurred_on=today,
+                    source='ml',
+                ))
+
+            # Joint risk: flag only when BOTH dimensions are at least mildly
+            # elevated AND the magnitude crosses Z_THRESHOLD. This is the
+            # case the per-metric loop misses (e.g., z_cash=1.5 + z_voids=1.5
+            # → joint=2.12 ≥ 2.0). If one is already flagged solo, the joint
+            # adds no new info and we skip it.
+            if abs(z_cash) > 1.0 and abs(z_voids) > 1.0:
+                joint = (z_cash ** 2 + z_voids ** 2) ** 0.5
+                already_solo = abs(z_cash) >= Z_THRESHOLD or abs(z_voids) >= Z_THRESHOLD
+                if joint >= Z_THRESHOLD and not already_solo:
+                    events.append(AnomalyEvent(
+                        subject_type='user',
+                        subject_id=user_id,
+                        subject_label=shift.waiter.get_username(),
+                        metric='combined_loss_risk',
+                        shift=shift,
+                        observed_value=joint,
+                        expected_value=0.0,
+                        z_score=joint,
+                        direction='high',
+                        occurred_on=today,
+                        source='ml',
+                    ))
+
+        # ── Supervisor-attributed metrics ────────────────────────────────
+        for sup_id, shift in latest_per_supervisor.items():
+            sup_ready, _ = gates.supervisor_anomaly_ready(sup_id)
+            if not sup_ready:
+                continue
+            sm = _supervisor_shift_metrics(shift)
+            if sm is None:
+                continue
+            today = (shift.counted_at or shift.started_at).date()
+
+            for metric, value in sm.items():
+                sample = [h for h in sup_history[sup_id][metric] if h != value] or sup_history[sup_id][metric]
+                z, baseline = _z(value, sample)
+                if abs(z) < Z_THRESHOLD:
+                    continue
+                events.append(AnomalyEvent(
+                    subject_type='user',
+                    subject_id=sup_id,
+                    subject_label=shift.counted_by.get_username(),
                     metric=metric,
                     shift=shift,
                     observed_value=value,

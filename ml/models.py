@@ -144,6 +144,9 @@ class AnomalyEvent(models.Model):
         ('comps_per_shift', 'Comps per shift'),
         ('discount_pct', 'Discount % per shift'),
         ('stock_variance', 'Stock variance %'),
+        ('supervisor_cash_variance', 'Cash variance (supervisor-attributed)'),
+        ('count_latency_minutes', 'Till count latency (minutes)'),
+        ('combined_loss_risk', 'Joint risk: voids + cash variance'),
     ]
 
     subject_type = models.CharField(max_length=20, choices=SUBJECT_TYPES, db_index=True)

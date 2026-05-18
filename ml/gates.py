@@ -81,6 +81,15 @@ def user_anomaly_ready(user_id):
     return n >= g['min_shifts_per_user'], n
 
 
+def supervisor_anomaly_ready(user_id):
+    """Shifts this user has *counted* (not run). Needed to baseline
+    supervisor-attributed metrics like supervisor_cash_variance and
+    count_latency_minutes."""
+    g = GATES['anomaly']
+    n = Shift.objects.filter(counted_by_id=user_id, counted_at__isnull=False).count()
+    return n >= g['min_shifts_per_user'], n
+
+
 def basket_ready():
     g = GATES['basket']
     paid = Order.objects.filter(status='paid')
