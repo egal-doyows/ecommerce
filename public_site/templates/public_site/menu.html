@@ -40,7 +40,7 @@
             </div>
             <div class="ps-menu-grid">
                 {% for item in items %}
-                <article class="ps-menu-item">
+                <article class="ps-menu-item" id="item-{{ item.slug }}">
                     {% if item.image %}
                         <img src="{{ item.image.url }}" alt="{{ item.title }}"
                              loading="lazy" decoding="async"
