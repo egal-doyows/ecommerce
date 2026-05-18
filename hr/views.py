@@ -31,30 +31,23 @@ def _is_manager(user):
     )
 
 
-def _is_admin_user(user):
-    return user.is_authenticated and (
-        user.is_superuser
-        or user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
-    )
-
-
 def manager_only(view_func):
     @wraps(view_func)
     @login_required(login_url='my-login')
     def wrapper(request, *args, **kwargs):
         if not _is_manager(request.user):
             messages.error(request, 'Only managers can access this page.')
-            return redirect('hr-dashboard')
+            return redirect('dashboard')
         return view_func(request, *args, **kwargs)
     return wrapper
 
 
 def hr_staff_required(view_func):
-    """Managers and Supervisors can access HR views."""
+    """Only managers and superusers can access HR views."""
     @wraps(view_func)
     @login_required(login_url='my-login')
     def wrapper(request, *args, **kwargs):
-        if not _is_admin_user(request.user):
+        if not _is_manager(request.user):
             messages.error(request, 'You do not have permission to access HR.')
             return redirect('dashboard')
         return view_func(request, *args, **kwargs)
