@@ -96,7 +96,7 @@
             <td>{{ order.waiter.username|default:"—" }}</td>
             <td>{{ order.authorized_by.username|default:"—" }}</td>
             <td style="max-width:280px;">{{ order.authorization_reason|default:"—" }}</td>
-            <td>{{ order.items.count }}</td>
+            <td>{{ order.item_count }}</td>
             <td style="font-weight:600;">{{ restaurant.currency_symbol }} {{ order.get_total|floatformat:2 }}</td>
         </tr>
         {% endfor %}

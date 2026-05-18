@@ -383,7 +383,9 @@ def z_report_list(request):
     """
     shifts = (
         Shift.objects.select_related('waiter')
-        .prefetch_related('orders')
+        # Without 'orders__items', the get_total() loop hits the DB once per
+        # order per shift (>1000 queries on a busy day).
+        .prefetch_related('orders__items')
         .order_by('-started_at')[:50]
     )
     if not _is_manager(request.user):

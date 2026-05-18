@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, F, DecimalField
 
 from menu.cache import get_restaurant_settings
 from menu.models import (
@@ -83,8 +83,15 @@ def admin_dashboard(request):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     today_orders = Order.objects.filter(created_at__gte=today_start)
-    today_paid = today_orders.filter(status='paid')
-    today_sales = sum(o.get_total() for o in today_paid)
+    # SQL-side sum avoids the per-order items query that Python's
+    # o.get_total() would trigger for every paid order today.
+    today_paid_qs = today_orders.filter(status='paid')
+    today_sales = (
+        OrderItem.objects.filter(order__in=today_paid_qs)
+        .aggregate(total=Sum(F('unit_price') * F('quantity'), output_field=DecimalField()))
+        ['total']
+    ) or 0
+    today_order_count = today_paid_qs.count()
 
     hide_super = not request.user.is_superuser
 
@@ -132,7 +139,7 @@ def admin_dashboard(request):
 
     context = {
         'today_sales': today_sales,
-        'today_order_count': today_paid.count(),
+        'today_order_count': today_order_count,
         'active_orders': active_orders,
         'active_shifts': active_shifts,
         'pending_close_shifts': pending_close_shifts,
@@ -545,7 +552,12 @@ def table_delete(request, pk):
 
 @manager_required
 def order_list_admin(request):
-    base_qs = Order.objects.select_related('waiter', 'table').all()
+    # item_count annotation avoids one COUNT(*) query per row from the
+    # template's {{ order.items.count }}.
+    base_qs = (
+        Order.objects.select_related('waiter', 'table')
+        .annotate(item_count=Count('items'))
+    )
     if not request.user.is_superuser:
         base_qs = base_qs.exclude(waiter__is_superuser=True)
     status_filter = request.GET.get('status', 'active')
@@ -555,8 +567,13 @@ def order_list_admin(request):
         status_filter = 'all'
         orders = base_qs
 
+    # SQL-side total avoids N+1 on items per unpaid order.
     unpaid_orders = base_qs.filter(status='active')
-    total_unpaid = sum(o.get_total() for o in unpaid_orders)
+    total_unpaid = (
+        OrderItem.objects.filter(order__in=unpaid_orders)
+        .aggregate(t=Sum(F('unit_price') * F('quantity'), output_field=DecimalField()))
+        ['t']
+    ) or 0
 
     return render(request, 'administration/order_list.html', {
         'orders': orders[:50],
@@ -575,7 +592,11 @@ def voided_order_list(request):
     qs = (
         Order.objects.filter(status='cancelled', voided_at__isnull=False)
         .select_related('waiter', 'authorized_by', 'table')
-        .prefetch_related('items__menu_item')
+        # prefetch fills items cache so order.get_total() doesn't N+1
+        # in the template; the annotation gives item_count without an
+        # extra COUNT(*) per row.
+        .prefetch_related('items')
+        .annotate(item_count=Count('items'))
         .order_by('-voided_at')
     )
 
@@ -594,7 +615,11 @@ def voided_order_list(request):
         qs = qs.filter(authorized_by_id=supervisor_id)
 
     total_voids = qs.count()
-    total_value = sum(o.get_total() for o in qs)
+    total_value = (
+        OrderItem.objects.filter(order__in=qs)
+        .aggregate(t=Sum(F('unit_price') * F('quantity'), output_field=DecimalField()))
+        ['t']
+    ) or 0
 
     # Top voiders / servers for the filtered set
     by_supervisor = (

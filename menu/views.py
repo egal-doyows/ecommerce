@@ -262,12 +262,19 @@ def order_edit_item(request, order_id):
 @login_required(login_url='waiter-login')
 @shift_required
 def order_list(request):
-    base_qs = Order.objects.exclude(status='cancelled')
+    # Prefetch items (+menu_item) once: the template card renders item
+    # quantity/name per order and the total aggregation loops items too.
+    # Without this it's O(orders × items) DB hits per page load.
+    base_qs = (
+        Order.objects.exclude(status='cancelled')
+        .select_related('waiter', 'table')
+        .prefetch_related('items__menu_item')
+    )
     if not (request.user.is_superuser or _is_supervisor(request.user)):
         from django.db.models import Q
         base_qs = base_qs.filter(Q(waiter=request.user) | Q(created_by=request.user))
-    unpaid_orders = base_qs.filter(status='active')
-    paid_orders = base_qs.filter(status='paid')
+    unpaid_orders = list(base_qs.filter(status='active'))
+    paid_orders = list(base_qs.filter(status='paid'))
     total_unpaid = sum(o.get_total() for o in unpaid_orders)
     total_paid = sum(o.get_total() for o in paid_orders)
     context = {
