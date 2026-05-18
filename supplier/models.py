@@ -13,6 +13,19 @@ class Supplier(models.Model):
     address = models.TextField(blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    lead_time_days = models.PositiveSmallIntegerField(
+        default=3,
+        help_text="Typical days from placing an order to goods arriving. "
+                  "Drives reorder needed_by dates. Auto-updated from receipt "
+                  "history once ≥5 receipts exist for this supplier.",
+    )
+    lead_time_source = models.CharField(
+        max_length=10,
+        choices=[('manual', 'Manual'), ('learned', 'Learned from receipts')],
+        default='manual',
+        help_text="Whether lead_time_days came from manual entry or was "
+                  "auto-learned from receipt history.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

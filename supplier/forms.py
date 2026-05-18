@@ -5,13 +5,14 @@ from .models import Supplier, SupplierTransaction
 class SupplierForm(forms.ModelForm):
     class Meta:
         model = Supplier
-        fields = ['name', 'contact_person', 'phone', 'email', 'address', 'notes', 'is_active']
+        fields = ['name', 'contact_person', 'phone', 'email', 'address', 'lead_time_days', 'notes', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'adm-input', 'placeholder': 'Supplier name'}),
             'contact_person': forms.TextInput(attrs={'class': 'adm-input', 'placeholder': 'Contact person'}),
             'phone': forms.TextInput(attrs={'class': 'adm-input', 'placeholder': 'Phone number'}),
             'email': forms.EmailInput(attrs={'class': 'adm-input', 'placeholder': 'Email address'}),
             'address': forms.Textarea(attrs={'class': 'adm-input', 'rows': 2, 'placeholder': 'Address'}),
+            'lead_time_days': forms.NumberInput(attrs={'class': 'adm-input', 'min': 0, 'placeholder': '3'}),
             'notes': forms.Textarea(attrs={'class': 'adm-input', 'rows': 2, 'placeholder': 'Notes (optional)'}),
         }
 
