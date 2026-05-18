@@ -54,7 +54,7 @@
                             <span class="ps-price">{{ settings.currency|default:"KES" }} {{ item.price|floatformat:2|intcomma }}</span>
                         </div>
                         {% if item.description %}<p>{{ item.description }}</p>{% endif %}
-                        {% include 'public_site/_order_icons.html' %}
+                        {% include 'public_site/_order_icons.html' with item=item %}
                     </div>
                 </article>
                 {% endfor %}

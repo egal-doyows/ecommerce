@@ -4,8 +4,12 @@ Always rendered; falls back to '#' when a URL is not set, so the manager
 can see and place the icons before pasting the real URLs.
 
 All three icons use uploaded brand logos from public_site/static/img/.
+
+Optional context:
+  item — MenuItem instance. If supplied, the WhatsApp link pre-fills
+         the chat with an order message naming the item.
 {% endcomment %}
-{% load static %}
+{% load static humanize %}
 <div class="ps-item-order-icons" aria-label="Order on delivery apps">
     <a href="{{ settings.ubereats_url|default:'#' }}" rel="noopener" target="_blank"
        class="ps-item-icon ps-item-icon-img"
@@ -36,10 +40,11 @@ All three icons use uploaded brand logos from public_site/static/img/.
     </a>
     {% endif %}
     {% if settings.whatsapp_number %}
-    <a href="https://wa.me/{{ settings.whatsapp_number|cut:' '|cut:'+'|cut:'-' }}"
+    <a href="https://wa.me/{{ settings.whatsapp_number|cut:' '|cut:'+'|cut:'-' }}{% if item %}?text=Hi%21%20I%27d%20like%20to%20order%3A%20{{ item.title|urlencode }}%20-%20{{ settings.currency|default:'KES'|urlencode }}%20{{ item.price|floatformat:2|intcomma|urlencode }}{% endif %}"
        rel="noopener" target="_blank"
        class="ps-item-icon ps-item-icon-whatsapp"
-       title="Chat on WhatsApp" aria-label="Chat on WhatsApp">
+       title="{% if item %}Order {{ item.title }} on WhatsApp{% else %}Chat on WhatsApp{% endif %}"
+       aria-label="{% if item %}Order {{ item.title }} on WhatsApp{% else %}Chat on WhatsApp{% endif %}">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
              fill="currentColor" aria-hidden="true">
             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15
