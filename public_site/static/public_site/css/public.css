@@ -332,6 +332,38 @@ h1, h2, h3 {
 .ps-order-on-glovo:hover { background: #f5b830; color: #1f1300; }
 .ps-order-on-bolt     { background: #34D186; box-shadow: 0 4px 12px rgba(52,209,134,0.30); }
 .ps-order-on-bolt:hover { background: #2bbd76; }
+
+/* ── Per-card aggregator icons (small) ────────────────────────────── */
+.ps-item-order-icons {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+}
+.ps-item-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+    line-height: 1;
+}
+.ps-item-icon:hover {
+    transform: scale(1.12);
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.ps-item-icon-ubereats { background: #06C167; color: #fff; }
+.ps-item-icon-ubereats:hover { background: #04a857; color: #fff; }
+.ps-item-icon-glovo    { background: #FFC244; color: #1f1300; }
+.ps-item-icon-glovo:hover { background: #f5b830; color: #1f1300; }
+.ps-item-icon-bolt     { background: #34D186; color: #fff; }
+.ps-item-icon-bolt:hover { background: #2bbd76; color: #fff; }
 .ps-btn-outline:hover { background: var(--bb-red); color: #fff; }
 
 .ps-btn-amber {

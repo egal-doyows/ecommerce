@@ -1,0 +1,16 @@
+{% comment %}
+Tiny per-card aggregator icons rendered at the bottom of each menu item.
+Always rendered; falls back to '#' when a URL is not set, so the manager
+can see and place the icons before pasting the real URLs.
+{% endcomment %}
+<div class="ps-item-order-icons" aria-label="Order on delivery apps">
+    <a href="{{ settings.ubereats_url|default:'#' }}" rel="noopener" target="_blank"
+       class="ps-item-icon ps-item-icon-ubereats"
+       title="Order on Uber Eats" aria-label="Order on Uber Eats">U</a>
+    <a href="{{ settings.glovo_url|default:'#' }}" rel="noopener" target="_blank"
+       class="ps-item-icon ps-item-icon-glovo"
+       title="Order on Glovo" aria-label="Order on Glovo">G</a>
+    <a href="{{ settings.bolt_url|default:'#' }}" rel="noopener" target="_blank"
+       class="ps-item-icon ps-item-icon-bolt"
+       title="Order on Bolt Food" aria-label="Order on Bolt Food">B</a>
+</div>
