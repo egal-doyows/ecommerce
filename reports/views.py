@@ -373,13 +373,45 @@ def _is_manager(user):
 def z_report_list(request):
     """
     Pick a shift to z-report. Managers/Supervisors see all shifts; everyone
-    else sees their own.
+    else sees their own. Annotates each row with the headline numbers
+    (opening, counted, gross sales, cash sales, variance) so supervisors
+    can scan without opening each detail page.
     """
-    shifts = Shift.objects.select_related('waiter').order_by('-started_at')
+    shifts = (
+        Shift.objects.select_related('waiter')
+        .prefetch_related('orders')
+        .order_by('-started_at')[:50]
+    )
     if not _is_manager(request.user):
-        shifts = shifts.filter(waiter=request.user)
+        shifts = [s for s in shifts if s.waiter_id == request.user.id]
+
+    rows = []
+    for s in shifts:
+        paid = [o for o in s.orders.all() if o.status == 'paid']
+        gross = sum((o.get_total() for o in paid), Decimal('0'))
+        cash_sales = sum(
+            (o.get_total() for o in paid if o.payment_method == 'cash'),
+            Decimal('0'),
+        )
+        cash_refunds = sum(
+            (o.get_total() for o in s.orders.all()
+             if o.status == 'cancelled' and o.payment_method == 'cash'),
+            Decimal('0'),
+        )
+        expected = (s.starting_cash or Decimal('0')) + cash_sales - cash_refunds
+        variance = (s.counted_cash - expected) if s.counted_cash is not None else None
+        rows.append({
+            'shift': s,
+            'gross': gross,
+            'txn_count': len(paid),
+            'opening': s.starting_cash or Decimal('0'),
+            'counted': s.counted_cash,
+            'expected': expected,
+            'variance': variance,
+        })
+
     return render(request, 'reports/z_report_list.html', {
-        'shifts': shifts[:50],
+        'rows': rows,
         'is_manager': _is_manager(request.user),
     })
 
