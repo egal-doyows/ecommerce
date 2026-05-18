@@ -1,8 +1,10 @@
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
+from django.db import transaction
 from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce
+from django.http import Http404
 from django.shortcuts import render
 
 from django.contrib import messages
@@ -442,6 +444,15 @@ def shift_record_count(request, shift_id):
     """Supervisor / manager / superuser records the till count after the
     server clocks out. Server is intentionally excluded — separation of
     duties: whoever counts the drawer is not the same person who ran it.
+
+    Concurrency model: SELECT FOR UPDATE on the shift row plus re-checking
+    every precondition inside the lock makes the operation idempotent and
+    safe against:
+      - Two supervisors recording simultaneously (one wins, the other gets
+        a clear 'already counted by X' warning).
+      - The same supervisor double-clicking the form.
+      - A new active order being attached to the shift between guard check
+        and save.
     """
     if request.method != 'POST':
         return redirect('reports-z-report-detail', shift_id=shift_id)
@@ -450,20 +461,8 @@ def shift_record_count(request, shift_id):
         messages.error(request, 'Only supervisors and managers can record till counts.')
         return redirect('reports-z-report-detail', shift_id=shift_id)
 
-    shift = get_object_or_404(Shift, pk=shift_id)
-    if shift.waiter_id == request.user.id:
-        messages.error(request, 'You cannot count your own till — ask another supervisor.')
-        return redirect('reports-z-report-detail', shift_id=shift_id)
-
-    unpaid = shift.orders.filter(status='active').count()
-    if unpaid:
-        messages.error(
-            request,
-            f'Cannot count the till — this shift still has {unpaid} '
-            f'unpaid order{"s" if unpaid != 1 else ""}. Settle or void them first.',
-        )
-        return redirect('reports-z-report-detail', shift_id=shift_id)
-
+    # Validate the input before opening a transaction — no point locking
+    # the row to find out the form is empty.
     raw = request.POST.get('counted_cash', '').strip()
     if not raw:
         messages.error(request, 'Enter the counted cash.')
@@ -476,14 +475,44 @@ def shift_record_count(request, shift_id):
         messages.error(request, 'Counted cash must be a number ≥ 0.')
         return redirect('reports-z-report-detail', shift_id=shift_id)
 
-    shift.counted_cash = counted
-    shift.counted_by = request.user
-    shift.counted_at = timezone.now()
-    # If the server requested clock-out but the shift hadn't been finalised
-    # yet (pending_close), the supervisor's count closes it.
-    if shift.ended_at is None:
-        shift.ended_at = timezone.now()
-    shift.save()
+    with transaction.atomic():
+        try:
+            shift = Shift.objects.select_for_update().get(pk=shift_id)
+        except Shift.DoesNotExist:
+            raise Http404
+
+        # Re-check every precondition while holding the row lock. The
+        # outside-template hint that the form is allowed is just UX; the
+        # real authority is here.
+        if shift.waiter_id == request.user.id:
+            messages.error(request, 'You cannot count your own till — ask another supervisor.')
+            return redirect('reports-z-report-detail', shift_id=shift_id)
+
+        if shift.counted_cash is not None:
+            who = shift.counted_by.username if shift.counted_by else 'another supervisor'
+            when = shift.counted_at.strftime('%H:%M') if shift.counted_at else ''
+            messages.warning(
+                request,
+                f'Shift #{shift.id} was already counted by {who}{" at " + when if when else ""}.',
+            )
+            return redirect('reports-z-report-detail', shift_id=shift_id)
+
+        unpaid = shift.orders.filter(status='active').count()
+        if unpaid:
+            messages.error(
+                request,
+                f'Cannot count the till — this shift still has {unpaid} '
+                f'unpaid order{"s" if unpaid != 1 else ""}. Settle or void them first.',
+            )
+            return redirect('reports-z-report-detail', shift_id=shift_id)
+
+        shift.counted_cash = counted
+        shift.counted_by = request.user
+        shift.counted_at = timezone.now()
+        if shift.ended_at is None:
+            shift.ended_at = timezone.now()
+        shift.save()
+
     messages.success(request, f'Counted cash recorded for shift #{shift.id}.')
     return redirect('reports-z-report-detail', shift_id=shift_id)
 
