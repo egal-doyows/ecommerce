@@ -17,19 +17,37 @@ Optional context:
         {% if settings.ubereats_url %}
         <a href="{{ settings.ubereats_url }}" rel="noopener" target="_blank"
            class="ps-order-on-btn ps-order-on-ubereats" aria-label="Order on Uber Eats">
-            <i class="fa-solid fa-utensils"></i> Order on Uber Eats
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
+                 fill="currentColor" aria-hidden="true">
+                <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03
+                         C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+            </svg>
+            Order on Uber Eats
         </a>
         {% endif %}
         {% if settings.glovo_url %}
         <a href="{{ settings.glovo_url }}" rel="noopener" target="_blank"
            class="ps-order-on-btn ps-order-on-glovo" aria-label="Order on Glovo">
-            <i class="fa-solid fa-bag-shopping"></i> Order on Glovo
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
+                 fill="currentColor" aria-hidden="true">
+                <path d="M18 6h-2c0-2.21-1.79-4-4-4S8 3.79 8 6H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2
+                         h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM12 4c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2z"/>
+            </svg>
+            Order on Glovo
         </a>
         {% endif %}
         {% if settings.bolt_url %}
         <a href="{{ settings.bolt_url }}" rel="noopener" target="_blank"
            class="ps-order-on-btn ps-order-on-bolt" aria-label="Order on Bolt Food">
-            <i class="fa-solid fa-motorcycle"></i> Order on Bolt Food
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"
+                 fill="currentColor" aria-hidden="true">
+                <path d="M19.44 9.03L15.41 5H11v2h3.59l2 2H5c-2.8 0-5 2.2-5 5s2.2 5 5 5
+                         c2.46 0 4.45-1.69 4.9-4h1.65l2.77-2.77c-.21.54-.32 1.14-.32 1.77
+                         0 2.8 2.2 5 5 5s5-2.2 5-5c0-2.65-1.97-4.77-4.56-4.97zM7.82 15
+                         C7.4 16.15 6.28 17 5 17c-1.63 0-3-1.37-3-3s1.37-3 3-3c1.28 0 2.4.85 2.82 2
+                         H5v2h2.82zM19 17c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/>
+            </svg>
+            Order on Bolt Food
         </a>
         {% endif %}
         {% if settings.phone %}
