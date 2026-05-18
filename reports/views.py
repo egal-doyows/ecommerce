@@ -385,20 +385,21 @@ def z_report_list(request):
     if not _is_manager(request.user):
         shifts = [s for s in shifts if s.waiter_id == request.user.id]
 
+    payment_methods = list(Order.PAYMENT_CHOICES)  # [(key, label), ...]
     rows = []
     for s in shifts:
         paid = [o for o in s.orders.all() if o.status == 'paid']
         gross = sum((o.get_total() for o in paid), Decimal('0'))
-        cash_sales = sum(
-            (o.get_total() for o in paid if o.payment_method == 'cash'),
-            Decimal('0'),
-        )
+        pm_totals = {pm: Decimal('0') for pm, _ in payment_methods}
+        for o in paid:
+            if o.payment_method in pm_totals:
+                pm_totals[o.payment_method] += o.get_total()
         cash_refunds = sum(
             (o.get_total() for o in s.orders.all()
              if o.status == 'cancelled' and o.payment_method == 'cash'),
             Decimal('0'),
         )
-        expected = (s.starting_cash or Decimal('0')) + cash_sales - cash_refunds
+        expected = (s.starting_cash or Decimal('0')) + pm_totals['cash'] - cash_refunds
         variance = (s.counted_cash - expected) if s.counted_cash is not None else None
         rows.append({
             'shift': s,
@@ -408,10 +409,12 @@ def z_report_list(request):
             'counted': s.counted_cash,
             'expected': expected,
             'variance': variance,
+            'pm_amounts': [pm_totals[pm] for pm, _ in payment_methods],
         })
 
     return render(request, 'reports/z_report_list.html', {
         'rows': rows,
+        'payment_methods': payment_methods,
         'is_manager': _is_manager(request.user),
     })
 

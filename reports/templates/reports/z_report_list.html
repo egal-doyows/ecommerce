@@ -12,8 +12,8 @@
     <p>No shifts to report on.</p>
 </div>
 {% else %}
-<div class="adm-card">
-    <table class="adm-table" style="width:100%;">
+<div class="adm-card" style="overflow-x:auto;">
+    <table class="adm-table" style="width:100%;min-width:1100px;">
         <thead>
             <tr>
                 <th>Shift</th>
@@ -25,6 +25,9 @@
                 <th style="text-align:right;">Variance</th>
                 <th style="text-align:right;">Txns</th>
                 <th style="text-align:right;">Gross</th>
+                {% for pm_key, pm_label in payment_methods %}
+                <th style="text-align:right;font-size:11px;">{{ pm_label }}</th>
+                {% endfor %}
                 <th></th>
             </tr>
         </thead>
@@ -49,12 +52,18 @@
                 </td>
                 <td style="text-align:right;">{{ r.txn_count }}</td>
                 <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ r.gross|floatformat:2|intcomma }}</td>
+                {% for amount in r.pm_amounts %}
+                <td style="text-align:right;font-size:12px;">
+                    {% if amount > 0 %}{{ currency_symbol }} {{ amount|floatformat:2|intcomma }}
+                    {% else %}<span style="color:var(--adm-muted);">—</span>{% endif %}
+                </td>
+                {% endfor %}
                 <td><a href="{% url 'reports-z-report-detail' r.shift.id %}" class="adm-btn adm-btn-sm adm-btn-outline">View</a></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
-<p style="margin-top:12px;font-size:12px;color:var(--adm-muted);">Click <strong>View</strong> for the full breakdown: payment methods, top items, voids, discounts, and cash drawer reconciliation.</p>
+<p style="margin-top:12px;font-size:12px;color:var(--adm-muted);">Click <strong>View</strong> for the full breakdown: top items, voids, discounts, and cash drawer reconciliation.</p>
 {% endif %}
 {% endblock %}
