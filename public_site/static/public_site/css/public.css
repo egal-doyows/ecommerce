@@ -332,6 +332,8 @@ h1, h2, h3 {
 .ps-order-on-glovo:hover { background: #f5b830; color: #1f1300; }
 .ps-order-on-bolt     { background: #34D186; box-shadow: 0 4px 12px rgba(52,209,134,0.30); }
 .ps-order-on-bolt:hover { background: #2bbd76; }
+.ps-order-on-call     { background: var(--bb-red); box-shadow: 0 4px 12px rgba(184,62,30,0.30); }
+.ps-order-on-call:hover { background: var(--bb-red-deep); }
 
 /* ── Per-card aggregator icons (small) ────────────────────────────── */
 .ps-item-order-icons {
@@ -368,6 +370,8 @@ h1, h2, h3 {
     object-fit: contain;
     display: block;
 }
+.ps-item-icon-call { background: var(--bb-red); color: #fff; font-size: 13px; }
+.ps-item-icon-call:hover { background: var(--bb-red-deep); color: #fff; }
 .ps-btn-outline:hover { background: var(--bb-red); color: #fff; }
 
 .ps-btn-amber {

@@ -22,4 +22,11 @@ All three icons use uploaded brand logos from public_site/static/img/.
        title="Order on Bolt Food" aria-label="Order on Bolt Food">
         <img src="{% static 'public_site/img/Bolt-Food.png' %}" alt="Bolt Food" loading="lazy">
     </a>
+    {% if settings.phone %}
+    <a href="tel:{{ settings.phone|cut:' '|cut:'-'|cut:'('|cut:')' }}"
+       class="ps-item-icon ps-item-icon-call"
+       title="Call {{ settings.name }}" aria-label="Call {{ settings.name }}">
+        <i class="fa-solid fa-phone" aria-hidden="true"></i>
+    </a>
+    {% endif %}
 </div>

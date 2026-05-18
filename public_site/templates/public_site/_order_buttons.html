@@ -8,7 +8,7 @@ Optional context:
   heading — string shown above the buttons (default: "Order online")
   variant — 'inline' (default) or 'compact' (smaller, no heading)
 {% endcomment %}
-{% if settings.ubereats_url or settings.glovo_url or settings.bolt_url %}
+{% if settings.ubereats_url or settings.glovo_url or settings.bolt_url or settings.phone %}
 <div class="ps-order-on">
     {% if variant != 'compact' %}
     <h3 class="ps-order-on-heading">{{ heading|default:"Order online" }}</h3>
@@ -30,6 +30,12 @@ Optional context:
         <a href="{{ settings.bolt_url }}" rel="noopener" target="_blank"
            class="ps-order-on-btn ps-order-on-bolt" aria-label="Order on Bolt Food">
             <i class="fa-solid fa-motorcycle"></i> Order on Bolt Food
+        </a>
+        {% endif %}
+        {% if settings.phone %}
+        <a href="tel:{{ settings.phone|cut:' '|cut:'-'|cut:'('|cut:')' }}"
+           class="ps-order-on-btn ps-order-on-call" aria-label="Call {{ settings.name }}">
+            <i class="fa-solid fa-phone"></i> Call us
         </a>
         {% endif %}
     </div>
