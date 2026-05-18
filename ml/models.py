@@ -147,6 +147,7 @@ class AnomalyEvent(models.Model):
         ('supervisor_cash_variance', 'Cash variance (supervisor-attributed)'),
         ('count_latency_minutes', 'Till count latency (minutes)'),
         ('combined_loss_risk', 'Joint risk: voids + cash variance'),
+        ('post_hoc_audit_edits', 'Post-hoc audit-log edits'),
     ]
 
     subject_type = models.CharField(max_length=20, choices=SUBJECT_TYPES, db_index=True)

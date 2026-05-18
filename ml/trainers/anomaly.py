@@ -39,6 +39,8 @@ from ml import gates
 from ml.models import AnomalyEvent
 from ml.trainers._runner import model_run
 
+POST_HOC_BUFFER = timedelta(minutes=1)
+
 logger = logging.getLogger(__name__)
 
 Z_THRESHOLD = 2.0
@@ -110,7 +112,17 @@ def train():
     with model_run('anomaly') as run:
         ready, info = gates.anomaly_ready()
         run.rows_used = info['closed_shifts']
+
+        # Audit-edit detection runs unconditionally — it doesn't need a
+        # baseline; any post-hoc edit is on its own a signal. Collect
+        # those first so they fire even when the shift-baseline gate
+        # fails.
+        cutoff = timezone.now() - timedelta(days=LOOKBACK_DAYS)
+        events = list(_post_hoc_edit_events(window_start=cutoff))
+
         if not ready:
+            _write_events(events)
+            run.rows_written = len(events)
             run.status = 'skipped'
             run.metric_name = 'baseline_only'
             run.error = (
@@ -118,7 +130,6 @@ def train():
             )
             return
 
-        cutoff = timezone.now() - timedelta(days=LOOKBACK_DAYS)
         recent_shifts = list(
             Shift.objects.filter(is_active=False, started_at__gte=cutoff)
             .select_related('waiter', 'counted_by')
@@ -153,7 +164,8 @@ def train():
             if s.counted_by_id and s.counted_by_id not in latest_per_supervisor:
                 latest_per_supervisor[s.counted_by_id] = s
 
-        events = []
+        # `events` already contains the post-hoc audit-edit events from the
+        # pre-gate block; baseline-driven metrics extend it from here.
 
         # ── Waiter-attributed metrics + joint loss risk ──────────────────
         for user_id, shift in latest_per_user.items():
@@ -250,16 +262,94 @@ def train():
         run.metric_value = float(len(events))
 
 
+def _post_hoc_edit_events(window_start):
+    """One AnomalyEvent per actor who edited an Order or Shift audited
+    field after the object was finalised. Count = number of such edits in
+    the lookback window."""
+    from collections import defaultdict
+    from django.contrib.auth.models import User
+    from django.contrib.contenttypes.models import ContentType
+    try:
+        from auditlog.models import LogEntry
+    except ImportError:
+        return []
+
+    order_ct = ContentType.objects.get_for_model(Order)
+    shift_ct = ContentType.objects.get_for_model(Shift)
+
+    per_actor = defaultdict(lambda: {'count': 0, 'shift_id': None})
+    order_meta = {}  # object_pk -> (voided_at, shift_id)
+    shift_meta = {}  # object_pk -> counted_at
+
+    entries = LogEntry.objects.filter(
+        content_type__in=[order_ct, shift_ct],
+        action=LogEntry.Action.UPDATE,
+        timestamp__gte=window_start,
+        actor__isnull=False,
+    ).values('content_type_id', 'object_pk', 'actor_id', 'timestamp')
+
+    for entry in entries:
+        if entry['content_type_id'] == order_ct.id:
+            if entry['object_pk'] not in order_meta:
+                try:
+                    o = Order.objects.only('voided_at', 'shift_id').get(pk=entry['object_pk'])
+                    order_meta[entry['object_pk']] = (o.voided_at, o.shift_id)
+                except Order.DoesNotExist:
+                    order_meta[entry['object_pk']] = (None, None)
+            finalised_at, shift_id = order_meta[entry['object_pk']]
+        else:
+            if entry['object_pk'] not in shift_meta:
+                try:
+                    s = Shift.objects.only('counted_at').get(pk=entry['object_pk'])
+                    shift_meta[entry['object_pk']] = s.counted_at
+                except Shift.DoesNotExist:
+                    shift_meta[entry['object_pk']] = None
+            finalised_at = shift_meta[entry['object_pk']]
+            shift_id = int(entry['object_pk'])
+
+        if finalised_at and entry['timestamp'] > finalised_at + POST_HOC_BUFFER:
+            per_actor[entry['actor_id']]['count'] += 1
+            if shift_id:
+                per_actor[entry['actor_id']]['shift_id'] = shift_id
+
+    if not per_actor:
+        return []
+
+    today = timezone.now().date()
+    actors = {u.pk: u.username for u in User.objects.filter(pk__in=per_actor).only('username')}
+    out = []
+    for actor_id, info in per_actor.items():
+        if actor_id not in actors:
+            continue
+        out.append(AnomalyEvent(
+            subject_type='user',
+            subject_id=actor_id,
+            subject_label=actors[actor_id],
+            metric='post_hoc_audit_edits',
+            shift_id=info['shift_id'],
+            observed_value=float(info['count']),
+            expected_value=0.0,
+            z_score=float(info['count']),  # raw count drives sort order
+            direction='high',
+            occurred_on=today,
+            source='ml',
+        ))
+    return out
+
+
 @transaction.atomic
 def _write_events(events):
     """
-    Insert new events; skip duplicates of (subject, metric, shift) already on file.
+    Insert new events; skip duplicates of (subject, metric, shift, day)
+    already on file. occurred_on is part of the dedup key so a recurring
+    daily-flagged issue still emits a fresh row each day.
     """
     keys_existing = set(AnomalyEvent.objects.values_list(
-        'subject_type', 'subject_id', 'metric', 'shift_id',
+        'subject_type', 'subject_id', 'metric', 'shift_id', 'occurred_on',
     ))
     fresh = [
         e for e in events
-        if (e.subject_type, e.subject_id, e.metric, e.shift_id) not in keys_existing
+        if (e.subject_type, e.subject_id, e.metric, e.shift_id, e.occurred_on)
+        not in keys_existing
     ]
     AnomalyEvent.objects.bulk_create(fresh, batch_size=200)
