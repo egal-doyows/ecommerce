@@ -249,6 +249,8 @@ class RestaurantSettingsForm(forms.ModelForm):
         ('Delivery commissions',
          ['ubereats_commission_pct', 'glovo_commission_pct',
           'bolt_commission_pct', 'jumia_commission_pct']),
+        ('Order online (public-site buttons)',
+         ['ubereats_url', 'glovo_url', 'bolt_url']),
         ('Location',
          ['latitude', 'longitude']),
     ]
@@ -263,6 +265,7 @@ class RestaurantSettingsForm(forms.ModelForm):
             'facebook_url', 'instagram_url', 'twitter_url',
             'ubereats_commission_pct', 'glovo_commission_pct',
             'bolt_commission_pct', 'jumia_commission_pct',
+            'ubereats_url', 'glovo_url', 'bolt_url',
             'latitude', 'longitude',
         ]
         widgets = {

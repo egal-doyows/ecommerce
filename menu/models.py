@@ -77,6 +77,19 @@ class RestaurantSettings(models.Model):
         help_text='Decimal degrees, e.g. 36.81667. Needed for weather-aware forecasting.',
     )
 
+    ubereats_url = models.URLField(
+        blank=True,
+        help_text='Public restaurant page on Uber Eats. Leave blank to hide the button.',
+    )
+    glovo_url = models.URLField(
+        blank=True,
+        help_text='Public restaurant page on Glovo. Leave blank to hide the button.',
+    )
+    bolt_url = models.URLField(
+        blank=True,
+        help_text='Public restaurant page on Bolt Food. Leave blank to hide the button.',
+    )
+
     class Meta:
         verbose_name = 'Restaurant Settings'
         verbose_name_plural = 'Restaurant Settings'

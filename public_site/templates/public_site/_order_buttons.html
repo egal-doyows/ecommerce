@@ -1,0 +1,37 @@
+{% comment %}
+Renders branded "Order on ..." buttons for every aggregator the
+restaurant is listed on. A platform's button only appears if its URL
+is set on RestaurantSettings. The whole block disappears if none are
+set, so this include is safe to drop on any page without conditionals.
+
+Optional context:
+  heading — string shown above the buttons (default: "Order online")
+  variant — 'inline' (default) or 'compact' (smaller, no heading)
+{% endcomment %}
+{% if settings.ubereats_url or settings.glovo_url or settings.bolt_url %}
+<div class="ps-order-on">
+    {% if variant != 'compact' %}
+    <h3 class="ps-order-on-heading">{{ heading|default:"Order online" }}</h3>
+    {% endif %}
+    <div class="ps-order-on-buttons">
+        {% if settings.ubereats_url %}
+        <a href="{{ settings.ubereats_url }}" rel="noopener" target="_blank"
+           class="ps-order-on-btn ps-order-on-ubereats" aria-label="Order on Uber Eats">
+            <i class="fa-solid fa-utensils"></i> Order on Uber Eats
+        </a>
+        {% endif %}
+        {% if settings.glovo_url %}
+        <a href="{{ settings.glovo_url }}" rel="noopener" target="_blank"
+           class="ps-order-on-btn ps-order-on-glovo" aria-label="Order on Glovo">
+            <i class="fa-solid fa-bag-shopping"></i> Order on Glovo
+        </a>
+        {% endif %}
+        {% if settings.bolt_url %}
+        <a href="{{ settings.bolt_url }}" rel="noopener" target="_blank"
+           class="ps-order-on-btn ps-order-on-bolt" aria-label="Order on Bolt Food">
+            <i class="fa-solid fa-motorcycle"></i> Order on Bolt Food
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

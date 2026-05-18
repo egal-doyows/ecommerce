@@ -9,6 +9,7 @@
         <span class="ps-script">today&rsquo;s menu</span>
         <h1>Our menu</h1>
         <p class="ps-muted">Available today &middot; prices in {{ settings.currency|default:"KES" }}</p>
+        {% include 'public_site/_order_buttons.html' with heading="Order for delivery" %}
     </div>
 </section>
 
