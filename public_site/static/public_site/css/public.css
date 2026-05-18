@@ -345,11 +345,10 @@ h1, h2, h3 {
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: 50%;
+    border-radius: 6px;
     color: #fff;
-    font-size: 13px;
-    font-weight: 700;
     text-decoration: none;
+    overflow: hidden;
     transition: transform 0.15s, box-shadow 0.15s;
     line-height: 1;
 }
@@ -360,10 +359,15 @@ h1, h2, h3 {
 }
 .ps-item-icon-ubereats { background: #06C167; color: #fff; }
 .ps-item-icon-ubereats:hover { background: #04a857; color: #fff; }
-.ps-item-icon-glovo    { background: #FFC244; color: #1f1300; }
-.ps-item-icon-glovo:hover { background: #f5b830; color: #1f1300; }
-.ps-item-icon-bolt     { background: #34D186; color: #fff; }
-.ps-item-icon-bolt:hover { background: #2bbd76; color: #fff; }
+
+/* Image-backed icons: white tile so any logo's own colours show clean. */
+.ps-item-icon-img { background: #fff; border: 1px solid #e6e6e6; }
+.ps-item-icon-img img {
+    max-width: 22px;
+    max-height: 22px;
+    object-fit: contain;
+    display: block;
+}
 .ps-btn-outline:hover { background: var(--bb-red); color: #fff; }
 
 .ps-btn-amber {
