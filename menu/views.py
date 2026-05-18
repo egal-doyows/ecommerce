@@ -443,6 +443,7 @@ def shift_view(request):
         'active_shift': active_shift,
         'past_shifts': past_shifts,
         'unpaid_orders': unpaid_orders,
+        'is_auto_shift_user': _is_auto_shift_user(request.user),
     }
     return render(request, 'menu/shift.html', context)
 
@@ -469,6 +470,25 @@ def shift_clock_out(request):
             unpaid = shift.orders.filter(status='active').count()
             if unpaid:
                 return redirect('shift')
+
+            # Auto-shift users (managers/supervisors) don't run a till and
+            # had starting_cash=0; skip the count. Everyone else must submit
+            # a counted_cash value when clocking out.
+            if not _is_auto_shift_user(request.user):
+                raw = request.POST.get('counted_cash', '').strip()
+                if not raw:
+                    messages.error(request, 'Enter the counted cash before clocking out.')
+                    return redirect('shift')
+                try:
+                    from decimal import Decimal, InvalidOperation
+                    counted = Decimal(raw)
+                    if counted < 0:
+                        raise InvalidOperation
+                except (InvalidOperation, ValueError):
+                    messages.error(request, 'Counted cash must be a number ≥ 0.')
+                    return redirect('shift')
+                shift.counted_cash = counted
+
             shift.ended_at = timezone.now()
             shift.is_active = False
             shift.save()

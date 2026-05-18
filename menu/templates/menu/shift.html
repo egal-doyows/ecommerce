@@ -339,8 +339,15 @@
                     Clocked in at {{ active_shift.started_at|date:"h:i A" }} &middot; {{ active_shift.get_duration }}
                 </div>
             </div>
-            <form method="POST" action="{% url 'shift-clock-out' %}">
+            <form method="POST" action="{% url 'shift-clock-out' %}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 {% csrf_token %}
+                {% if not is_auto_shift_user %}
+                <label style="display:flex;flex-direction:column;font-size:11px;color:var(--pos-muted);">
+                    Counted cash
+                    <input type="number" name="counted_cash" required step="0.01" min="0" placeholder="0.00"
+                           style="margin-top:4px;padding:8px 10px;border:1.5px solid var(--pos-border);border-radius:8px;font-size:14px;font-weight:600;width:140px;outline:none;">
+                </label>
+                {% endif %}
                 <button type="submit" class="shift-clock-out-btn" {% if unpaid_orders %}disabled title="Settle all unpaid orders first"{% else %}onclick="return confirm('End your current shift?')"{% endif %}>
                     <i class="fa fa-stop-circle"></i> Clock Out
                 </button>
