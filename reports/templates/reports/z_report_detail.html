@@ -71,6 +71,15 @@
 </div>
 {% endif %}
 
+{% if unpaid_count %}
+<div class="adm-card" style="margin-bottom:16px;border-left:4px solid var(--adm-danger);background:#fef2f2;">
+    <strong style="color:#991b1b;"><i class="fa-solid fa-triangle-exclamation"></i> {{ unpaid_count }} unpaid order{{ unpaid_count|pluralize }} on this shift</strong>
+    <div style="margin-top:4px;font-size:13px;color:#991b1b;">
+        This shouldn't happen during pending close — investigate before counting the till. Settle or void those orders first; the Record-count form is hidden until they're cleared.
+    </div>
+</div>
+{% endif %}
+
 <div class="adm-card" style="margin-bottom:16px;">
     <h3 style="margin:0 0 12px;font-size:14px;">Cash drawer</h3>
     <table style="width:100%;font-size:14px;">

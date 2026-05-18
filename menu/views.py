@@ -478,6 +478,11 @@ def shift_clock_out(request):
         if shift:
             unpaid = shift.orders.filter(status='active').count()
             if unpaid:
+                messages.error(
+                    request,
+                    f'You have {unpaid} unpaid order{"s" if unpaid != 1 else ""}. '
+                    'Settle them before clocking out.',
+                )
                 return redirect('shift')
             if _is_auto_shift_user(request.user):
                 shift.ended_at = timezone.now()

@@ -455,6 +455,15 @@ def shift_record_count(request, shift_id):
         messages.error(request, 'You cannot count your own till — ask another supervisor.')
         return redirect('reports-z-report-detail', shift_id=shift_id)
 
+    unpaid = shift.orders.filter(status='active').count()
+    if unpaid:
+        messages.error(
+            request,
+            f'Cannot count the till — this shift still has {unpaid} '
+            f'unpaid order{"s" if unpaid != 1 else ""}. Settle or void them first.',
+        )
+        return redirect('reports-z-report-detail', shift_id=shift_id)
+
     raw = request.POST.get('counted_cash', '').strip()
     if not raw:
         messages.error(request, 'Enter the counted cash.')
@@ -600,10 +609,12 @@ def z_report_detail(request, shift_id):
         'variance': variance,
         'top_items': top_items,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'unpaid_count': sum(1 for o in orders if o.status == 'active'),
         'can_record_count': (
             _is_manager(request.user)
             and shift.waiter_id != request.user.id
             and shift.counted_cash is None
+            and not any(o.status == 'active' for o in orders)
         ),
     })
 
