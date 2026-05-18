@@ -416,6 +416,8 @@ def z_report_list(request):
             'shift': s,
             'gross': gross,
             'variance': variance,
+            'opening': s.starting_cash or Decimal('0'),
+            'counted': s.counted_cash,
             # Order matches the four payment-method columns in the template.
             'pm_amounts': [
                 pm_totals['cash'],
