@@ -418,7 +418,6 @@ def z_report_list(request):
     return render(request, 'reports/z_report_list.html', {
         'rows': rows,
         'payment_methods': payment_methods,
-        'is_manager': _is_manager(request.user),
     })
 
 
