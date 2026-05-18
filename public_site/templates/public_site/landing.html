@@ -143,6 +143,7 @@
                 <h3>{{ item.title }}</h3>
                 {% if item.description %}<p>{{ item.description|truncatewords:22 }}</p>{% endif %}
                 <p class="ps-brew-price">{{ settings.currency|default:"KES" }} {{ item.price|floatformat:2|intcomma }}</p>
+                {% include 'public_site/_order_icons.html' with item=item %}
             </article>
             {% endfor %}
         </div>
