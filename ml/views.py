@@ -19,7 +19,7 @@ from ml.models import (
     AnomalyEvent, BasketRule, DemandForecast, MenuClass, ModelRun,
     ReorderSuggestion,
 )
-from reports.utils import manager_required
+from reports.utils import manager_required, supervisor_or_manager_required
 
 
 def _settings_ctx():
@@ -45,7 +45,7 @@ def ml_index(request):
 
 # ── Prep List (from DemandForecast) ──────────────────────────────────────
 
-@manager_required
+@supervisor_or_manager_required
 def prep_list(request):
     today = timezone.localdate()
     target_str = request.GET.get('date')
@@ -80,7 +80,7 @@ def prep_list(request):
 
 # ── Suggested Reorders ───────────────────────────────────────────────────
 
-@manager_required
+@supervisor_or_manager_required
 def reorders(request):
     show_resolved = request.GET.get('show') == 'all'
     qs = (
@@ -151,7 +151,7 @@ def dismiss_exception(request, pk):
 
 # ── Upsell pairs ─────────────────────────────────────────────────────────
 
-@manager_required
+@supervisor_or_manager_required
 def upsell(request):
     rows = (
         BasketRule.objects

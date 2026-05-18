@@ -30,6 +30,20 @@ def manager_required(view_func):
     return wrapper
 
 
+def supervisor_or_manager_required(view_func):
+    """Supervisor + Manager group + superusers. For operational reports that
+    floor supervisors need (shift z-reports, ML prep / reorder / upsell)."""
+    @wraps(view_func)
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        u = request.user
+        if not (u.is_superuser or u.groups.filter(name__in=['Manager', 'Supervisor']).exists()):
+            messages.error(request, 'This report is restricted to supervisors and managers.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 def superuser_only(view_func):
     """Owner / superuser only — for sensitive reports like the audit trail."""
     @wraps(view_func)

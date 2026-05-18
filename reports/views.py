@@ -361,13 +361,19 @@ def audit_trail(request):
 # ── #1 Z-Report (End-of-Shift Close) ───────────────────────────────────
 
 def _is_manager(user):
-    return user.is_superuser or user.groups.filter(name='Manager').exists()
+    """True for users who may inspect every shift on the z-report.
+
+    Includes Supervisors so floor leads can review their team's shifts; the
+    name is kept for minimal diff against existing callers, but the gate is
+    really 'can view all shifts'."""
+    return user.is_superuser or user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
 
 
 @login_required(login_url='my-login')
 def z_report_list(request):
     """
-    Pick a shift to z-report. Managers see all shifts; cashiers see their own.
+    Pick a shift to z-report. Managers/Supervisors see all shifts; everyone
+    else sees their own.
     """
     shifts = Shift.objects.select_related('waiter').order_by('-started_at')
     if not _is_manager(request.user):

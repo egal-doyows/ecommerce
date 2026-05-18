@@ -509,6 +509,24 @@
         {% endif %}
     </div>
 
+    {% if is_supervisor and not is_manager %}
+    <div class="adm-nav-group">
+        <div class="adm-nav-label">Reports</div>
+        <a href="{% url 'reports-z-report' %}" class="adm-nav-link {% active_nav 'reports-z-report' 'reports-z-report-detail' %}">
+            <i class="fa-solid fa-clock-rotate-left"></i> Shift Reports
+        </a>
+        <a href="{% url 'ml-reorders' %}" class="adm-nav-link {% active_nav 'ml-reorders' %}">
+            <i class="fa-solid fa-truck-fast"></i> Reorders
+        </a>
+        <a href="{% url 'ml-prep-list' %}" class="adm-nav-link {% active_nav 'ml-prep-list' %}">
+            <i class="fa-solid fa-list-check"></i> Prep List
+        </a>
+        <a href="{% url 'ml-upsell' %}" class="adm-nav-link {% active_nav 'ml-upsell' %}">
+            <i class="fa-solid fa-arrow-trend-up"></i> Upsell Pairs
+        </a>
+    </div>
+    {% endif %}
+
     <div class="adm-nav-group">
         <div class="adm-nav-label">Restaurant</div>
         <a href="{% url 'admin-menu-list' %}" class="adm-nav-link {% active_nav 'admin-menu-list' %}">
