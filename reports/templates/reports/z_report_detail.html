@@ -71,6 +71,20 @@
 </div>
 {% endif %}
 
+{% if shift_anomalies and is_manager %}
+<div class="adm-card" style="margin-bottom:16px;border-left:4px solid #b91c1c;background:#fef2f2;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <strong style="color:#7f1d1d;"><i class="fa-solid fa-triangle-exclamation"></i> {{ shift_anomalies|length }} ML anomal{{ shift_anomalies|length|pluralize:"y,ies" }} flagged for this shift</strong>
+        <a href="{% url 'ml-exceptions' %}" style="font-size:12px;color:#7f1d1d;font-weight:600;text-decoration:none;">View / dismiss →</a>
+    </div>
+    <ul style="margin:8px 0 0;padding-left:22px;color:#7f1d1d;font-size:13px;">
+        {% for e in shift_anomalies %}
+        <li>{{ e.get_metric_display }} — <strong>{{ e.subject_label }}</strong> · {{ e.z_score|floatformat:1 }}σ {{ e.direction }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 {% if unpaid_count %}
 <div class="adm-card" style="margin-bottom:16px;border-left:4px solid var(--adm-danger);background:#fef2f2;">
     <strong style="color:#991b1b;"><i class="fa-solid fa-triangle-exclamation"></i> {{ unpaid_count }} unpaid order{{ unpaid_count|pluralize }} on this shift</strong>

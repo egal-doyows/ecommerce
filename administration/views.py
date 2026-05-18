@@ -102,6 +102,18 @@ def admin_dashboard(request):
         .order_by('pending_close_at')
     )
 
+    # Top open ML anomalies in the last 7 days for the manager dashboard.
+    # Supervisors are gated out at the template level (they're the audited
+    # party for several of these metrics).
+    from ml.models import AnomalyEvent
+    from datetime import timedelta
+    top_anomalies = list(
+        AnomalyEvent.objects
+        .filter(dismissed=False, occurred_on__gte=(now.date() - timedelta(days=7)))
+        .select_related('shift__waiter')
+        .order_by('-z_score')[:5]
+    )
+
     low_stock_items = [i for i in InventoryItem.objects.all() if i.is_low_stock]
 
     staff_count = User.objects.filter(is_superuser=False, is_active=True).count()
@@ -123,6 +135,7 @@ def admin_dashboard(request):
         'active_orders': active_orders,
         'active_shifts': active_shifts,
         'pending_close_shifts': pending_close_shifts,
+        'top_anomalies': top_anomalies,
         'low_stock_items': low_stock_items[:5],
         'low_stock_count': len(low_stock_items),
         'staff_count': staff_count,

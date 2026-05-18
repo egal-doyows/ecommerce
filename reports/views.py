@@ -645,7 +645,18 @@ def z_report_detail(request, shift_id):
             and shift.counted_cash is None
             and not any(o.status == 'active' for o in orders)
         ),
+        'shift_anomalies': list(_shift_anomalies(shift)),
     })
+
+
+def _shift_anomalies(shift):
+    """Open AnomalyEvent rows for this shift (any subject)."""
+    from ml.models import AnomalyEvent
+    return (
+        AnomalyEvent.objects
+        .filter(shift=shift, dismissed=False)
+        .order_by('-z_score')
+    )
 
 
 # ── #2 Daily Sales Summary ─────────────────────────────────────────────
