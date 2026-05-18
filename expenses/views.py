@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone as tz
 
 from administration.models import Account, Transaction
-from menu.models import RestaurantSettings
+from menu.cache import get_restaurant_settings
 
 from .models import Expense, ExpenseCategory
 
@@ -143,7 +143,7 @@ def expense_list(request):
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
 
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
     categories = ExpenseCategory.objects.filter(is_active=True)
 
     return render(request, 'expenses/expense_list.html', {
@@ -169,7 +169,7 @@ def expense_list(request):
 
 @staff_required
 def expense_create(request):
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
     categories = ExpenseCategory.objects.filter(is_active=True)
     user_is_manager = _is_manager(request.user)
 
@@ -269,7 +269,7 @@ def expense_detail(request, pk):
         Expense.objects.select_related('category', 'recorded_by', 'approved_by'),
         pk=pk,
     )
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
 
     # Get balance of the account this expense would debit
     account_balance = None
@@ -294,7 +294,7 @@ def expense_detail(request, pk):
 @staff_required
 def expense_edit(request, pk):
     expense = get_object_or_404(Expense, pk=pk)
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
     categories = ExpenseCategory.objects.filter(is_active=True)
     user_is_manager = _is_manager(request.user)
 
@@ -429,7 +429,7 @@ def expense_delete(request, pk):
 
 @staff_required
 def expense_summary(request):
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
 
     today = tz.now().date()
     date_from = request.GET.get('date_from', today.replace(day=1).isoformat())
@@ -541,7 +541,7 @@ def expense_pdf(request, pk):
         Expense.objects.select_related('category', 'recorded_by', 'approved_by'),
         pk=pk,
     )
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
     cs = restaurant.currency_symbol
 
     buf = io.BytesIO()
@@ -695,7 +695,7 @@ def category_list(request):
         expense_count=models.Count('expenses', filter=models.Q(expenses__status='approved')),
         total=models.Sum('expenses__amount', filter=models.Q(expenses__status='approved')),
     )
-    restaurant = RestaurantSettings.load()
+    restaurant = get_restaurant_settings()
     return render(request, 'expenses/category_list.html', {
         'categories': categories,
         'restaurant': restaurant,
