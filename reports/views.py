@@ -1,10 +1,11 @@
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce
 from django.shortcuts import render
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -437,6 +438,44 @@ def _classify_order(order):
 
 
 @login_required(login_url='my-login')
+def shift_record_count(request, shift_id):
+    """Supervisor / manager / superuser records the till count after the
+    server clocks out. Server is intentionally excluded — separation of
+    duties: whoever counts the drawer is not the same person who ran it.
+    """
+    if request.method != 'POST':
+        return redirect('reports-z-report-detail', shift_id=shift_id)
+
+    if not _is_manager(request.user):
+        messages.error(request, 'Only supervisors and managers can record till counts.')
+        return redirect('reports-z-report-detail', shift_id=shift_id)
+
+    shift = get_object_or_404(Shift, pk=shift_id)
+    if shift.waiter_id == request.user.id:
+        messages.error(request, 'You cannot count your own till — ask another supervisor.')
+        return redirect('reports-z-report-detail', shift_id=shift_id)
+
+    raw = request.POST.get('counted_cash', '').strip()
+    if not raw:
+        messages.error(request, 'Enter the counted cash.')
+        return redirect('reports-z-report-detail', shift_id=shift_id)
+    try:
+        counted = Decimal(raw)
+        if counted < 0:
+            raise InvalidOperation
+    except (InvalidOperation, ValueError):
+        messages.error(request, 'Counted cash must be a number ≥ 0.')
+        return redirect('reports-z-report-detail', shift_id=shift_id)
+
+    shift.counted_cash = counted
+    shift.counted_by = request.user
+    shift.counted_at = timezone.now()
+    shift.save()
+    messages.success(request, f'Counted cash recorded for shift #{shift.id}.')
+    return redirect('reports-z-report-detail', shift_id=shift_id)
+
+
+@login_required(login_url='my-login')
 def z_report_detail(request, shift_id):
     shift = get_object_or_404(Shift.objects.select_related('waiter'), pk=shift_id)
     if not _is_manager(request.user) and shift.waiter_id != request.user.id:
@@ -557,6 +596,11 @@ def z_report_detail(request, shift_id):
         'variance': variance,
         'top_items': top_items,
         'currency_symbol': RestaurantSettings.load().currency_symbol,
+        'can_record_count': (
+            _is_manager(request.user)
+            and shift.waiter_id != request.user.id
+            and shift.counted_cash is None
+        ),
     })
 
 

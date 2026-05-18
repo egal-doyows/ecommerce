@@ -10,6 +10,7 @@ urlpatterns = [
     path('audit-trail/', views.audit_trail, name='reports-audit-trail'),
     path('z-report/', views.z_report_list, name='reports-z-report'),
     path('z-report/<int:shift_id>/', views.z_report_detail, name='reports-z-report-detail'),
+    path('z-report/<int:shift_id>/record-count/', views.shift_record_count, name='reports-shift-record-count'),
     path('daily-sales/', views.daily_sales, name='reports-daily-sales'),
     path('voids-log/', views.voids_log, name='reports-voids-log'),
     path('cash-drawer/', views.cash_drawer, name='reports-cash-drawer'),

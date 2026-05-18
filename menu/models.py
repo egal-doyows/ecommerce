@@ -392,6 +392,13 @@ class Shift(models.Model):
         max_digits=10, decimal_places=2, null=True, blank=True,
         help_text="Cash actually counted in the drawer at shift close",
     )
+    counted_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='counted_shifts',
+        help_text="Supervisor / manager who recorded the till count "
+                  "(separation of duties — never the shift's own server)",
+    )
+    counted_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:
