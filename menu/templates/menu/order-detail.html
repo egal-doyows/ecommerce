@@ -379,6 +379,40 @@
     }
 
     .od-add-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(184, 62, 30,0.3); }
+
+    .od-void-form {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding-top: 10px;
+        border-top: 1px dashed var(--pos-border);
+    }
+    .od-void-reason {
+        flex: 1;
+        padding: 9px 12px;
+        border: 1.5px solid var(--pos-border);
+        border-radius: 8px;
+        font-size: 13px;
+        outline: none;
+    }
+    .od-void-reason:focus { border-color: #b91c1c; }
+    .od-void-btn {
+        padding: 9px 14px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #b91c1c, #ef4444);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+    .od-void-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(185, 28, 28, 0.3); }
+    @media print { .od-void-form { display: none !important; } }
 </style>
 
 <div class="od-page">
@@ -564,6 +598,16 @@
             <button class="od-print-btn" onclick="window.print()">
                 <i class="fa-solid fa-print"></i> Print Receipt
             </button>
+
+            {% if can_void and order.status == 'active' %}
+            <form method="POST" action="{% url 'order-void' order.id %}" class="od-void-form" onsubmit="return confirm('Void this order? Stock will be restored. This cannot be undone.');">
+                {% csrf_token %}
+                <input type="text" name="reason" placeholder="Reason (required, e.g. customer left)" required maxlength="500" class="od-void-reason">
+                <button type="submit" class="od-void-btn">
+                    <i class="fa-solid fa-ban"></i> Void Order
+                </button>
+            </form>
+            {% endif %}
         </div>
     </div>
 </div>

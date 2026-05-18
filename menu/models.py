@@ -494,6 +494,10 @@ class Order(models.Model):
         blank=True,
         help_text="Reason given when the order was voided, discounted, or comped",
     )
+    voided_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Timestamp when the order was voided by a supervisor/manager",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)

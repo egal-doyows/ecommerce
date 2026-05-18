@@ -3,6 +3,7 @@ from functools import wraps
 
 from django.db import transaction
 from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
@@ -205,6 +206,7 @@ def order_detail(request, order_id):
         debtors = Debtor.objects.filter(is_active=True)
     return render(request, 'menu/order-detail.html', {
         'order': order, 'menu_items': menu_items, 'debtors': debtors,
+        'can_void': _can_void(request.user),
     })
 
 
@@ -275,6 +277,57 @@ def order_list(request):
         'total_paid': total_paid,
     }
     return render(request, 'menu/order-list.html', context)
+
+
+def _can_void(user):
+    return user.is_authenticated and (
+        user.is_superuser
+        or user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
+    )
+
+
+@login_required(login_url='waiter-login')
+@shift_required
+def order_void(request, order_id):
+    """Void an active (unpaid) order. Supervisor/Manager/Superuser only.
+
+    Records the supervisor (authorized_by), reason, and timestamp so the
+    voids_per_shift anomaly detector and audit reports can attribute the
+    void to both the server (order.waiter) and the approving supervisor.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    if not _can_void(request.user):
+        return JsonResponse({'error': 'Not authorised to void orders'}, status=403)
+
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        messages.error(request, 'A reason is required to void an order.')
+        return redirect('order-detail', order_id=order_id)
+
+    order = get_object_or_404(Order, id=order_id)
+    if order.status != 'active':
+        messages.error(request, 'Only unpaid orders can be voided.')
+        return redirect('order-detail', order_id=order.id)
+
+    with transaction.atomic():
+        for oi in order.items.select_related('menu_item').all():
+            try:
+                oi.menu_item.restore_stock(oi.quantity)
+            except Exception:
+                logger.warning("Stock restore failed for %s", oi.menu_item.title)
+        order.status = 'cancelled'
+        order.authorized_by = request.user
+        order.authorization_reason = reason
+        order.voided_at = timezone.now()
+        order.save()
+        if order.table:
+            order.table.status = 'available'
+            order.table.save()
+
+    messages.success(request, f'Order #{order.id} voided.')
+    return redirect('order-detail', order_id=order.id)
 
 
 @login_required(login_url='waiter-login')

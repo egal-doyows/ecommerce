@@ -559,6 +559,11 @@
         <a href="{% url 'admin-order-list' %}" class="adm-nav-link {% active_nav 'admin-order-list' %}">
             <i class="fa-solid fa-receipt"></i> Orders
         </a>
+        {% if is_manager %}
+        <a href="{% url 'admin-voided-orders' %}" class="adm-nav-link {% active_nav 'admin-voided-orders' %}">
+            <i class="fa-solid fa-ban"></i> Voided Orders
+        </a>
+        {% endif %}
         <a href="{% url 'admin-shift-list' %}" class="adm-nav-link {% active_nav 'admin-shift-list' %}">
             <i class="fa-solid fa-clock"></i> Shifts
         </a>

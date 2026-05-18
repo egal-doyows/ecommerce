@@ -1,0 +1,109 @@
+{% extends 'administration/base.html' %}
+{% load humanize %}
+{% block title %}Voided Orders{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Voided Orders</h1>
+        <div class="breadcrumb-text">Audit trail of supervisor-approved voids</div>
+    </div>
+    <div style="background:rgba(185,28,28,.08);border:1px solid rgba(185,28,28,.2);border-radius:10px;padding:10px 18px;display:flex;align-items:center;gap:10px;">
+        <i class="fa-solid fa-ban" style="color:#b91c1c;"></i>
+        <span style="font-size:13px;font-weight:600;color:#b91c1c;">{{ total_voids }} void{{ total_voids|pluralize }} — {{ restaurant.currency_symbol }} {{ total_value|floatformat:2|intcomma }}</span>
+    </div>
+</div>
+
+<form method="GET" class="adm-filters" style="margin-bottom:20px;display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+    <div>
+        <label style="font-size:11px;color:var(--adm-muted);display:block;">From</label>
+        <input type="date" name="start" value="{{ start }}" class="adm-input">
+    </div>
+    <div>
+        <label style="font-size:11px;color:var(--adm-muted);display:block;">To</label>
+        <input type="date" name="end" value="{{ end }}" class="adm-input">
+    </div>
+    <div>
+        <label style="font-size:11px;color:var(--adm-muted);display:block;">Server</label>
+        <select name="server" class="adm-input">
+            <option value="">All servers</option>
+            {% for s in servers %}
+            <option value="{{ s.pk }}" {% if server_id == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.username }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <label style="font-size:11px;color:var(--adm-muted);display:block;">Voided by</label>
+        <select name="supervisor" class="adm-input">
+            <option value="">All supervisors</option>
+            {% for s in supervisors %}
+            <option value="{{ s.pk }}" {% if supervisor_id == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.username }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="adm-btn adm-btn-primary">Filter</button>
+    <a href="{% url 'admin-voided-orders' %}" class="adm-btn">Reset</a>
+</form>
+
+{% if by_supervisor or by_server %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div class="adm-card" style="padding:16px;">
+        <h3 style="font-size:13px;margin:0 0 10px;color:var(--adm-muted);">Top voiders</h3>
+        <table class="adm-table" style="font-size:13px;">
+            <tbody>
+            {% for row in by_supervisor %}
+            <tr><td>{{ row.authorized_by__username|default:'—' }}</td><td style="text-align:right;font-weight:600;">{{ row.n }}</td></tr>
+            {% empty %}
+            <tr><td colspan="2" style="color:var(--adm-muted);">No data</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="adm-card" style="padding:16px;">
+        <h3 style="font-size:13px;margin:0 0 10px;color:var(--adm-muted);">Servers with most voids</h3>
+        <table class="adm-table" style="font-size:13px;">
+            <tbody>
+            {% for row in by_server %}
+            <tr><td>{{ row.waiter__username|default:'—' }}</td><td style="text-align:right;font-weight:600;">{{ row.n }}</td></tr>
+            {% empty %}
+            <tr><td colspan="2" style="color:var(--adm-muted);">No data</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="adm-card">
+    {% if voided_orders %}
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Order #</th>
+                <th>Voided At</th>
+                <th>Server</th>
+                <th>Voided By</th>
+                <th>Reason</th>
+                <th>Items</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for order in voided_orders %}
+        <tr>
+            <td style="font-weight:600;">#{{ order.pk }}</td>
+            <td style="font-size:12px;color:var(--adm-muted);">{{ order.voided_at|date:"M d, H:i" }}</td>
+            <td>{{ order.waiter.username|default:"—" }}</td>
+            <td>{{ order.authorized_by.username|default:"—" }}</td>
+            <td style="max-width:280px;">{{ order.authorization_reason|default:"—" }}</td>
+            <td>{{ order.items.count }}</td>
+            <td style="font-weight:600;">{{ restaurant.currency_symbol }} {{ order.get_total|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-ban"></i><p>No voided orders match these filters</p></div>
+    {% endif %}
+</div>
+{% endblock %}

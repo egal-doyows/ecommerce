@@ -544,6 +544,66 @@ def order_list_admin(request):
 
 
 # ═══════════════════════════════════════════════════════════════════════
+#  VOIDED ORDERS — audit trail for supervisor-approved voids
+# ═══════════════════════════════════════════════════════════════════════
+
+@manager_only
+def voided_order_list(request):
+    qs = (
+        Order.objects.filter(status='cancelled', voided_at__isnull=False)
+        .select_related('waiter', 'authorized_by', 'table')
+        .prefetch_related('items__menu_item')
+        .order_by('-voided_at')
+    )
+
+    start = request.GET.get('start', '').strip()
+    end = request.GET.get('end', '').strip()
+    server_id = request.GET.get('server', '').strip()
+    supervisor_id = request.GET.get('supervisor', '').strip()
+
+    if start:
+        qs = qs.filter(voided_at__date__gte=start)
+    if end:
+        qs = qs.filter(voided_at__date__lte=end)
+    if server_id:
+        qs = qs.filter(waiter_id=server_id)
+    if supervisor_id:
+        qs = qs.filter(authorized_by_id=supervisor_id)
+
+    total_voids = qs.count()
+    total_value = sum(o.get_total() for o in qs)
+
+    # Top voiders / servers for the filtered set
+    by_supervisor = (
+        qs.values('authorized_by__username')
+          .annotate(n=Count('id'))
+          .order_by('-n')[:10]
+    )
+    by_server = (
+        qs.values('waiter__username')
+          .annotate(n=Count('id'))
+          .order_by('-n')[:10]
+    )
+
+    servers = User.objects.filter(orders__status='cancelled', orders__voided_at__isnull=False).distinct().order_by('username')
+    supervisors = User.objects.filter(authorised_orders__voided_at__isnull=False).distinct().order_by('username')
+
+    return render(request, 'administration/voided_order_list.html', {
+        'voided_orders': qs[:200],
+        'total_voids': total_voids,
+        'total_value': total_value,
+        'by_supervisor': by_supervisor,
+        'by_server': by_server,
+        'servers': servers,
+        'supervisors': supervisors,
+        'start': start,
+        'end': end,
+        'server_id': server_id,
+        'supervisor_id': supervisor_id,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════
 #  SHIFTS
 # ═══════════════════════════════════════════════════════════════════════
 

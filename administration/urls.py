@@ -41,6 +41,7 @@ urlpatterns = [
 
     # Orders
     path('orders/', views.order_list_admin, name='admin-order-list'),
+    path('voided-orders/', views.voided_order_list, name='admin-voided-orders'),
 
     # Shifts
     path('shifts/', views.shift_list_admin, name='admin-shift-list'),
