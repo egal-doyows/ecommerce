@@ -3,17 +3,14 @@ Tiny per-card aggregator icons rendered at the bottom of each menu item.
 Always rendered; falls back to '#' when a URL is not set, so the manager
 can see and place the icons before pasting the real URLs.
 
-Uber Eats uses an inline SVG fallback (no logo file uploaded yet);
-Glovo and Bolt use the official PNGs in static/media/images/.
+All three icons use uploaded brand logos from public_site/static/img/.
 {% endcomment %}
 {% load static %}
 <div class="ps-item-order-icons" aria-label="Order on delivery apps">
     <a href="{{ settings.ubereats_url|default:'#' }}" rel="noopener" target="_blank"
-       class="ps-item-icon ps-item-icon-ubereats"
+       class="ps-item-icon ps-item-icon-img"
        title="Order on Uber Eats" aria-label="Order on Uber Eats">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M8.1 13.34l2.83-2.83L3.91 3.5a4 4 0 0 0 0 5.66l4.19 4.18zm6.78-1.81c1.53.71 3.68.21 5.27-1.38 1.91-1.91 2.28-4.65.81-6.12-1.46-1.46-4.2-1.1-6.12.81-1.59 1.59-2.09 3.74-1.38 5.27L3.7 19.87l1.41 1.41L12 14.41l6.88 6.88 1.41-1.41L13.41 13l1.47-1.47z"/>
-        </svg>
+        <img src="{% static 'public_site/img/uber-eats.webp' %}" alt="Uber Eats" loading="lazy">
     </a>
     <a href="{{ settings.glovo_url|default:'#' }}" rel="noopener" target="_blank"
        class="ps-item-icon ps-item-icon-img"
