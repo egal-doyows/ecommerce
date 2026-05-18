@@ -36,4 +36,12 @@ def admin_role(request):
         from purchasing.models import PurchaseOrder
         ctx['pending_po_count'] = PurchaseOrder.objects.filter(status='pending').count()
 
+    # Shifts awaiting supervisor till count — surfaced for supervisors+up so
+    # they don't miss them. Cheap: indexed lookup with two nullable columns.
+    if ctx.get('is_manager') or ctx.get('is_supervisor') or user.is_superuser:
+        from menu.models import Shift
+        ctx['pending_close_shifts_count'] = Shift.objects.filter(
+            pending_close_at__isnull=False, ended_at__isnull=True,
+        ).count()
+
     return ctx

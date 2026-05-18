@@ -514,6 +514,9 @@
         <div class="adm-nav-label">Reports</div>
         <a href="{% url 'reports-z-report' %}" class="adm-nav-link {% active_nav 'reports-z-report' 'reports-z-report-detail' %}">
             <i class="fa-solid fa-clock-rotate-left"></i> Shift Reports
+            {% if pending_close_shifts_count %}
+            <span style="margin-left:auto;background:#f59e0b;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;">{{ pending_close_shifts_count }}</span>
+            {% endif %}
         </a>
         <a href="{% url 'ml-reorders' %}" class="adm-nav-link {% active_nav 'ml-reorders' %}">
             <i class="fa-solid fa-truck-fast"></i> Reorders

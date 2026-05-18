@@ -10,6 +10,44 @@
     </div>
 </div>
 
+{% if pending_close_shifts %}
+<div class="adm-card" style="border-left:4px solid #f59e0b;background:#fffbeb;margin-bottom:20px;padding:16px 20px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <i class="fa-solid fa-hourglass-half" style="color:#f59e0b;font-size:18px;"></i>
+        <strong style="color:#92400e;font-size:15px;">
+            {{ pending_close_shifts|length }} shift{{ pending_close_shifts|length|pluralize }} awaiting till count
+        </strong>
+    </div>
+    <div style="font-size:12px;color:#92400e;margin-bottom:10px;">
+        These servers have clocked out but no supervisor has counted the till yet. Record the count to finalise.
+    </div>
+    <table style="width:100%;font-size:13px;">
+        <thead>
+            <tr style="color:#92400e;font-size:11px;text-transform:uppercase;text-align:left;">
+                <th style="padding:6px 8px;">Shift</th>
+                <th style="padding:6px 8px;">Server</th>
+                <th style="padding:6px 8px;">Clocked out</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in pending_close_shifts %}
+            <tr style="border-top:1px solid rgba(245,158,11,.2);">
+                <td style="padding:8px;font-weight:600;">#{{ s.id }}</td>
+                <td style="padding:8px;">{{ s.waiter.username|default:"—" }}</td>
+                <td style="padding:8px;">{{ s.pending_close_at|date:"d M Y H:i" }}</td>
+                <td style="padding:8px;text-align:right;">
+                    <a href="{% url 'reports-z-report-detail' s.id %}" class="adm-btn adm-btn-sm" style="background:#f59e0b;color:#fff;">
+                        Count till
+                    </a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
 <!-- Stat cards -->
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
     <div class="adm-stat">

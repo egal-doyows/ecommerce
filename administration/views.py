@@ -94,6 +94,14 @@ def admin_dashboard(request):
         active_orders_qs = active_orders_qs.exclude(waiter__is_superuser=True)
     active_orders = active_orders_qs.count()
 
+    # Shifts whose servers have clocked out but a supervisor has not yet
+    # counted the till. These need attention NOW or the cash trail goes cold.
+    pending_close_shifts = (
+        Shift.objects.filter(pending_close_at__isnull=False, ended_at__isnull=True)
+        .select_related('waiter')
+        .order_by('pending_close_at')
+    )
+
     low_stock_items = [i for i in InventoryItem.objects.all() if i.is_low_stock]
 
     staff_count = User.objects.filter(is_superuser=False, is_active=True).count()
@@ -114,6 +122,7 @@ def admin_dashboard(request):
         'today_order_count': today_paid.count(),
         'active_orders': active_orders,
         'active_shifts': active_shifts,
+        'pending_close_shifts': pending_close_shifts,
         'low_stock_items': low_stock_items[:5],
         'low_stock_count': len(low_stock_items),
         'staff_count': staff_count,
