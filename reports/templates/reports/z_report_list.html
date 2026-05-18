@@ -37,7 +37,11 @@
                 <td>#{{ r.shift.id }}</td>
                 <td>{{ r.shift.waiter.username|default:"—" }}</td>
                 <td>{{ r.shift.started_at|date:"d M Y H:i" }}</td>
-                <td>{% if r.shift.ended_at %}{{ r.shift.ended_at|date:"d M Y H:i" }}{% else %}<span style="color:var(--adm-warning);">open</span>{% endif %}</td>
+                <td>
+                    {% if r.shift.ended_at %}{{ r.shift.ended_at|date:"d M Y H:i" }}
+                    {% elif r.shift.pending_close_at %}<span style="color:var(--adm-warning);font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> pending close</span>
+                    {% else %}<span style="color:var(--adm-warning);">open</span>{% endif %}
+                </td>
                 <td style="text-align:right;">{{ currency_symbol }} {{ r.opening|floatformat:2|intcomma }}</td>
                 <td style="text-align:right;">
                     {% if r.counted is not None %}{{ currency_symbol }} {{ r.counted|floatformat:2|intcomma }}

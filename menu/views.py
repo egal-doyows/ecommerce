@@ -463,21 +463,31 @@ def shift_clock_in(request):
 
 @login_required(login_url='waiter-login')
 def shift_clock_out(request):
-    """End the user's active shift. counted_cash is NOT collected here —
-    a supervisor records it from the z-report detail page after counting
-    the till (separation of duties)."""
+    """End the user's active shift.
+
+    Two-stage for cash-handling staff (servers/cashiers): the shift goes
+    into pending_close — is_active flips to False so no new orders can be
+    taken, but ended_at stays None. A supervisor finalises ended_at when
+    they record the till count on the z-report detail page.
+
+    One-stage for auto-shift users (managers/supervisors/owners/promoters):
+    they don't handle cash, so the shift closes immediately.
+    """
     if request.method == 'POST':
         shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
         if shift:
             unpaid = shift.orders.filter(status='active').count()
             if unpaid:
                 return redirect('shift')
-            shift.ended_at = timezone.now()
+            if _is_auto_shift_user(request.user):
+                shift.ended_at = timezone.now()
+                shift.is_active = False
+                shift.save()
+                return redirect('admin-dashboard')
+            # Cash-handling staff: pending close, awaiting supervisor count
             shift.is_active = False
+            shift.pending_close_at = timezone.now()
             shift.save()
-        # Managers/Supervisors stay logged in → admin dashboard
-        if _is_auto_shift_user(request.user):
-            return redirect('admin-dashboard')
         from django.contrib.auth import logout
         logout(request)
     return redirect('waiter-login')

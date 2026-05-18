@@ -470,6 +470,10 @@ def shift_record_count(request, shift_id):
     shift.counted_cash = counted
     shift.counted_by = request.user
     shift.counted_at = timezone.now()
+    # If the server requested clock-out but the shift hadn't been finalised
+    # yet (pending_close), the supervisor's count closes it.
+    if shift.ended_at is None:
+        shift.ended_at = timezone.now()
     shift.save()
     messages.success(request, f'Counted cash recorded for shift #{shift.id}.')
     return redirect('reports-z-report-detail', shift_id=shift_id)

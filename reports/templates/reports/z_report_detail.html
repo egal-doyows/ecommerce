@@ -61,6 +61,16 @@
     </table>
 </div>
 
+{% if shift.pending_close_at and not shift.ended_at %}
+<div class="adm-card" style="margin-bottom:16px;border-left:4px solid var(--adm-warning);background:#fffbeb;">
+    <strong style="color:#92400e;"><i class="fa-solid fa-hourglass-half"></i> Awaiting supervisor count</strong>
+    <div style="margin-top:4px;font-size:13px;color:#92400e;">
+        {{ shift.waiter.username|default:"Cashier" }} clocked out at {{ shift.pending_close_at|date:"d M Y H:i" }}.
+        Count the till and record the amount below to finalise the shift.
+    </div>
+</div>
+{% endif %}
+
 <div class="adm-card" style="margin-bottom:16px;">
     <h3 style="margin:0 0 12px;font-size:14px;">Cash drawer</h3>
     <table style="width:100%;font-size:14px;">

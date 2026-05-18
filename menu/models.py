@@ -399,6 +399,12 @@ class Shift(models.Model):
                   "(separation of duties — never the shift's own server)",
     )
     counted_at = models.DateTimeField(null=True, blank=True)
+    pending_close_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Set when the server requested clock-out and is waiting "
+                  "for a supervisor to count the till. Cleared once the "
+                  "supervisor records the count and finalizes ended_at.",
+    )
     notes = models.TextField(blank=True)
 
     class Meta:
