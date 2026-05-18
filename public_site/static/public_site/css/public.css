@@ -334,6 +334,8 @@ h1, h2, h3 {
 .ps-order-on-bolt:hover { background: #2bbd76; }
 .ps-order-on-call     { background: var(--bb-red); box-shadow: 0 4px 12px rgba(184,62,30,0.30); }
 .ps-order-on-call:hover { background: var(--bb-red-deep); }
+.ps-order-on-whatsapp { background: #25D366; box-shadow: 0 4px 12px rgba(37,211,102,0.30); }
+.ps-order-on-whatsapp:hover { background: #1ebd5a; }
 
 /* ── Per-card aggregator icons (small) ────────────────────────────── */
 .ps-item-order-icons {
@@ -372,6 +374,8 @@ h1, h2, h3 {
 }
 .ps-item-icon-call { background: var(--bb-red); color: #fff; font-size: 13px; }
 .ps-item-icon-call:hover { background: var(--bb-red-deep); color: #fff; }
+.ps-item-icon-whatsapp { background: #25D366; color: #fff; }
+.ps-item-icon-whatsapp:hover { background: #1ebd5a; color: #fff; }
 .ps-btn-outline:hover { background: var(--bb-red); color: #fff; }
 
 .ps-btn-amber {
