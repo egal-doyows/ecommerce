@@ -1,0 +1,49 @@
+{% extends 'administration/base.html' %}
+{% block title %}Insights{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Insights</h1>
+        <div class="breadcrumb-text">Operational reports from the ML models</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+    <a href="{% url 'ml-reorders' %}" class="adm-card" style="text-decoration:none;color:inherit;padding:20px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:38px;height:38px;border-radius:10px;background:rgba(245,158,11,.12);color:#b45309;display:inline-flex;align-items:center;justify-content:center;font-size:18px;">
+                <i class="fa-solid fa-truck-fast"></i>
+            </span>
+            <strong style="font-size:15px;">Reorders</strong>
+        </div>
+        <div style="font-size:13px;color:var(--adm-muted);">
+            Inventory items the model predicts will run out. Confirm purchases against the suggested-by dates.
+        </div>
+    </a>
+
+    <a href="{% url 'ml-prep-list' %}" class="adm-card" style="text-decoration:none;color:inherit;padding:20px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,.12);color:#047857;display:inline-flex;align-items:center;justify-content:center;font-size:18px;">
+                <i class="fa-solid fa-list-check"></i>
+            </span>
+            <strong style="font-size:15px;">Prep List</strong>
+        </div>
+        <div style="font-size:13px;color:var(--adm-muted);">
+            Tomorrow's expected demand per item — use it to size kitchen prep and avoid 86s.
+        </div>
+    </a>
+
+    <a href="{% url 'ml-upsell' %}" class="adm-card" style="text-decoration:none;color:inherit;padding:20px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:38px;height:38px;border-radius:10px;background:rgba(124,131,255,.12);color:#4338ca;display:inline-flex;align-items:center;justify-content:center;font-size:18px;">
+                <i class="fa-solid fa-arrow-trend-up"></i>
+            </span>
+            <strong style="font-size:15px;">Upsell Pairs</strong>
+        </div>
+        <div style="font-size:13px;color:var(--adm-muted);">
+            Item pairs that sell well together. Suggest the matching item when a guest orders the first.
+        </div>
+    </a>
+</div>
+{% endblock %}

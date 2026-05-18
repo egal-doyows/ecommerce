@@ -43,6 +43,16 @@ def ml_index(request):
     return render(request, 'ml/index.html', {'statuses': statuses})
 
 
+@supervisor_or_manager_required
+def insights_for_supervisors(request):
+    """Landing page hub for the three ML reports supervisors can access.
+
+    Keeps the supervisor sidebar tidy — one 'Insights' entry that fans
+    out into Reorders, Prep List, and Upsell Pairs. Managers see the
+    full /ml/ dashboard via the separate ml-index route."""
+    return render(request, 'ml/supervisor_insights.html')
+
+
 # ── Prep List (from DemandForecast) ──────────────────────────────────────
 
 @supervisor_or_manager_required
