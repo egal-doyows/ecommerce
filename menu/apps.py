@@ -13,12 +13,24 @@ class MenuConfig(AppConfig):
         # an immutable LogEntry (action, actor, old/new values, timestamp,
         # IP) via the auditlog middleware, surfaced on /reports/audit-trail/.
         from auditlog.registry import auditlog
-        from .models import Shift
+        from .models import Shift, Order
         auditlog.register(
             Shift,
             include_fields=[
                 'counted_cash', 'counted_by', 'counted_at',
                 'pending_close_at', 'ended_at', 'is_active',
                 'starting_cash',
+            ],
+        )
+        # Audit loss-prevention fields on Order. Scoped to status changes
+        # (void / cancel / paid) and the void/comp/discount attribution
+        # fields — line-item edits stay out so the log doesn't balloon.
+        auditlog.register(
+            Order,
+            include_fields=[
+                'status',
+                'authorized_by', 'authorization_reason', 'voided_at',
+                'is_comp', 'discount_amount',
+                'payment_method',
             ],
         )
