@@ -564,20 +564,20 @@
         </a>
     </div>
 
+    {% if is_manager %}
     <div class="adm-nav-group">
         <div class="adm-nav-label">People</div>
         <a href="{% url 'admin-staff-list' %}" class="adm-nav-link {% active_nav 'admin-staff-list' %}">
             <i class="fa-solid fa-users"></i> Staff
         </a>
-        {% if is_manager %}
         <a href="{% url 'compensation-overview' %}" class="adm-nav-link">
             <i class="fa-solid fa-coins"></i> Compensation
         </a>
         <a href="{% url 'hr-dashboard' %}" class="adm-nav-link {% active_nav 'hr-dashboard' 'hr-employee-list' 'hr-employee-detail' 'hr-employee-create' 'hr-employee-edit' 'hr-department-list' 'hr-position-list' 'hr-leave-list' 'hr-leave-detail' 'hr-leave-request' 'hr-leave-type-list' %}">
             <i class="fa-solid fa-id-card-clip"></i> HR
         </a>
-        {% endif %}
     </div>
+    {% endif %}
 
     {% if is_manager %}
     <div class="adm-nav-group">
