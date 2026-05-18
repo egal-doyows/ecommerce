@@ -391,15 +391,20 @@ def z_report_list(request):
     if not _is_manager(request.user):
         shifts = [s for s in shifts if s.waiter_id == request.user.id]
 
-    payment_methods = list(Order.PAYMENT_CHOICES)  # [(key, label), ...]
+    # Keep Cash / M-Pesa / Card as their own columns (the bulk of in-house
+    # tender). Everything else (Credit, Uber Eats, Glovo, Bolt, Jumia) is
+    # rolled into 'Other' so the list fits on a single screen — the detail
+    # page still shows the full per-method breakdown.
+    PRIMARY_METHODS = ('cash', 'mpesa', 'card')
     rows = []
     for s in shifts:
         paid = [o for o in s.orders.all() if o.status == 'paid']
         gross = sum((o.get_total() for o in paid), Decimal('0'))
-        pm_totals = {pm: Decimal('0') for pm, _ in payment_methods}
+        pm_totals = {'cash': Decimal('0'), 'mpesa': Decimal('0'),
+                     'card': Decimal('0'), 'other': Decimal('0')}
         for o in paid:
-            if o.payment_method in pm_totals:
-                pm_totals[o.payment_method] += o.get_total()
+            key = o.payment_method if o.payment_method in PRIMARY_METHODS else 'other'
+            pm_totals[key] += o.get_total()
         cash_refunds = sum(
             (o.get_total() for o in s.orders.all()
              if o.status == 'cancelled' and o.payment_method == 'cash'),
@@ -410,18 +415,17 @@ def z_report_list(request):
         rows.append({
             'shift': s,
             'gross': gross,
-            'txn_count': len(paid),
-            'opening': s.starting_cash or Decimal('0'),
-            'counted': s.counted_cash,
-            'expected': expected,
             'variance': variance,
-            'pm_amounts': [pm_totals[pm] for pm, _ in payment_methods],
+            # Order matches the four payment-method columns in the template.
+            'pm_amounts': [
+                pm_totals['cash'],
+                pm_totals['mpesa'],
+                pm_totals['card'],
+                pm_totals['other'],
+            ],
         })
 
-    return render(request, 'reports/z_report_list.html', {
-        'rows': rows,
-        'payment_methods': payment_methods,
-    })
+    return render(request, 'reports/z_report_list.html', {'rows': rows})
 
 
 def _classify_order(order):

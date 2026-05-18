@@ -12,22 +12,19 @@
     <p>No shifts to report on.</p>
 </div>
 {% else %}
-<div class="adm-card" style="overflow-x:auto;">
-    <table class="adm-table" style="width:100%;min-width:1100px;">
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
         <thead>
             <tr>
                 <th>Shift</th>
                 <th>Cashier</th>
-                <th>Opened</th>
-                <th>Closed</th>
-                <th style="text-align:right;">Opening</th>
-                <th style="text-align:right;">Closing</th>
+                <th>Date</th>
                 <th style="text-align:right;">Variance</th>
-                <th style="text-align:right;">Txns</th>
                 <th style="text-align:right;">Gross</th>
-                {% for pm_key, pm_label in payment_methods %}
-                <th style="text-align:right;font-size:11px;">{{ pm_label }}</th>
-                {% endfor %}
+                <th style="text-align:right;font-size:11px;">Cash</th>
+                <th style="text-align:right;font-size:11px;">M-Pesa</th>
+                <th style="text-align:right;font-size:11px;">Card</th>
+                <th style="text-align:right;font-size:11px;" title="Credit, Uber Eats, Glovo, Bolt, Jumia">Other</th>
                 <th></th>
             </tr>
         </thead>
@@ -36,29 +33,25 @@
             <tr>
                 <td>#{{ r.shift.id }}</td>
                 <td>{{ r.shift.waiter.username|default:"—" }}</td>
-                <td>{{ r.shift.started_at|date:"d M Y H:i" }}</td>
                 <td>
-                    {% if r.shift.ended_at %}{{ r.shift.ended_at|date:"d M Y H:i" }}
-                    {% elif r.shift.pending_close_at %}<span style="color:var(--adm-warning);font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> pending close</span>
-                    {% else %}<span style="color:var(--adm-warning);">open</span>{% endif %}
-                </td>
-                <td style="text-align:right;">{{ currency_symbol }} {{ r.opening|floatformat:2|intcomma }}</td>
-                <td style="text-align:right;">
-                    {% if r.counted is not None %}{{ currency_symbol }} {{ r.counted|floatformat:2|intcomma }}
-                    {% else %}<span style="color:var(--adm-muted);font-size:11px;">not counted</span>{% endif %}
+                    {{ r.shift.started_at|date:"d M H:i" }}
+                    {% if not r.shift.ended_at and r.shift.pending_close_at %}
+                        <span style="display:block;font-size:11px;color:var(--adm-warning);font-weight:600;"><i class="fa-solid fa-hourglass-half"></i> pending close</span>
+                    {% elif not r.shift.ended_at %}
+                        <span style="display:block;font-size:11px;color:var(--adm-warning);">open</span>
+                    {% endif %}
                 </td>
                 <td style="text-align:right;font-weight:600;">
-                    {% if r.variance is None %}—
+                    {% if r.variance is None %}<span style="color:var(--adm-muted);font-size:11px;">not counted</span>
                     {% elif r.variance == 0 %}<span style="color:var(--adm-success);">{{ currency_symbol }} 0.00</span>
                     {% elif r.variance > 0 %}<span style="color:var(--adm-warning);">+{{ currency_symbol }} {{ r.variance|floatformat:2|intcomma }}</span>
                     {% else %}<span style="color:var(--adm-danger);">{{ currency_symbol }} {{ r.variance|floatformat:2|intcomma }}</span>
                     {% endif %}
                 </td>
-                <td style="text-align:right;">{{ r.txn_count }}</td>
                 <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ r.gross|floatformat:2|intcomma }}</td>
                 {% for amount in r.pm_amounts %}
                 <td style="text-align:right;font-size:12px;">
-                    {% if amount > 0 %}{{ currency_symbol }} {{ amount|floatformat:2|intcomma }}
+                    {% if amount > 0 %}{{ currency_symbol }} {{ amount|floatformat:0|intcomma }}
                     {% else %}<span style="color:var(--adm-muted);">—</span>{% endif %}
                 </td>
                 {% endfor %}
@@ -68,6 +61,6 @@
         </tbody>
     </table>
 </div>
-<p style="margin-top:12px;font-size:12px;color:var(--adm-muted);">Click <strong>View</strong> for the full breakdown: top items, voids, discounts, and cash drawer reconciliation.</p>
+<p style="margin-top:12px;font-size:12px;color:var(--adm-muted);">Click <strong>View</strong> for the full breakdown — opening float, counted cash, every payment method, top items, voids, discounts.</p>
 {% endif %}
 {% endblock %}
