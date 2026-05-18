@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path('', views.home, name='public-home'),
     path('menu/', views.menu, name='public-menu'),
+    path('menu/<slug:slug>/', views.item_detail, name='public-item-detail'),
     path('contact/', views.contact, name='public-contact'),
     path('site.webmanifest', views.webmanifest, name='public-webmanifest'),
     path('robots.txt', views.robots_txt, name='public-robots-txt'),

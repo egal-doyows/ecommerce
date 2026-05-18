@@ -40,8 +40,8 @@ Optional context:
     </a>
     {% endif %}
     {% if settings.whatsapp_number %}
-    {% url 'public-menu' as menu_url %}
-    {% with item_link=request.scheme|add:'://'|add:request.get_host|add:menu_url|add:'#item-'|add:item.slug %}
+    {% if item %}{% url 'public-item-detail' item.slug as item_path %}{% endif %}
+    {% with item_link=request.scheme|add:'://'|add:request.get_host|add:item_path %}
     <a href="https://wa.me/{{ settings.whatsapp_number|cut:' '|cut:'+'|cut:'-' }}{% if item %}?text=Hi%21%20I%27d%20like%20to%20order%3A%20{{ item.title|urlencode }}%0A{{ item_link|urlencode }}{% endif %}"
        rel="noopener" target="_blank"
        class="ps-item-icon ps-item-icon-whatsapp"

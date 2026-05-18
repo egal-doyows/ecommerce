@@ -23,17 +23,17 @@
     <meta property="og:title" content="{% block og_title %}{{ settings.name|default:'Bean & Bite' }} — Coffee, food & a place to belong{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ settings.tagline|default:'Fresh-brewed coffee, hearty meals, and warm hospitality.' }}{% endblock %}">
     <meta property="og:url" content="{{ request.build_absolute_uri }}">
-    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="{{ settings.name|default:'Bean & Bite' }} logo">
+    <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}{% endblock %}">
+    <meta property="og:image:width" content="{% block og_image_width %}1200{% endblock %}">
+    <meta property="og:image:height" content="{% block og_image_height %}630{% endblock %}">
+    <meta property="og:image:alt" content="{% block og_image_alt %}{{ settings.name|default:'Bean & Bite' }} logo{% endblock %}">
     <meta property="og:locale" content="en_KE">
 
     {# ─────  Twitter / X Card (mirrors og_*; override both if customizing per-page)  ───── #}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}{{ settings.name|default:'Bean & Bite' }} — Coffee, food & a place to belong{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ settings.tagline|default:'Fresh-brewed coffee, hearty meals, and warm hospitality.' }}{% endblock %}">
-    <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}{% endblock %}">
 
     {# ─────  Canonical URL  ───── #}
     {# Strips query strings so utm_* parameters don't get indexed as duplicate URLs. #}

@@ -1,0 +1,60 @@
+{% extends 'public_site/_base.html' %}
+{% load static humanize %}
+
+{% block title %}{{ item.title }} — {{ settings.name|default:'Bean & Bite' }}{% endblock %}
+{% block description %}{{ item.description|default:item.title|truncatewords:30 }}{% endblock %}
+
+{% block og_type %}product{% endblock %}
+{% block og_title %}{{ item.title }} — {{ settings.name|default:'Bean & Bite' }}{% endblock %}
+{% block og_description %}{{ item.description|default:item.title|truncatewords:30 }}{% endblock %}
+{% block og_image %}{% if item.image %}{{ request.scheme }}://{{ request.get_host }}{{ item.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}{% endif %}{% endblock %}
+{% block og_image_width %}{% if item.image %}1080{% else %}1200{% endif %}{% endblock %}
+{% block og_image_height %}{% if item.image %}1080{% else %}630{% endif %}{% endblock %}
+{% block og_image_alt %}{{ item.title }}{% endblock %}
+
+{% block twitter_title %}{{ item.title }} — {{ settings.name|default:'Bean & Bite' }}{% endblock %}
+{% block twitter_description %}{{ item.description|default:item.title|truncatewords:30 }}{% endblock %}
+{% block twitter_image %}{% if item.image %}{{ request.scheme }}://{{ request.get_host }}{{ item.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'public_site/img/og-image.png' %}{% endif %}{% endblock %}
+
+{% block content %}
+<section class="ps-section">
+    <div class="ps-container">
+        <nav class="ps-breadcrumb" aria-label="Breadcrumb">
+            <a href="{% url 'public-home' %}">Home</a>
+            <span class="ps-breadcrumb-sep" aria-hidden="true">›</span>
+            <a href="{% url 'public-menu' %}">Menu</a>
+            <span class="ps-breadcrumb-sep" aria-hidden="true">›</span>
+            <span aria-current="page">{{ item.title }}</span>
+        </nav>
+
+        <article class="ps-item-detail">
+            {% if item.image %}
+                <img src="{{ item.image.url }}" alt="{{ item.title }}"
+                     class="ps-item-detail-img" loading="eager" decoding="async">
+            {% else %}
+                <div class="ps-item-detail-img ps-item-detail-noimg" aria-hidden="true">
+                    {{ item.title|slice:":1"|upper }}
+                </div>
+            {% endif %}
+            <div class="ps-item-detail-body">
+                <p class="ps-item-detail-cat">{{ item.category.name }}</p>
+                <h1 class="ps-item-detail-title">{{ item.title }}</h1>
+                <p class="ps-price ps-price-lg">
+                    {{ settings.currency|default:"KES" }}
+                    {{ item.price|floatformat:2|intcomma }}
+                </p>
+                {% if item.description %}
+                    <div class="ps-item-detail-desc">{{ item.description|linebreaks }}</div>
+                {% endif %}
+
+                {% include 'public_site/_order_buttons.html' with heading="Order this dish" %}
+                {% include 'public_site/_order_icons.html' with item=item %}
+
+                <p class="ps-item-detail-back">
+                    <a href="{% url 'public-menu' %}">← Back to menu</a>
+                </p>
+            </div>
+        </article>
+    </div>
+</section>
+{% endblock %}

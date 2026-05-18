@@ -1,6 +1,6 @@
 from django.db.models import Prefetch
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.templatetags.static import static
 from django.views.decorators.cache import cache_control
 
@@ -73,6 +73,18 @@ def robots_txt(request):
         f'Sitemap: {host}/sitemap.xml\n'
     )
     return HttpResponse(body, content_type='text/plain; charset=utf-8')
+
+
+@cache_control(public=True, max_age=PUBLIC_CACHE_SECONDS)
+def item_detail(request, slug):
+    item = get_object_or_404(
+        MenuItem.objects.select_related('category'),
+        slug=slug, is_available=True,
+    )
+    return render(request, 'public_site/item_detail.html', {
+        'settings': _settings(),
+        'item': item,
+    })
 
 
 @cache_control(public=True, max_age=PUBLIC_CACHE_SECONDS)
