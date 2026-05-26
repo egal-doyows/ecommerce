@@ -517,8 +517,8 @@ def credit_order_settle(request, order_id):
         return redirect('order-list')
 
     payment_method = request.POST.get('payment_method', '')
-    if payment_method not in ('cash', 'mpesa'):
-        messages.error(request, 'Choose cash or M-Pesa.')
+    if payment_method not in ('cash', 'mpesa', 'card'):
+        messages.error(request, 'Choose cash, M-Pesa, or card.')
         return redirect('order-list')
 
     mpesa_code = ''
