@@ -1,3 +1,4 @@
+import logging
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -7,6 +8,8 @@ from django.db import transaction
 
 from .models import Debtor, DebtorTransaction, DebtorPaymentAllocation
 from .forms import DebtorForm, DebtorTransactionForm
+
+audit_logger = logging.getLogger('audit')
 
 
 def _is_manager(user):
@@ -80,7 +83,17 @@ def debtor_create(request):
     if request.method == 'POST':
         form = DebtorForm(request.POST)
         if form.is_valid():
-            form.save()
+            debtor = form.save(commit=False)
+            debtor.created_by = request.user
+            debtor.save()
+            role = (
+                'superuser' if request.user.is_superuser
+                else ','.join(request.user.groups.values_list('name', flat=True)) or 'no-group'
+            )
+            audit_logger.info(
+                "Debtor created: id=%d name='%s' by=%s (%s)",
+                debtor.id, debtor.name, request.user.username, role,
+            )
             messages.success(request, 'Debtor created.')
             return redirect('debtor-list')
     else:

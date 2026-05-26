@@ -14,6 +14,10 @@ class Debtor(models.Model):
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_debtors',
+    )
 
     class Meta:
         ordering = ['name']

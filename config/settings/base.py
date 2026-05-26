@@ -288,6 +288,11 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'audit': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
