@@ -19,7 +19,7 @@ class RestaurantSettingsAdmin(ModelAdmin):
             ),
             'fields': (
                 'phone', 'whatsapp_number', 'email', 'website', 'address',
-                'map_embed_url', 'directions_url',
+                'tax_number', 'map_embed_url', 'directions_url',
             ),
         }),
         ('Social', {

@@ -48,6 +48,10 @@ class RestaurantSettings(models.Model):
         blank=True,
         help_text='Street address. Use line breaks for multi-line.',
     )
+    tax_number = models.CharField(
+        max_length=50, blank=True,
+        help_text='Tax / VAT / PIN number printed on customer receipts (e.g. KRA PIN).',
+    )
     map_embed_url = models.URLField(
         max_length=500, blank=True,
         help_text=(

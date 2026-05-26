@@ -628,7 +628,9 @@
     </div>
     <div class="receipt-center receipt-brand">{{ restaurant.name }}</div>
     {% if restaurant.tagline %}<div class="receipt-center receipt-tagline">{{ restaurant.tagline }}</div>{% endif %}
+    {% if restaurant.address %}<div class="receipt-center receipt-sm" style="white-space:pre-line;">{{ restaurant.address }}</div>{% endif %}
     {% if restaurant.phone %}<div class="receipt-center receipt-sm">Tel: {{ restaurant.phone }}</div>{% endif %}
+    {% if restaurant.tax_number %}<div class="receipt-center receipt-sm">PIN: {{ restaurant.tax_number }}</div>{% endif %}
     <hr class="receipt-divider">
 
     <div class="receipt-row">
