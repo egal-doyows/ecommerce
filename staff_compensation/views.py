@@ -300,5 +300,8 @@ def my_earnings(request):
             context['daily_breakdown'] = compensation.get_daily_breakdown(start, end)
 
     context['payment_history'] = PaymentRecord.objects.filter(staff=request.user).order_by('-period_end')
+    context['has_hr_profile'] = (
+        hasattr(request.user, 'hr_profile') and request.user.hr_profile is not None
+    )
 
     return render(request, 'staff_compensation/my_earnings.html', context)

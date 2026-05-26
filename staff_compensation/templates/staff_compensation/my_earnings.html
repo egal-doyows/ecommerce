@@ -318,6 +318,33 @@
     </div>
     {% endif %}
 
+    {% if has_hr_profile %}
+    <!-- Self-Service -->
+    <h3 class="sc-section-title" style="margin-top:32px;"><i class="fa-solid fa-hand-holding-heart"></i> Self-Service</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <a href="{% url 'hr-my-leave-request' %}" style="display:flex;align-items:center;gap:12px;padding:16px 18px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.05);text-decoration:none;color:var(--pos-text);border-left:4px solid #0369a1;">
+            <div style="width:40px;height:40px;border-radius:10px;background:#e0f2fe;color:#0369a1;display:flex;align-items:center;justify-content:center;font-size:18px;">
+                <i class="fa-solid fa-plane-departure"></i>
+            </div>
+            <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;">Request Leave</div>
+                <div style="font-size:12px;color:var(--pos-muted);">Apply for time off</div>
+            </div>
+            <i class="fa-solid fa-arrow-right" style="color:var(--pos-muted);"></i>
+        </a>
+        <a href="{% url 'hr-my-advance-request' %}" style="display:flex;align-items:center;gap:12px;padding:16px 18px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.05);text-decoration:none;color:var(--pos-text);border-left:4px solid #92400e;">
+            <div style="width:40px;height:40px;border-radius:10px;background:#fef3c7;color:#92400e;display:flex;align-items:center;justify-content:center;font-size:18px;">
+                <i class="fa-solid fa-money-bill-wave"></i>
+            </div>
+            <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;">Request Advance</div>
+                <div style="font-size:12px;color:var(--pos-muted);">Salary advance request</div>
+            </div>
+            <i class="fa-solid fa-arrow-right" style="color:var(--pos-muted);"></i>
+        </a>
+    </div>
+    {% endif %}
+
 </div>
 
 {% endblock %}
