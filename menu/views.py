@@ -262,55 +262,92 @@ def order_edit_item(request, order_id):
 @login_required(login_url='waiter-login')
 @shift_required
 def order_list(request):
-    # Prefetch items (+menu_item) once: the template card renders item
-    # quantity/name per order and the total aggregation loops items too.
-    # Without this it's O(orders × items) DB hits per page load.
-    base_qs = (
-        Order.objects.exclude(status='cancelled')
-        .select_related('waiter', 'table')
-        .prefetch_related('items__menu_item')
-    )
-    if not (request.user.is_superuser or _is_supervisor(request.user)):
-        from django.db.models import Q
-        base_qs = base_qs.filter(Q(waiter=request.user) | Q(created_by=request.user))
-    unpaid_orders = list(base_qs.filter(status='active'))
-    paid_qs = list(base_qs.filter(status='paid').select_related('debtor'))
+    from decimal import Decimal
+    from django.core.paginator import Paginator
+    from django.db.models import Q, Sum, F, DecimalField, Value
+    from django.db.models.functions import Coalesce
 
-    # Split paid orders into "settled" and "on credit (still owed)".
-    # A credit order is one paid via payment_method='credit'; it has a linked
-    # DebtorTransaction (debit / invoice) whose `remaining` shows how much the
-    # customer still owes for THIS order.
+    base_qs = Order.objects.exclude(status='cancelled')
+    if not (request.user.is_superuser or _is_supervisor(request.user)):
+        base_qs = base_qs.filter(Q(waiter=request.user) | Q(created_by=request.user))
+
+    def _total(qs):
+        """Sum unit_price * quantity across all OrderItems in qs — DB-side."""
+        zero = Value(Decimal('0'), output_field=DecimalField(max_digits=12, decimal_places=2))
+        return qs.aggregate(
+            t=Coalesce(
+                Sum(
+                    F('items__unit_price') * F('items__quantity'),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                ),
+                zero,
+            ),
+        )['t']
+
+    unpaid_qs = base_qs.filter(status='active')
+
+    # Identify which credit orders are still unsettled (invoice.remaining > 0).
+    # Credit-paid orders that have been fully paid down move into "paid".
     from debtor.models import DebtorTransaction
-    credit_order_ids = [o.id for o in paid_qs if o.payment_method == 'credit']
+    credit_paid_ids = list(
+        base_qs.filter(status='paid', payment_method='credit').values_list('id', flat=True)
+    )
     invoices_by_order = {}
-    if credit_order_ids:
+    if credit_paid_ids:
         for inv in DebtorTransaction.objects.filter(
             transaction_type='debit',
-            reference__in=[str(i) for i in credit_order_ids],
+            reference__in=[str(i) for i in credit_paid_ids],
         ):
             try:
                 invoices_by_order[int(inv.reference)] = inv
             except (TypeError, ValueError):
                 continue
+    unsettled_ids = [oid for oid, inv in invoices_by_order.items() if inv.remaining > 0]
 
-    paid_orders = []
-    credit_orders = []
-    for o in paid_qs:
-        inv = invoices_by_order.get(o.id) if o.payment_method == 'credit' else None
-        if inv and inv.remaining > 0:
-            o.credit_remaining = inv.remaining
-            o.credit_invoice_id = inv.id
-            credit_orders.append(o)
-        else:
-            paid_orders.append(o)
+    credit_qs = base_qs.filter(id__in=unsettled_ids)
+    paid_qs = base_qs.filter(status='paid').exclude(id__in=unsettled_ids)
 
-    total_unpaid = sum(o.get_total() for o in unpaid_orders)
-    total_paid = sum(o.get_total() for o in paid_orders)
-    total_credit = sum(o.credit_remaining for o in credit_orders)
+    counts = {
+        'unpaid': unpaid_qs.count(),
+        'paid': paid_qs.count(),
+        'credit': len(unsettled_ids),
+    }
+    total_unpaid = _total(unpaid_qs)
+    total_paid = _total(paid_qs)
+    total_credit = sum(
+        (invoices_by_order[oid].remaining for oid in unsettled_ids),
+        Decimal('0'),
+    )
+
+    show = request.GET.get('show', 'unpaid')
+    if show not in ('unpaid', 'paid', 'credit'):
+        show = 'unpaid'
+
+    if show == 'unpaid':
+        active_qs = unpaid_qs
+    elif show == 'paid':
+        active_qs = paid_qs
+    else:
+        active_qs = credit_qs
+
+    active_qs = (
+        active_qs
+        .select_related('waiter', 'table', 'debtor')
+        .prefetch_related('items__menu_item')
+    )
+
+    paginator = Paginator(active_qs, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    if show == 'credit':
+        for o in page_obj.object_list:
+            inv = invoices_by_order.get(o.id)
+            o.credit_remaining = inv.remaining if inv else Decimal('0')
+
     context = {
-        'unpaid_orders': unpaid_orders,
-        'paid_orders': paid_orders,
-        'credit_orders': credit_orders,
+        'show': show,
+        'page_obj': page_obj,
+        'counts': counts,
         'total_unpaid': total_unpaid,
         'total_paid': total_paid,
         'total_credit': total_credit,

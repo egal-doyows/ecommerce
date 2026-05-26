@@ -226,6 +226,78 @@
         text-overflow: ellipsis;
         max-width: 400px;
     }
+
+    /* Tab strip */
+    .ol-tabs {
+        display: flex;
+        gap: 6px;
+        background: #fff;
+        padding: 4px;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        margin-bottom: 14px;
+        overflow-x: auto;
+    }
+    .ol-tab {
+        flex: 1;
+        text-align: center;
+        padding: 9px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--pos-muted);
+        text-decoration: none;
+        border-radius: 7px;
+        white-space: nowrap;
+        transition: background 0.15s, color 0.15s;
+    }
+    .ol-tab:hover { background: var(--pos-light); color: var(--pos-text); }
+    .ol-tab.active {
+        background: var(--pos-accent, #B83E1E);
+        color: #fff;
+    }
+    .ol-tab .ol-tab-count {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 8px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.25);
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .ol-tab:not(.active) .ol-tab-count {
+        background: var(--pos-light);
+        color: var(--pos-muted);
+    }
+
+    /* Pagination */
+    .ol-pager {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+    }
+    .ol-pager a, .ol-pager span {
+        padding: 6px 12px;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        background: #fff;
+        color: var(--pos-text);
+        border: 1px solid #e5e7eb;
+    }
+    .ol-pager a:hover { background: var(--pos-light); }
+    .ol-pager .current {
+        background: var(--pos-accent, #B83E1E);
+        color: #fff;
+        border-color: var(--pos-accent, #B83E1E);
+    }
+    .ol-pager .disabled {
+        color: #cbd5e0;
+        background: #f8fafc;
+    }
 </style>
 
 <div class="ol-page">
@@ -239,130 +311,142 @@
         <div class="ol-summary-card ol-summary-unpaid">
             <div class="ol-summary-label">Unpaid</div>
             <div class="ol-summary-value">{{ restaurant.currency_symbol }}{{ total_unpaid|floatformat:2|intcomma }}</div>
-            <div class="ol-summary-count">{{ unpaid_orders|length }} order{{ unpaid_orders|length|pluralize }}</div>
+            <div class="ol-summary-count">{{ counts.unpaid }} order{{ counts.unpaid|pluralize }}</div>
         </div>
         <div class="ol-summary-card ol-summary-paid">
             <div class="ol-summary-label">Paid</div>
             <div class="ol-summary-value">{{ restaurant.currency_symbol }}{{ total_paid|floatformat:2|intcomma }}</div>
-            <div class="ol-summary-count">{{ paid_orders|length }} order{{ paid_orders|length|pluralize }}</div>
+            <div class="ol-summary-count">{{ counts.paid }} order{{ counts.paid|pluralize }}</div>
         </div>
         <div class="ol-summary-card ol-summary-credit">
             <div class="ol-summary-label">On Credit</div>
             <div class="ol-summary-value">{{ restaurant.currency_symbol }}{{ total_credit|floatformat:2|intcomma }}</div>
-            <div class="ol-summary-count">{{ credit_orders|length }} order{{ credit_orders|length|pluralize }}</div>
+            <div class="ol-summary-count">{{ counts.credit }} order{{ counts.credit|pluralize }}</div>
         </div>
     </div>
 
-    <!-- Unpaid Orders -->
-    <div class="ol-section">
-        <span class="ol-section-dot ol-dot-unpaid"></span>
-        <h3 class="ol-section-title">Unpaid Orders</h3>
-        <span class="ol-section-count">{{ unpaid_orders|length }}</span>
+    <!-- Tabs -->
+    <div class="ol-tabs">
+        <a href="?show=unpaid" class="ol-tab {% if show == 'unpaid' %}active{% endif %}">
+            Unpaid <span class="ol-tab-count">{{ counts.unpaid }}</span>
+        </a>
+        <a href="?show=paid" class="ol-tab {% if show == 'paid' %}active{% endif %}">
+            Paid <span class="ol-tab-count">{{ counts.paid }}</span>
+        </a>
+        <a href="?show=credit" class="ol-tab {% if show == 'credit' %}active{% endif %}">
+            On Credit <span class="ol-tab-count">{{ counts.credit }}</span>
+        </a>
     </div>
 
-    {% for order in unpaid_orders %}
-    <a href="{% url 'order-detail' order.id %}" class="ol-card ol-card-active">
-        <div class="ol-card-body">
-            <div class="ol-card-id">#{{ order.id }}</div>
-            <div class="ol-card-info">
-                <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{% if order.order_type == 'dine_in' %}{{ order.table|default:"—" }}{% else %}{{ order.get_order_type_display }}{% if order.source != 'pos' %} <span style="font-size:11px; color:var(--pos-muted); font-weight:500;">&middot; {{ order.get_source_display }}</span>{% endif %}{% endif %}</div>
-                <div class="ol-card-info-row">
-                    <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
-                    <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
-                    <span>{{ order.get_item_count }} items</span>
-                </div>
-                <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if item.variant %} ({{ item.variant.name }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
-            </div>
-            <span class="status-badge status-active">Unpaid</span>
-            <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
-        </div>
-    </a>
-    {% empty %}
-    <div class="ol-empty">
-        <i class="fa fa-check-circle"></i>
-        <p>No unpaid orders</p>
-    </div>
-    {% endfor %}
-
-    <!-- On Credit -->
-    <div class="ol-section">
-        <span class="ol-section-dot ol-dot-credit"></span>
-        <h3 class="ol-section-title">On Credit</h3>
-        <span class="ol-section-count">{{ credit_orders|length }}</span>
-    </div>
-
-    {% for order in credit_orders %}
-    <div class="ol-card ol-card-credit">
-        <div class="ol-card-body">
-            <a href="{% url 'order-detail' order.id %}" style="display:flex;flex:1;gap:16px;align-items:center;text-decoration:none;color:inherit;">
+    {% if show == 'unpaid' %}
+        {% for order in page_obj %}
+        <a href="{% url 'order-detail' order.id %}" class="ol-card ol-card-active">
+            <div class="ol-card-body">
                 <div class="ol-card-id">#{{ order.id }}</div>
                 <div class="ol-card-info">
-                    <div style="font-size:14px; font-weight:600; margin-bottom:4px;">
-                        {{ order.debtor.name }}
-                        {% if order.order_type == 'dine_in' and order.table %}
-                            <span style="font-size:11px;color:var(--pos-muted);font-weight:500;">&middot; {{ order.table }}</span>
-                        {% endif %}
-                    </div>
+                    <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{% if order.order_type == 'dine_in' %}{{ order.table|default:"—" }}{% else %}{{ order.get_order_type_display }}{% if order.source != 'pos' %} <span style="font-size:11px; color:var(--pos-muted); font-weight:500;">&middot; {{ order.get_source_display }}</span>{% endif %}{% endif %}</div>
                     <div class="ol-card-info-row">
                         <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
-                        <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"d/m H:i" }}</span>
+                        <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
                         <span>{{ order.get_item_count }} items</span>
                     </div>
+                    <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
                 </div>
-            </a>
-            <div class="ol-card-total" style="color:#B83E1E;">{{ restaurant.currency_symbol }}{{ order.credit_remaining|floatformat:2|intcomma }}</div>
-            <button type="button" class="ol-settle-toggle" data-target="settle-{{ order.id }}">
-                <i class="fa fa-check"></i> Mark Paid
-            </button>
-        </div>
-        <form method="post" action="{% url 'order-settle-credit' order.id %}" class="ol-settle-form" id="settle-{{ order.id }}">
-            {% csrf_token %}
-            <span style="font-size:12px;font-weight:600;color:var(--pos-muted);">Payment</span>
-            <select name="payment_method" required data-settle-method>
-                <option value="cash">Cash</option>
-                <option value="mpesa">M-Pesa</option>
-            </select>
-            <input type="text" name="mpesa_code" maxlength="4" placeholder="Last 4 M-Pesa code" data-settle-mpesa style="display:none;text-transform:uppercase;width:140px;">
-            <button type="submit" class="ol-settle-btn"><i class="fa fa-check"></i> Confirm</button>
-        </form>
-    </div>
-    {% empty %}
-    <div class="ol-empty">
-        <i class="fa fa-handshake-o"></i>
-        <p>No outstanding credit orders</p>
-    </div>
-    {% endfor %}
-
-    <!-- Paid Orders -->
-    <div class="ol-section">
-        <span class="ol-section-dot ol-dot-paid"></span>
-        <h3 class="ol-section-title">Paid Orders</h3>
-        <span class="ol-section-count">{{ paid_orders|length }}</span>
-    </div>
-
-    {% for order in paid_orders %}
-    <a href="{% url 'order-detail' order.id %}" class="ol-card ol-card-paid">
-        <div class="ol-card-body">
-            <div class="ol-card-id">#{{ order.id }}</div>
-            <div class="ol-card-info">
-                <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{% if order.order_type == 'dine_in' %}{{ order.table|default:"—" }}{% else %}{{ order.get_order_type_display }}{% if order.source != 'pos' %} <span style="font-size:11px; color:var(--pos-muted); font-weight:500;">&middot; {{ order.get_source_display }}</span>{% endif %}{% endif %}</div>
-                <div class="ol-card-info-row">
-                    <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
-                    <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
-                    <span>{{ order.get_item_count }} items</span>
-                </div>
-                <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if item.variant %} ({{ item.variant.name }}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                <span class="status-badge status-active">Unpaid</span>
+                <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
             </div>
-            <span class="status-badge status-paid">Paid</span>
-            <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
+        </a>
+        {% empty %}
+        <div class="ol-empty">
+            <i class="fa fa-check-circle"></i>
+            <p>No unpaid orders</p>
         </div>
-    </a>
-    {% empty %}
-    <div class="ol-empty">
-        <i class="fa fa-receipt"></i>
-        <p>No paid orders yet</p>
+        {% endfor %}
+
+    {% elif show == 'credit' %}
+        {% for order in page_obj %}
+        <div class="ol-card ol-card-credit">
+            <div class="ol-card-body">
+                <a href="{% url 'order-detail' order.id %}" style="display:flex;flex:1;gap:16px;align-items:center;text-decoration:none;color:inherit;">
+                    <div class="ol-card-id">#{{ order.id }}</div>
+                    <div class="ol-card-info">
+                        <div style="font-size:14px; font-weight:600; margin-bottom:4px;">
+                            {{ order.debtor.name }}
+                            {% if order.order_type == 'dine_in' and order.table %}
+                                <span style="font-size:11px;color:var(--pos-muted);font-weight:500;">&middot; {{ order.table }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="ol-card-info-row">
+                            <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
+                            <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"d/m H:i" }}</span>
+                            <span>{{ order.get_item_count }} items</span>
+                        </div>
+                    </div>
+                </a>
+                <div class="ol-card-total" style="color:#B83E1E;">{{ restaurant.currency_symbol }}{{ order.credit_remaining|floatformat:2|intcomma }}</div>
+                <button type="button" class="ol-settle-toggle" data-target="settle-{{ order.id }}">
+                    <i class="fa fa-check"></i> Mark Paid
+                </button>
+            </div>
+            <form method="post" action="{% url 'order-settle-credit' order.id %}" class="ol-settle-form" id="settle-{{ order.id }}">
+                {% csrf_token %}
+                <span style="font-size:12px;font-weight:600;color:var(--pos-muted);">Payment</span>
+                <select name="payment_method" required data-settle-method>
+                    <option value="cash">Cash</option>
+                    <option value="mpesa">M-Pesa</option>
+                </select>
+                <input type="text" name="mpesa_code" maxlength="4" placeholder="Last 4 M-Pesa code" data-settle-mpesa style="display:none;text-transform:uppercase;width:140px;">
+                <button type="submit" class="ol-settle-btn"><i class="fa fa-check"></i> Confirm</button>
+            </form>
+        </div>
+        {% empty %}
+        <div class="ol-empty">
+            <i class="fa fa-handshake-o"></i>
+            <p>No outstanding credit orders</p>
+        </div>
+        {% endfor %}
+
+    {% else %}
+        {% for order in page_obj %}
+        <a href="{% url 'order-detail' order.id %}" class="ol-card ol-card-paid">
+            <div class="ol-card-body">
+                <div class="ol-card-id">#{{ order.id }}</div>
+                <div class="ol-card-info">
+                    <div style="font-size:14px; font-weight:600; margin-bottom:4px;">{% if order.order_type == 'dine_in' %}{{ order.table|default:"—" }}{% else %}{{ order.get_order_type_display }}{% if order.source != 'pos' %} <span style="font-size:11px; color:var(--pos-muted); font-weight:500;">&middot; {{ order.get_source_display }}</span>{% endif %}{% endif %}</div>
+                    <div class="ol-card-info-row">
+                        <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
+                        <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
+                        <span>{{ order.get_item_count }} items</span>
+                    </div>
+                    <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                </div>
+                <span class="status-badge status-paid">Paid</span>
+                <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
+            </div>
+        </a>
+        {% empty %}
+        <div class="ol-empty">
+            <i class="fa fa-receipt"></i>
+            <p>No paid orders yet</p>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="ol-pager">
+        {% if page_obj.has_previous %}
+            <a href="?show={{ show }}&page={{ page_obj.previous_page_number }}">&laquo; Prev</a>
+        {% else %}
+            <span class="disabled">&laquo; Prev</span>
+        {% endif %}
+        <span class="current">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?show={{ show }}&page={{ page_obj.next_page_number }}">Next &raquo;</a>
+        {% else %}
+            <span class="disabled">Next &raquo;</span>
+        {% endif %}
     </div>
-    {% endfor %}
+    {% endif %}
 </div>
 
 <script>
