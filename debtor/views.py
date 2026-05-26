@@ -13,10 +13,31 @@ def _is_manager(user):
     return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Manager').exists())
 
 
+def _can_manage_debtors(user):
+    """Allow superusers, Managers, and Supervisors to view & create debtors."""
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.groups.filter(name__in=['Manager', 'Supervisor']).exists()
+
+
 def manager_required(view_func):
     @login_required(login_url='my-login')
     def wrapper(request, *args, **kwargs):
         if not _is_manager(request.user):
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    wrapper.__doc__ = view_func.__doc__
+    return wrapper
+
+
+def debtor_access_required(view_func):
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        if not _can_manage_debtors(request.user):
             messages.error(request, 'You do not have permission to access this page.')
             return redirect('admin-dashboard')
         return view_func(request, *args, **kwargs)
@@ -39,7 +60,7 @@ def superuser_only(view_func):
 
 # ── Debtor list ──────────────────────────────────────────────────────
 
-@manager_required
+@debtor_access_required
 def debtor_list(request):
     show = request.GET.get('show', 'active')
     if show == 'all':
@@ -54,7 +75,7 @@ def debtor_list(request):
 
 # ── Debtor create / edit ────────────────────────────────────────────
 
-@superuser_only
+@debtor_access_required
 def debtor_create(request):
     if request.method == 'POST':
         form = DebtorForm(request.POST)
@@ -87,7 +108,7 @@ def debtor_edit(request, pk):
 
 # ── Debtor detail (account ledger) ──────────────────────────────────
 
-@manager_required
+@debtor_access_required
 def debtor_detail(request, pk):
     debtor = get_object_or_404(Debtor, pk=pk)
     transactions = debtor.transactions.all()
