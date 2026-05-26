@@ -16,7 +16,7 @@ from django.utils.text import get_valid_filename
 from menu.models import RestaurantSettings
 
 from .models import (
-    Department, Document, EmergencyContact, Employee,
+    AdvanceRequest, Department, Document, EmergencyContact, Employee,
     LeaveRequest, LeaveType, Position,
 )
 
@@ -926,4 +926,95 @@ def leave_type_edit(request, pk):
         'title': f'Edit {lt.name}',
         'action': 'Save',
         'lt': lt,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Self-service — any logged-in user with an Employee profile
+# ---------------------------------------------------------------------------
+
+@login_required(login_url='my-login')
+def my_leave_request(request):
+    emp = getattr(request.user, 'hr_profile', None)
+    if not emp:
+        messages.error(
+            request,
+            'You do not have an employee profile yet. Ask your manager to set one up.',
+        )
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        lt_pk = request.POST.get('leave_type', '')
+        start_str = request.POST.get('start_date', '')
+        end_str = request.POST.get('end_date', '')
+        try:
+            start = datetime.strptime(start_str, '%Y-%m-%d').date()
+            end = datetime.strptime(end_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            messages.error(request, 'Invalid dates.')
+            return redirect('hr-my-leave-request')
+
+        if end < start:
+            messages.error(request, 'End date cannot be before start date.')
+            return redirect('hr-my-leave-request')
+
+        lt = get_object_or_404(LeaveType, pk=lt_pk, is_active=True)
+        lr = LeaveRequest.objects.create(
+            employee=emp,
+            leave_type=lt,
+            start_date=start,
+            end_date=end,
+            reason=request.POST.get('reason', '').strip(),
+        )
+        messages.success(request, f'Leave request submitted ({lr.days} day{"s" if lr.days != 1 else ""}).')
+        return redirect('hr-my-leave-request')
+
+    my_requests = LeaveRequest.objects.filter(employee=emp).select_related('leave_type', 'reviewed_by')[:25]
+
+    return render(request, 'hr/my_leave_form.html', {
+        'employee': emp,
+        'leave_types': LeaveType.objects.filter(is_active=True),
+        'my_requests': my_requests,
+        'today': timezone.now().date().isoformat(),
+    })
+
+
+@login_required(login_url='my-login')
+def my_advance_request(request):
+    emp = getattr(request.user, 'hr_profile', None)
+    if not emp:
+        messages.error(
+            request,
+            'You do not have an employee profile yet. Ask your manager to set one up.',
+        )
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        amount_str = request.POST.get('amount', '').strip()
+        reason = request.POST.get('reason', '').strip()
+        try:
+            amount = Decimal(amount_str).quantize(Decimal('0.01'))
+        except Exception:
+            messages.error(request, 'Enter a valid amount.')
+            return redirect('hr-my-advance-request')
+        if amount <= 0:
+            messages.error(request, 'Amount must be greater than zero.')
+            return redirect('hr-my-advance-request')
+        if not reason:
+            messages.error(request, 'Please give a reason for the advance.')
+            return redirect('hr-my-advance-request')
+
+        ar = AdvanceRequest.objects.create(
+            employee=emp,
+            amount=amount,
+            reason=reason,
+        )
+        messages.success(request, f'Advance request submitted ({amount}).')
+        return redirect('hr-my-advance-request')
+
+    my_requests = AdvanceRequest.objects.filter(employee=emp).select_related('reviewed_by')[:25]
+
+    return render(request, 'hr/my_advance_form.html', {
+        'employee': emp,
+        'my_requests': my_requests,
     })

@@ -3,7 +3,7 @@ from unfold.admin import ModelAdmin, TabularInline
 
 from .models import (
     Department, Position, Employee, EmergencyContact,
-    LeaveType, LeaveRequest, Document,
+    LeaveType, LeaveRequest, AdvanceRequest, Document,
 )
 
 
@@ -39,6 +39,13 @@ class LeaveTypeAdmin(ModelAdmin):
 class LeaveRequestAdmin(ModelAdmin):
     list_display = ('employee', 'leave_type', 'start_date', 'end_date', 'status')
     list_filter = ('status', 'leave_type')
+
+
+@admin.register(AdvanceRequest)
+class AdvanceRequestAdmin(ModelAdmin):
+    list_display = ('employee', 'amount', 'status', 'created_at', 'reviewed_by')
+    list_filter = ('status',)
+    search_fields = ('employee__user__username', 'employee__user__first_name', 'employee__user__last_name')
 
 
 @admin.register(Document)

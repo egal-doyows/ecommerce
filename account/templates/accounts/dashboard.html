@@ -440,6 +440,29 @@
         {% endif %}
     </div>
 
+    {% if has_hr_profile %}
+    <!-- Self-Service -->
+    <h3 class="wp-section-title"><i class="fa-solid fa-hand-holding-heart"></i> Self-Service</h3>
+    <div class="wp-services">
+        <a href="{% url 'hr-my-leave-request' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#e0f2fe; color:#0369a1;">
+                <i class="fa-solid fa-plane-departure"></i>
+            </div>
+            <h4>Request Leave</h4>
+            <p>Apply for time off and track approval status</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        <a href="{% url 'hr-my-advance-request' %}" class="wp-service">
+            <div class="wp-service-icon" style="background:#fef3c7; color:#92400e;">
+                <i class="fa-solid fa-money-bill-wave"></i>
+            </div>
+            <h4>Request Advance</h4>
+            <p>Submit a salary advance request for approval</p>
+            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+    </div>
+    {% endif %}
+
     <!-- Account Actions -->
     <h3 class="wp-section-title"><i class="fa-solid fa-gear"></i> Account</h3>
     <div class="wp-actions">

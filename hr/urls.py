@@ -45,4 +45,8 @@ urlpatterns = [
     path('leave-types/', views.leave_type_list, name='hr-leave-type-list'),
     path('leave-types/add/', views.leave_type_create, name='hr-leave-type-create'),
     path('leave-types/<int:pk>/edit/', views.leave_type_edit, name='hr-leave-type-edit'),
+
+    # Self-service (any logged-in user with an Employee profile)
+    path('me/leave/', views.my_leave_request, name='hr-my-leave-request'),
+    path('me/advance/', views.my_advance_request, name='hr-my-advance-request'),
 ]

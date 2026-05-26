@@ -224,6 +224,7 @@ def dashboard(request):
         'active_shift': active_shift,
         'today_order_count': today_orders.count(),
         'today_sales': today_sales,
+        'has_hr_profile': hasattr(user, 'hr_profile') and user.hr_profile is not None,
     })
 
 

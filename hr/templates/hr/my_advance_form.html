@@ -1,0 +1,103 @@
+{% extends "menu/base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<style>
+    .ss-page { max-width: 720px; margin: 30px auto; padding: 0 20px; }
+    .ss-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .ss-header h2 { font-size:18px; font-weight:700; color:var(--pos-text); margin:0; }
+    .ss-back { color:var(--pos-muted); text-decoration:none; font-size:13px; font-weight:600; }
+    .ss-back:hover { color:var(--pos-text); }
+
+    .ss-card {
+        background:#fff; border-radius:12px; padding:24px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.05);
+        margin-bottom:18px;
+    }
+    .ss-card h3 {
+        font-size:14px; font-weight:700; color:var(--pos-text);
+        margin:0 0 14px; text-transform:uppercase; letter-spacing:0.5px;
+    }
+
+    .ss-field { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .ss-field label { font-size:12px; font-weight:600; color:var(--pos-muted); }
+    .ss-field input, .ss-field textarea {
+        padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px;
+        font-size:14px; background:#fff; color:var(--pos-text);
+        font-family:inherit;
+    }
+    .ss-field textarea { min-height:80px; resize:vertical; }
+
+    .ss-submit {
+        background:var(--pos-accent, #B83E1E); color:#fff; border:none;
+        padding:12px 22px; border-radius:10px; font-size:14px; font-weight:700;
+        cursor:pointer;
+    }
+    .ss-submit:hover { background:#8E2C12; }
+
+    .ss-list { list-style:none; padding:0; margin:0; }
+    .ss-list li {
+        display:flex; justify-content:space-between; align-items:center;
+        padding:12px 0; border-bottom:1px solid #f1f5f9; gap:10px;
+        font-size:13px;
+    }
+    .ss-list li:last-child { border-bottom:none; }
+    .ss-list .ss-meta { color:var(--pos-muted); font-size:11px; }
+
+    .ss-status {
+        font-size:11px; font-weight:700; padding:3px 10px; border-radius:10px;
+        text-transform:uppercase; letter-spacing:0.3px;
+    }
+    .ss-status-pending { background:#fef3c7; color:#92400e; }
+    .ss-status-approved { background:#d1fae5; color:#065f46; }
+    .ss-status-rejected { background:#fee2e2; color:#991b1b; }
+    .ss-status-cancelled { background:#e5e7eb; color:#374151; }
+
+    .ss-empty { color:var(--pos-muted); font-size:13px; text-align:center; padding:18px 0; }
+</style>
+
+<div class="ss-page">
+    <div class="ss-header">
+        <h2><i class="fa fa-money-bill-wave"></i> &nbsp; Request Salary Advance</h2>
+        <a href="{% url 'dashboard' %}" class="ss-back"><i class="fa fa-arrow-left"></i> Back to Profile</a>
+    </div>
+
+    <form method="post" class="ss-card">
+        {% csrf_token %}
+        <h3>New Request</h3>
+
+        <div class="ss-field">
+            <label>Amount ({{ restaurant.currency_symbol }})</label>
+            <input type="number" name="amount" min="1" step="0.01" placeholder="e.g. 5000" required>
+        </div>
+
+        <div class="ss-field">
+            <label>Reason</label>
+            <textarea name="reason" required placeholder="Why are you requesting this advance?"></textarea>
+        </div>
+
+        <button type="submit" class="ss-submit"><i class="fa fa-paper-plane"></i> Submit Request</button>
+    </form>
+
+    <div class="ss-card">
+        <h3>My Recent Requests</h3>
+        {% if my_requests %}
+        <ul class="ss-list">
+            {% for ar in my_requests %}
+            <li>
+                <div>
+                    <div style="font-weight:600;">{{ restaurant.currency_symbol }} {{ ar.amount|floatformat:2|intcomma }}</div>
+                    <div class="ss-meta">{{ ar.reason|truncatewords:14 }} &middot; submitted {{ ar.created_at|naturaltime }}</div>
+                </div>
+                <span class="ss-status ss-status-{{ ar.status }}">{{ ar.get_status_display }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="ss-empty">No previous requests yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
