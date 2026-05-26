@@ -1195,8 +1195,10 @@
         const summaryItems = document.getElementById('summary-items');
         if (summaryItems) summaryItems.textContent = qty;
 
-        const trayBadge = document.getElementById('cart-qty');
-        if (trayBadge) trayBadge.textContent = qty;
+        ['cart-qty', 'cart-qty-mobile', 'cart-qty-drawer'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = qty;
+        });
 
         const summaryTotal = document.getElementById('summary-total');
         if (summaryTotal) summaryTotal.textContent = formatTotal(res.total);

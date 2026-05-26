@@ -89,6 +89,12 @@
             <!-- Right Section -->
             <div class="tw-flex tw-items-center tw-gap-2">
                 {% if user.is_authenticated %}
+                <!-- Mobile hamburger (only < md) -->
+                <button type="button" id="mobileNavToggle" aria-label="Open menu" aria-expanded="false"
+                        class="md:tw-hidden tw-relative tw-inline-flex tw-items-center tw-justify-center tw-w-10 tw-h-10 tw-rounded-lg tw-text-gray-200 hover:tw-bg-white/10 tw-border-0 tw-bg-transparent tw-cursor-pointer">
+                    <i class="fa-solid fa-bars tw-text-lg"></i>
+                    <span id="cart-qty-mobile" class="tw-absolute tw--top-1 tw--right-1 tw-inline-flex tw-items-center tw-justify-center tw-min-w-[18px] tw-h-[18px] tw-px-1 tw-rounded-full tw-bg-pos-accent tw-text-white tw-text-[10px] tw-font-bold tw-leading-none">{% with qty=cart|length %}{{ qty }}{% endwith %}</span>
+                </button>
                 <div class="tw-relative" id="userDropdown">
                     <button onclick="document.getElementById('dropdownMenu').classList.toggle('tw-hidden')" class="tw-flex tw-items-center tw-gap-2.5 tw-px-2 tw-py-1.5 tw-rounded-xl hover:tw-bg-white/10 tw-transition-all tw-duration-200 tw-border-0 tw-bg-transparent tw-cursor-pointer">
                         {% if user.waiter_code.photo %}
@@ -140,6 +146,53 @@
             </div>
 
         </div>
+
+        {% if user.is_authenticated %}
+        <!-- Mobile nav drawer (only < md) -->
+        <nav id="mobileNav" class="tw-hidden md:tw-hidden tw-border-t tw-border-white/10 tw-bg-pos-dark tw-px-3 tw-py-2 tw-flex-col tw-gap-1">
+            <a href="{% url 'pos' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline {% if request.resolver_match.url_name == 'pos' %}tw-bg-pos-accent tw-text-white{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                <i class="fa-solid fa-grid-2 tw-w-4 tw-text-center"></i> Menu
+            </a>
+            <a href="{% url 'order-list' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline {% if request.resolver_match.url_name == 'order-list' %}tw-bg-pos-accent tw-text-white{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                <i class="fa-solid fa-receipt tw-w-4 tw-text-center"></i> Orders
+            </a>
+            <a href="{% url 'tables' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline {% if request.resolver_match.url_name == 'tables' %}tw-bg-pos-accent tw-text-white{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                <i class="fa-solid fa-table-cells-large tw-w-4 tw-text-center"></i> Tables
+            </a>
+            <a href="{% url 'shift' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline {% if request.resolver_match.url_name == 'shift' or request.resolver_match.url_name == 'shift-detail' %}tw-bg-pos-accent tw-text-white{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                <i class="fa-solid fa-clock-rotate-left tw-w-4 tw-text-center"></i> Shift
+            </a>
+            <a href="{% url 'cart-summary' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline {% if request.resolver_match.url_name == 'cart-summary' %}tw-bg-pos-accent tw-text-white{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                <i class="fa-solid fa-plate-wheat tw-w-4 tw-text-center"></i> Tray
+                <span id="cart-qty-drawer" class="tw-ml-auto tw-inline-flex tw-items-center tw-justify-center tw-min-w-[20px] tw-h-5 tw-px-1.5 tw-rounded-full tw-bg-pos-accent tw-text-white tw-text-[11px] tw-font-bold tw-leading-none">{% with qty=cart|length %}{{ qty }}{% endwith %}</span>
+            </a>
+            {% if is_manager or is_supervisor %}
+            <a href="{% url 'admin-dashboard' %}" class="tw-flex tw-items-center tw-gap-3 tw-px-4 tw-py-3 tw-rounded-lg tw-text-sm tw-font-medium tw-no-underline {% if request.resolver_match.url_name == 'admin-dashboard' %}tw-bg-pos-accent tw-text-white{% else %}tw-text-gray-300 hover:tw-bg-white/10 hover:tw-text-white{% endif %}">
+                <i class="fa-solid fa-shield-halved tw-w-4 tw-text-center"></i> Admin
+            </a>
+            {% endif %}
+        </nav>
+        <script>
+            (function () {
+                var btn = document.getElementById('mobileNavToggle');
+                var nav = document.getElementById('mobileNav');
+                if (!btn || !nav) return;
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var open = nav.classList.toggle('tw-hidden') === false;
+                    nav.classList.toggle('tw-flex', open);
+                    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+                document.addEventListener('click', function (e) {
+                    if (!nav.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                        nav.classList.add('tw-hidden');
+                        nav.classList.remove('tw-flex');
+                        btn.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            })();
+        </script>
+        {% endif %}
     </header>
 
     <!-- Spacer for fixed topbar -->
