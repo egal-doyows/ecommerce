@@ -274,14 +274,46 @@ def order_list(request):
         from django.db.models import Q
         base_qs = base_qs.filter(Q(waiter=request.user) | Q(created_by=request.user))
     unpaid_orders = list(base_qs.filter(status='active'))
-    paid_orders = list(base_qs.filter(status='paid'))
+    paid_qs = list(base_qs.filter(status='paid').select_related('debtor'))
+
+    # Split paid orders into "settled" and "on credit (still owed)".
+    # A credit order is one paid via payment_method='credit'; it has a linked
+    # DebtorTransaction (debit / invoice) whose `remaining` shows how much the
+    # customer still owes for THIS order.
+    from debtor.models import DebtorTransaction
+    credit_order_ids = [o.id for o in paid_qs if o.payment_method == 'credit']
+    invoices_by_order = {}
+    if credit_order_ids:
+        for inv in DebtorTransaction.objects.filter(
+            transaction_type='debit',
+            reference__in=[str(i) for i in credit_order_ids],
+        ):
+            try:
+                invoices_by_order[int(inv.reference)] = inv
+            except (TypeError, ValueError):
+                continue
+
+    paid_orders = []
+    credit_orders = []
+    for o in paid_qs:
+        inv = invoices_by_order.get(o.id) if o.payment_method == 'credit' else None
+        if inv and inv.remaining > 0:
+            o.credit_remaining = inv.remaining
+            o.credit_invoice_id = inv.id
+            credit_orders.append(o)
+        else:
+            paid_orders.append(o)
+
     total_unpaid = sum(o.get_total() for o in unpaid_orders)
     total_paid = sum(o.get_total() for o in paid_orders)
+    total_credit = sum(o.credit_remaining for o in credit_orders)
     context = {
         'unpaid_orders': unpaid_orders,
         'paid_orders': paid_orders,
+        'credit_orders': credit_orders,
         'total_unpaid': total_unpaid,
         'total_paid': total_paid,
+        'total_credit': total_credit,
     }
     return render(request, 'menu/order-list.html', context)
 
@@ -406,6 +438,95 @@ def order_update_status(request, order_id):
 
         return redirect('order-detail', order_id=order.id)
 
+    return redirect('order-list')
+
+
+@login_required(login_url='waiter-login')
+@shift_required
+def credit_order_settle(request, order_id):
+    """Settle a credit order in full (cash or M-Pesa).
+
+    Servers can mark their own credit orders as paid when the customer
+    returns to settle. Creates a credit DebtorTransaction allocated against
+    the original invoice and credits the cash account — same accounting
+    path as the manager-level receive_payment view.
+    """
+    if request.method != 'POST':
+        return redirect('order-list')
+
+    from django.db.models import Q
+    if request.user.is_superuser or _is_supervisor(request.user):
+        order = get_object_or_404(Order, id=order_id)
+    else:
+        order = get_object_or_404(
+            Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+        )
+
+    if order.payment_method != 'credit' or not order.debtor_id:
+        messages.error(request, 'This order is not on credit.')
+        return redirect('order-list')
+
+    from debtor.models import DebtorTransaction, DebtorPaymentAllocation
+    try:
+        invoice = DebtorTransaction.objects.get(
+            transaction_type='debit', reference=str(order.id),
+        )
+    except DebtorTransaction.DoesNotExist:
+        messages.error(request, 'Could not find the invoice for this order.')
+        return redirect('order-list')
+
+    if invoice.remaining <= 0:
+        messages.info(request, f'Order #{order.id} is already fully paid.')
+        return redirect('order-list')
+
+    payment_method = request.POST.get('payment_method', '')
+    if payment_method not in ('cash', 'mpesa'):
+        messages.error(request, 'Choose cash or M-Pesa.')
+        return redirect('order-list')
+
+    mpesa_code = ''
+    if payment_method == 'mpesa':
+        mpesa_code = request.POST.get('mpesa_code', '').strip().upper()
+        if len(mpesa_code) != 4 or not mpesa_code.isalnum():
+            messages.error(request, 'Enter the last 4 characters of the M-Pesa code.')
+            return redirect('order-list')
+
+    amount = invoice.remaining
+    with transaction.atomic():
+        payment_txn = DebtorTransaction.objects.create(
+            debtor=order.debtor,
+            transaction_type='credit',
+            amount=amount,
+            description=(
+                f'Order #{order.id} settled by {request.user.username} '
+                f'({payment_method}{" " + mpesa_code if mpesa_code else ""})'
+            ),
+            reference=str(order.id),
+            created_by=request.user,
+        )
+        DebtorPaymentAllocation.objects.create(
+            payment=payment_txn, invoice=invoice, amount=amount,
+        )
+        invoice.amount_paid = invoice.amount
+        invoice.save(update_fields=['amount_paid'])
+
+        from administration.models import Account, Transaction as AcctTransaction
+        cash_account = Account.get_by_type('cash')
+        AcctTransaction.objects.create(
+            account=cash_account,
+            transaction_type='credit',
+            amount=amount,
+            description=f'Debtor payment — {order.debtor.name} (Order #{order.id})',
+            reference_type='debtor_payment',
+            reference_id=payment_txn.id,
+            created_by=request.user,
+        )
+
+    logging.getLogger('audit').info(
+        "Credit order settled: order_id=%d debtor='%s' amount=%s method=%s by=%s",
+        order.id, order.debtor.name, amount, payment_method, request.user.username,
+    )
+    messages.success(request, f'Order #{order.id} marked as paid.')
     return redirect('order-list')
 
 

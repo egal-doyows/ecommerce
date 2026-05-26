@@ -13,6 +13,7 @@ urlpatterns = [
     path('orders/<int:order_id>/status/', views.order_update_status, name='order-update-status'),
     path('orders/<int:order_id>/edit-item/', views.order_edit_item, name='order-edit-item'),
     path('orders/<int:order_id>/void/', views.order_void, name='order-void'),
+    path('orders/<int:order_id>/settle-credit/', views.credit_order_settle, name='order-settle-credit'),
     path('tables/', views.tables_view, name='tables'),
     path('tables/<int:table_id>/toggle-reserve/', views.table_toggle_reserve, name='table-toggle-reserve'),
     path('shift/', views.shift_view, name='shift'),

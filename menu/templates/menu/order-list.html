@@ -42,9 +42,12 @@
     /* Summary Cards */
     .ol-summary {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         gap: 12px;
         margin-bottom: 24px;
+    }
+    @media (max-width: 640px) {
+        .ol-summary { grid-template-columns: 1fr; }
     }
 
     .ol-summary-card {
@@ -57,6 +60,40 @@
 
     .ol-summary-unpaid { border-left-color: #f59e0b; }
     .ol-summary-paid { border-left-color: var(--pos-success); }
+    .ol-summary-credit { border-left-color: #B83E1E; }
+
+    .ol-dot-credit { background: #B83E1E; }
+    .ol-card-credit { border-left-color: #B83E1E; }
+
+    .ol-settle-form {
+        display: none;
+        background: #fff7f3;
+        border-top: 1px solid #f0d2c4;
+        padding: 12px 20px;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .ol-settle-form.open { display: flex; }
+    .ol-settle-form select,
+    .ol-settle-form input[type=text] {
+        padding: 6px 10px;
+        border: 1px solid #d9b8a6;
+        border-radius: 6px;
+        font-size: 13px;
+        background: #fff;
+    }
+    .ol-settle-btn {
+        background: #B83E1E; color: #fff; border: none;
+        padding: 7px 14px; border-radius: 7px; font-weight: 700;
+        font-size: 12px; cursor: pointer;
+    }
+    .ol-settle-btn:hover { background: #8E2C12; }
+    .ol-settle-toggle {
+        background: #B83E1E; color: #fff; border: none;
+        padding: 7px 12px; border-radius: 7px; font-weight: 700;
+        font-size: 12px; cursor: pointer; margin-left: 8px;
+    }
 
     .ol-summary-label {
         font-size: 12px;
@@ -209,6 +246,11 @@
             <div class="ol-summary-value">{{ restaurant.currency_symbol }}{{ total_paid|floatformat:2|intcomma }}</div>
             <div class="ol-summary-count">{{ paid_orders|length }} order{{ paid_orders|length|pluralize }}</div>
         </div>
+        <div class="ol-summary-card ol-summary-credit">
+            <div class="ol-summary-label">On Credit</div>
+            <div class="ol-summary-value">{{ restaurant.currency_symbol }}{{ total_credit|floatformat:2|intcomma }}</div>
+            <div class="ol-summary-count">{{ credit_orders|length }} order{{ credit_orders|length|pluralize }}</div>
+        </div>
     </div>
 
     <!-- Unpaid Orders -->
@@ -239,6 +281,55 @@
     <div class="ol-empty">
         <i class="fa fa-check-circle"></i>
         <p>No unpaid orders</p>
+    </div>
+    {% endfor %}
+
+    <!-- On Credit -->
+    <div class="ol-section">
+        <span class="ol-section-dot ol-dot-credit"></span>
+        <h3 class="ol-section-title">On Credit</h3>
+        <span class="ol-section-count">{{ credit_orders|length }}</span>
+    </div>
+
+    {% for order in credit_orders %}
+    <div class="ol-card ol-card-credit">
+        <div class="ol-card-body">
+            <a href="{% url 'order-detail' order.id %}" style="display:flex;flex:1;gap:16px;align-items:center;text-decoration:none;color:inherit;">
+                <div class="ol-card-id">#{{ order.id }}</div>
+                <div class="ol-card-info">
+                    <div style="font-size:14px; font-weight:600; margin-bottom:4px;">
+                        {{ order.debtor.name }}
+                        {% if order.order_type == 'dine_in' and order.table %}
+                            <span style="font-size:11px;color:var(--pos-muted);font-weight:500;">&middot; {{ order.table }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="ol-card-info-row">
+                        <span><i class="fa fa-user"></i> {{ order.waiter.username|capfirst }}</span>
+                        <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"d/m H:i" }}</span>
+                        <span>{{ order.get_item_count }} items</span>
+                    </div>
+                </div>
+            </a>
+            <div class="ol-card-total" style="color:#B83E1E;">{{ restaurant.currency_symbol }}{{ order.credit_remaining|floatformat:2|intcomma }}</div>
+            <button type="button" class="ol-settle-toggle" data-target="settle-{{ order.id }}">
+                <i class="fa fa-check"></i> Mark Paid
+            </button>
+        </div>
+        <form method="post" action="{% url 'order-settle-credit' order.id %}" class="ol-settle-form" id="settle-{{ order.id }}">
+            {% csrf_token %}
+            <span style="font-size:12px;font-weight:600;color:var(--pos-muted);">Payment</span>
+            <select name="payment_method" required data-settle-method>
+                <option value="cash">Cash</option>
+                <option value="mpesa">M-Pesa</option>
+            </select>
+            <input type="text" name="mpesa_code" maxlength="4" placeholder="Last 4 M-Pesa code" data-settle-mpesa style="display:none;text-transform:uppercase;width:140px;">
+            <button type="submit" class="ol-settle-btn"><i class="fa fa-check"></i> Confirm</button>
+        </form>
+    </div>
+    {% empty %}
+    <div class="ol-empty">
+        <i class="fa fa-handshake-o"></i>
+        <p>No outstanding credit orders</p>
     </div>
     {% endfor %}
 
@@ -273,5 +364,25 @@
     </div>
     {% endfor %}
 </div>
+
+<script>
+    document.querySelectorAll('.ol-settle-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var form = document.getElementById(btn.dataset.target);
+            if (form) form.classList.toggle('open');
+        });
+    });
+    document.querySelectorAll('[data-settle-method]').forEach(function (sel) {
+        var mpesa = sel.parentElement.querySelector('[data-settle-mpesa]');
+        function sync() {
+            if (!mpesa) return;
+            var on = sel.value === 'mpesa';
+            mpesa.style.display = on ? '' : 'none';
+            mpesa.required = on;
+        }
+        sel.addEventListener('change', sync);
+        sync();
+    });
+</script>
 
 {% endblock %}
