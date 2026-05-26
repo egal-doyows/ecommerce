@@ -364,24 +364,6 @@
     <!-- Services -->
     <h3 class="wp-section-title"><i class="fa-solid fa-grid-2"></i> Services</h3>
     <div class="wp-services">
-        <a href="{% url 'pos' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#e8f5e9; color:#2e7d32;">
-                <i class="fa-solid fa-utensils"></i>
-            </div>
-            <h4>POS Menu</h4>
-            <p>Browse menu and add items to tray</p>
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
-        <a href="{% url 'order-list' %}" class="wp-service">
-            <div class="wp-service-icon" style="background:#e3f2fd; color:#1565c0;">
-                <i class="fa-solid fa-receipt"></i>
-            </div>
-            <h4>Orders</h4>
-            <p>View, manage, and process payments</p>
-            <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
-        </a>
-
         <a href="{% url 'tables' %}" class="wp-service">
             <div class="wp-service-icon" style="background:#fff3e0; color:#e65100;">
                 <i class="fa-solid fa-table-cells-large"></i>
@@ -440,7 +422,6 @@
         {% endif %}
     </div>
 
-    {% if has_hr_profile %}
     <!-- Self-Service -->
     <h3 class="wp-section-title"><i class="fa-solid fa-hand-holding-heart"></i> Self-Service</h3>
     <div class="wp-services">
@@ -461,7 +442,6 @@
             <span class="wp-service-arrow">Open <i class="fa-solid fa-arrow-right"></i></span>
         </a>
     </div>
-    {% endif %}
 
     <!-- Account Actions -->
     <h3 class="wp-section-title"><i class="fa-solid fa-gear"></i> Account</h3>

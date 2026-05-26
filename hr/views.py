@@ -930,18 +930,19 @@ def leave_type_edit(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Self-service — any logged-in user with an Employee profile
+# Self-service — any logged-in user (Employee record auto-created on demand)
 # ---------------------------------------------------------------------------
+
+def _get_or_create_employee(user):
+    emp = getattr(user, 'hr_profile', None)
+    if emp:
+        return emp
+    return Employee.objects.create(user=user)
+
 
 @login_required(login_url='my-login')
 def my_leave_request(request):
-    emp = getattr(request.user, 'hr_profile', None)
-    if not emp:
-        messages.error(
-            request,
-            'You do not have an employee profile yet. Ask your manager to set one up.',
-        )
-        return redirect('dashboard')
+    emp = _get_or_create_employee(request.user)
 
     if request.method == 'POST':
         lt_pk = request.POST.get('leave_type', '')
@@ -981,13 +982,7 @@ def my_leave_request(request):
 
 @login_required(login_url='my-login')
 def my_advance_request(request):
-    emp = getattr(request.user, 'hr_profile', None)
-    if not emp:
-        messages.error(
-            request,
-            'You do not have an employee profile yet. Ask your manager to set one up.',
-        )
-        return redirect('dashboard')
+    emp = _get_or_create_employee(request.user)
 
     if request.method == 'POST':
         amount_str = request.POST.get('amount', '').strip()
