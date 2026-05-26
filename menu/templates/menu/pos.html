@@ -1195,6 +1195,9 @@
         const summaryItems = document.getElementById('summary-items');
         if (summaryItems) summaryItems.textContent = qty;
 
+        const trayBadge = document.getElementById('cart-qty');
+        if (trayBadge) trayBadge.textContent = qty;
+
         const summaryTotal = document.getElementById('summary-total');
         if (summaryTotal) summaryTotal.textContent = formatTotal(res.total);
 
