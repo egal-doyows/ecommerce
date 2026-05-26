@@ -85,6 +85,7 @@ def debtor_create(request):
         if form.is_valid():
             debtor = form.save(commit=False)
             debtor.created_by = request.user
+            debtor.is_active = True
             debtor.save()
             role = (
                 'superuser' if request.user.is_superuser
