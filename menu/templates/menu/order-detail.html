@@ -434,7 +434,7 @@
                 {% if order.order_type == 'dine_in' %}
                 <i class="fa fa-th-large"></i> &nbsp; <strong>{{ order.table|default:"—" }}</strong>
                 {% else %}
-                <i class="fa {% if order.order_type == 'takeaway' %}fa-bag-shopping{% else %}fa-motorcycle{% endif %}"></i> &nbsp;
+                <i class="fa fa-bag-shopping"></i> &nbsp;
                 <strong>{{ order.get_order_type_display }}</strong>{% if order.source != 'pos' %}
                 <span style="font-size:11px; color:var(--pos-muted);">&middot; {{ order.get_source_display }}</span>{% endif %}
                 {% endif %}

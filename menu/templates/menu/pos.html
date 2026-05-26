@@ -528,7 +528,7 @@
 
     .pos-type-seg {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: 4px;
         background: rgba(255,255,255,0.05);
         border: 2px solid rgba(255,255,255,0.1);
@@ -538,18 +538,28 @@
     }
 
     .pos-type-btn {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         background: transparent;
         border: none;
         color: #b0a48d;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
         padding: 7px 4px;
         border-radius: 7px;
         cursor: pointer;
         transition: all 0.15s;
     }
+
+    .pos-type-btn i { flex-shrink: 0; }
 
     .pos-type-btn:hover { color: #E7D6BB; }
 
@@ -913,9 +923,6 @@
                     </button>
                     <button type="button" class="pos-type-btn" data-type="takeaway">
                         <i class="fa fa-bag-shopping"></i> Takeaway
-                    </button>
-                    <button type="button" class="pos-type-btn" data-type="delivery">
-                        <i class="fa fa-motorcycle"></i> Delivery
                     </button>
                 </div>
                 <input type="hidden" name="order_type" id="order-type-input" value="dine_in">

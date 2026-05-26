@@ -483,7 +483,6 @@ class Order(models.Model):
     ORDER_TYPE_CHOICES = [
         ('dine_in', 'Dine-in'),
         ('takeaway', 'Takeaway'),
-        ('delivery', 'Delivery'),
     ]
 
     SOURCE_CHOICES = [
