@@ -522,12 +522,16 @@ def credit_order_settle(request, order_id):
         return redirect('order-list')
 
     mpesa_code = ''
+    card_reference = ''
     if payment_method == 'mpesa':
         mpesa_code = request.POST.get('mpesa_code', '').strip().upper()
         if len(mpesa_code) != 4 or not mpesa_code.isalnum():
             messages.error(request, 'Enter the last 4 characters of the M-Pesa code.')
             return redirect('order-list')
+    elif payment_method == 'card':
+        card_reference = request.POST.get('card_reference', '').strip()[:50]
 
+    settle_ref = mpesa_code or card_reference
     amount = invoice.remaining
     with transaction.atomic():
         payment_txn = DebtorTransaction.objects.create(
@@ -536,7 +540,7 @@ def credit_order_settle(request, order_id):
             amount=amount,
             description=(
                 f'Order #{order.id} settled by {request.user.username} '
-                f'({payment_method}{" " + mpesa_code if mpesa_code else ""})'
+                f'({payment_method}{" " + settle_ref if settle_ref else ""})'
             ),
             reference=str(order.id),
             created_by=request.user,

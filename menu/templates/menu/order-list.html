@@ -396,7 +396,8 @@
                     <option value="mpesa">M-Pesa</option>
                     <option value="card">Card</option>
                 </select>
-                <input type="text" name="mpesa_code" maxlength="4" placeholder="Last 4 M-Pesa code" data-settle-mpesa style="display:none;text-transform:uppercase;width:140px;">
+                <input type="text" name="mpesa_code" maxlength="4" placeholder="Last 4 M-Pesa code" data-settle-mpesa style="display:none;text-transform:uppercase;width:160px;">
+                <input type="text" name="card_reference" maxlength="50" placeholder="Card ref (auth/last 4)" data-settle-card style="display:none;width:180px;">
                 <button type="submit" class="ol-settle-btn"><i class="fa fa-check"></i> Confirm</button>
             </form>
         </div>
@@ -459,11 +460,17 @@
     });
     document.querySelectorAll('[data-settle-method]').forEach(function (sel) {
         var mpesa = sel.parentElement.querySelector('[data-settle-mpesa]');
+        var card = sel.parentElement.querySelector('[data-settle-card]');
         function sync() {
-            if (!mpesa) return;
-            var on = sel.value === 'mpesa';
-            mpesa.style.display = on ? '' : 'none';
-            mpesa.required = on;
+            var showMpesa = sel.value === 'mpesa';
+            var showCard = sel.value === 'card';
+            if (mpesa) {
+                mpesa.style.display = showMpesa ? '' : 'none';
+                mpesa.required = showMpesa;
+            }
+            if (card) {
+                card.style.display = showCard ? '' : 'none';
+            }
         }
         sel.addEventListener('change', sync);
         sync();
