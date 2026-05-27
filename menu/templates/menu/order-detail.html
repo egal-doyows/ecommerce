@@ -452,6 +452,9 @@
             <div class="od-item-qty">{{ item.quantity }}</div>
             <div style="flex:1;">
                 <div class="od-item-name">{{ item.menu_item.title|capfirst }}</div>
+                {% for opt in item.options.all %}
+                <div class="od-item-notes">+ {{ opt.label }}</div>
+                {% endfor %}
                 {% if item.notes %}<div class="od-item-notes">{{ item.notes }}</div>{% endif %}
             </div>
             <div class="od-item-price">{{ restaurant.currency_symbol }}{{ item.get_subtotal|floatformat:2|intcomma }}</div>
@@ -459,18 +462,20 @@
         {% endfor %}
 
         {% if order.status == 'active' %}
-        <form method="POST" action="{% url 'order-edit-item' order.id %}" class="od-add-item">
+        <form method="POST" action="{% url 'order-edit-item' order.id %}" class="od-add-item" id="od-add-form">
             {% csrf_token %}
-            <select name="menu_item_id" required>
+            <select name="menu_item_id" id="od-add-select" required>
                 <option value="">Add an item...</option>
                 {% for mi in menu_items %}
-                <option value="{{ mi.id }}">{{ mi.title|capfirst }} — {{ restaurant.currency_symbol }}{{ mi.price|floatformat:2|intcomma }}</option>
+                <option value="{{ mi.id }}" data-name="{{ mi.title|capfirst }}" data-price="{{ mi.price }}">{{ mi.title|capfirst }} — {{ restaurant.currency_symbol }}{{ mi.price|floatformat:2|intcomma }}</option>
                 {% endfor %}
             </select>
             <button type="submit" class="od-add-btn">
                 <i class="fa fa-plus"></i> Add
             </button>
+            <span id="od-add-options"></span>
         </form>
+        {{ accompaniments|json_script:"od-accompaniments-data" }}
         {% endif %}
 
         {% if order.notes %}
@@ -695,5 +700,147 @@
         {% if restaurant.website %}<p style="margin:2px 0;">{{ restaurant.website }}</p>{% endif %}
     </div>
 </div>
+
+{% if order.status == 'active' %}
+<!-- Accompaniment chooser modal (add-to-order) -->
+<div class="acc-modal-overlay" id="od-acc-modal" hidden>
+    <div class="acc-modal">
+        <div class="acc-modal-head">
+            <h3 id="od-acc-title">Choose options</h3>
+            <button type="button" class="acc-modal-close" id="od-acc-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="acc-modal-body" id="od-acc-body"></div>
+        <div class="acc-modal-foot">
+            <div class="acc-modal-total">Total: <span id="od-acc-total"></span></div>
+            <button type="button" class="od-add-btn" id="od-acc-add">
+                <i class="fa fa-plus"></i> Add to order
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .acc-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+    .acc-modal-overlay[hidden] { display: none; }
+    .acc-modal { background: #fff; border-radius: 12px; width: 100%; max-width: 420px;
+        max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+    .acc-modal-head { display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 20px; border-bottom: 1px solid #eef0f3; }
+    .acc-modal-head h3 { margin: 0; font-size: 18px; }
+    .acc-modal-close { background: none; border: none; font-size: 28px; line-height: 1;
+        cursor: pointer; color: #98a2b3; }
+    .acc-modal-body { padding: 12px 20px; overflow-y: auto; }
+    .acc-group { margin-bottom: 18px; }
+    .acc-group-title { font-weight: 600; font-size: 13px; text-transform: uppercase;
+        letter-spacing: .03em; color: #667085; margin-bottom: 8px; }
+    .acc-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+        border: 1px solid #e4e7ec; border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
+    .acc-option:hover { background: #f9fafb; }
+    .acc-option input { accent-color: #16a34a; width: 18px; height: 18px; }
+    .acc-option-label { flex: 1; }
+    .acc-option-price { color: #16a34a; font-weight: 600; font-size: 14px; }
+    .acc-modal-foot { display: flex; align-items: center; justify-content: space-between;
+        gap: 12px; padding: 16px 20px; border-top: 1px solid #eef0f3; }
+    .acc-modal-total { font-weight: 700; font-size: 16px; }
+</style>
+
+<script>
+(function () {
+    const ACC_DATA = JSON.parse(document.getElementById('od-accompaniments-data').textContent);
+    const CURRENCY = '{{ restaurant.currency_symbol }}';
+    const form = document.getElementById('od-add-form');
+    const select = document.getElementById('od-add-select');
+    const optionHolder = document.getElementById('od-add-options');
+    const modal = document.getElementById('od-acc-modal');
+    const body = document.getElementById('od-acc-body');
+    let basePrice = 0;
+
+    function updateTotal() {
+        let total = basePrice;
+        body.querySelectorAll('input[type=radio]:checked').forEach(r => {
+            total += parseFloat(r.dataset.delta || 0);
+        });
+        document.getElementById('od-acc-total').textContent = CURRENCY + total.toFixed(2);
+    }
+
+    function openModal(groups, name, price) {
+        basePrice = price;
+        document.getElementById('od-acc-title').textContent = name;
+        body.innerHTML = '';
+        groups.forEach(g => {
+            const wrap = document.createElement('div');
+            wrap.className = 'acc-group';
+            wrap.dataset.required = g.required ? '1' : '';
+            wrap.dataset.groupName = g.name;
+            const title = document.createElement('div');
+            title.className = 'acc-group-title';
+            title.textContent = g.name + (g.required ? ' *' : '');
+            wrap.appendChild(title);
+            g.options.forEach(o => {
+                const label = document.createElement('label');
+                label.className = 'acc-option';
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = 'g-' + g.id;
+                radio.value = o.id;
+                radio.dataset.delta = o.delta;
+                radio.addEventListener('change', updateTotal);
+                const lbl = document.createElement('span');
+                lbl.className = 'acc-option-label';
+                lbl.textContent = o.label;
+                const pr = document.createElement('span');
+                pr.className = 'acc-option-price';
+                const d = parseFloat(o.delta);
+                pr.textContent = d > 0 ? ('+' + CURRENCY + d.toFixed(2)) : '';
+                label.appendChild(radio); label.appendChild(lbl); label.appendChild(pr);
+                wrap.appendChild(label);
+            });
+            body.appendChild(wrap);
+        });
+        updateTotal();
+        modal.hidden = false;
+    }
+
+    function closeModal() { modal.hidden = true; }
+
+    form.addEventListener('submit', function (e) {
+        const opt = select.options[select.selectedIndex];
+        if (!opt || !opt.value) return;  // browser handles required
+        const groups = ACC_DATA[opt.value];
+        if (groups && groups.length) {
+            e.preventDefault();
+            optionHolder.innerHTML = '';
+            openModal(groups, opt.dataset.name, parseFloat(opt.dataset.price));
+        }
+    });
+
+    document.getElementById('od-acc-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+    document.getElementById('od-acc-add').addEventListener('click', function () {
+        const groups = body.querySelectorAll('.acc-group');
+        optionHolder.innerHTML = '';
+        for (const g of groups) {
+            const checked = g.querySelector('input[type=radio]:checked');
+            if (g.dataset.required && !checked) {
+                alert('Please choose: ' + g.dataset.groupName);
+                return;
+            }
+            if (checked) {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'option_id';
+                hidden.value = checked.value;
+                optionHolder.appendChild(hidden);
+            }
+        }
+        closeModal();
+        form.submit();
+    });
+})();
+</script>
+{% endif %}
 
 {% endblock %}

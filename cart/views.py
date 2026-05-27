@@ -4,7 +4,47 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 
 from .cart import Cart
-from menu.models import MenuItem, Table
+from menu.models import MenuItem, Table, AccompanimentOption
+
+
+def resolve_options(product, option_ids):
+    """
+    Validate the chosen accompaniment options for a product and return them as
+    snapshot dicts. Single-choice: each required group needs exactly one pick.
+    Returns (options, error_message). On success error_message is None.
+    """
+    groups = list(product.accompaniment_groups.all())
+    if not groups:
+        return [], None
+
+    group_ids = [g.id for g in groups]
+    selected = list(
+        AccompanimentOption.objects
+        .filter(id__in=option_ids, group_id__in=group_ids, is_available=True)
+        .select_related('group')
+    )
+
+    chosen_by_group = {}
+    for opt in selected:
+        chosen_by_group.setdefault(opt.group_id, []).append(opt)
+
+    for g in groups:
+        picks = chosen_by_group.get(g.id, [])
+        if g.is_required and not picks:
+            return None, f"Please choose: {g.name}"
+        if len(picks) > 1:
+            return None, f"Choose only one for: {g.name}"
+
+    options = [
+        {
+            'id': opt.id,
+            'group_name': opt.group.name,
+            'label': opt.label,
+            'delta': opt.price_delta,
+        }
+        for opt in selected
+    ]
+    return options, None
 
 
 def _cart_response(request, cart):
@@ -32,7 +72,11 @@ def cart_add(request):
         product_quantity = int(request.POST.get('product_quantity'))
         product = get_object_or_404(MenuItem, id=product_id)
 
-        cart.add(product=product, product_qty=product_quantity)
+        options, error = resolve_options(product, request.POST.getlist('option_id'))
+        if error:
+            return JsonResponse({'error': error}, status=400)
+
+        cart.add(product=product, product_qty=product_quantity, options=options)
 
         return _cart_response(request, cart)
 

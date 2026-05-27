@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from functools import wraps
 
 from django.db import transaction
@@ -12,7 +13,10 @@ from django.conf import settings as django_settings
 
 logger = logging.getLogger(__name__)
 
-from .models import Category, MenuItem, Table, Order, OrderItem, Shift, RestaurantSettings
+from .models import (
+    Category, MenuItem, Table, Order, OrderItem, Shift, RestaurantSettings,
+    AccompanimentOption, OrderItemOption,
+)
 from cart.cart import Cart
 
 
@@ -97,14 +101,41 @@ def pos_home(request):
         MenuItem.objects
         .filter(is_available=True)
         .select_related('category')
+        .prefetch_related('accompaniment_groups__options')
         .order_by('category__name', 'title')
     )
     tables = Table.objects.all()
     context = {
         'all_products': all_products,
         'tables': tables,
+        'accompaniments': _build_accompaniments(all_products),
     }
     return render(request, 'menu/pos.html', context)
+
+
+def _build_accompaniments(products):
+    """
+    Per-product accompaniment data for the "choose a side" modal, keyed by
+    product id: {pid: [{id, name, required, options: [{id, label, delta}]}]}.
+    Only products with at least one group of available options are included.
+    Pass a queryset that prefetches 'accompaniment_groups__options'.
+    """
+    accompaniments = {}
+    for p in products:
+        groups = []
+        for g in p.accompaniment_groups.all():
+            opts = [
+                {'id': o.id, 'label': o.label, 'delta': str(o.price_delta)}
+                for o in g.options.all() if o.is_available
+            ]
+            if opts:
+                groups.append({
+                    'id': g.id, 'name': g.name,
+                    'required': g.is_required, 'options': opts,
+                })
+        if groups:
+            accompaniments[p.id] = groups
+    return accompaniments
 
 
 @login_required(login_url='waiter-login')
@@ -165,15 +196,47 @@ def place_order(request):
             for item in cart:
                 product = item['product']
                 qty = item['qty']
-                OrderItem.objects.create(
+                options = item.get('options', [])
+
+                option_objs = {}
+                if options:
+                    option_objs = {
+                        o.id: o for o in AccompanimentOption.objects.filter(
+                            id__in=[opt['id'] for opt in options],
+                        )
+                    }
+
+                option_cost = sum(
+                    (option_objs[opt['id']].current_unit_cost()
+                     for opt in options if opt['id'] in option_objs),
+                    Decimal('0'),
+                )
+
+                order_item = OrderItem.objects.create(
                     order=order,
                     menu_item=product,
                     quantity=qty,
-                    unit_price=item['price'],
-                    unit_cost=product.current_unit_cost(),
+                    unit_price=item['price'],  # all-in (base + option deltas)
+                    unit_cost=product.current_unit_cost() + option_cost,
                 )
+
+                for opt in options:
+                    obj = option_objs.get(opt['id'])
+                    OrderItemOption.objects.create(
+                        order_item=order_item,
+                        option=obj,
+                        group_name=opt.get('group_name', ''),
+                        label=opt['label'],
+                        price_delta=Decimal(str(opt['delta'])),
+                        unit_cost=obj.current_unit_cost() if obj else Decimal('0'),
+                    )
+
                 try:
                     product.deduct_stock(qty)
+                    for opt in options:
+                        obj = option_objs.get(opt['id'])
+                        if obj:
+                            obj.deduct_stock(qty)
                 except Exception:
                     logger.warning("Stock deduction failed for %s", product.title)
 
@@ -199,13 +262,18 @@ def order_detail(request, order_id):
         order = get_object_or_404(
             Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
         )
-    menu_items = MenuItem.objects.filter(is_available=True) if order.status == 'active' else []
+    menu_items = (
+        MenuItem.objects.filter(is_available=True)
+        .prefetch_related('accompaniment_groups__options')
+        if order.status == 'active' else []
+    )
     debtors = []
     if order.status == 'active':
         from debtor.models import Debtor
         debtors = Debtor.objects.filter(is_active=True)
     return render(request, 'menu/order-detail.html', {
         'order': order, 'menu_items': menu_items, 'debtors': debtors,
+        'accompaniments': _build_accompaniments(menu_items) if menu_items else {},
         'can_void': _can_void(request.user),
     })
 
@@ -234,27 +302,63 @@ def order_edit_item(request, order_id):
 
     menu_item = get_object_or_404(MenuItem, id=menu_item_id, is_available=True)
 
-    # Check if item already in order — increase quantity
-    existing = order.items.filter(menu_item=menu_item).first()
-    if existing:
-        try:
-            menu_item.deduct_stock(1)
-        except Exception:
-            logger.warning("Stock deduction failed for %s", menu_item.title)
-        existing.quantity += 1
-        existing.save()
-    else:
-        try:
-            menu_item.deduct_stock(1)
-        except Exception:
-            logger.warning("Stock deduction failed for %s", menu_item.title)
-        OrderItem.objects.create(
-            order=order,
-            menu_item=menu_item,
-            quantity=1,
-            unit_price=menu_item.price,
-            unit_cost=menu_item.current_unit_cost(),
+    from cart.views import resolve_options
+    options, error = resolve_options(menu_item, request.POST.getlist('option_id'))
+    if error:
+        messages.error(request, error)
+        return redirect('order-detail', order_id=order.id)
+
+    with transaction.atomic():
+        # Option-less items merge into an existing matching line; items with
+        # accompaniments always become their own line (different choices = different line).
+        existing = None
+        if not options:
+            existing = order.items.filter(menu_item=menu_item, options__isnull=True).first()
+
+        option_objs = {}
+        if options:
+            option_objs = {
+                o.id: o for o in AccompanimentOption.objects.filter(
+                    id__in=[opt['id'] for opt in options],
+                )
+            }
+        option_cost = sum(
+            (option_objs[opt['id']].current_unit_cost()
+             for opt in options if opt['id'] in option_objs),
+            Decimal('0'),
         )
+        option_delta = sum((Decimal(str(opt['delta'])) for opt in options), Decimal('0'))
+
+        if existing:
+            existing.quantity += 1
+            existing.save()
+        else:
+            order_item = OrderItem.objects.create(
+                order=order,
+                menu_item=menu_item,
+                quantity=1,
+                unit_price=menu_item.price + option_delta,
+                unit_cost=menu_item.current_unit_cost() + option_cost,
+            )
+            for opt in options:
+                obj = option_objs.get(opt['id'])
+                OrderItemOption.objects.create(
+                    order_item=order_item,
+                    option=obj,
+                    group_name=opt.get('group_name', ''),
+                    label=opt['label'],
+                    price_delta=Decimal(str(opt['delta'])),
+                    unit_cost=obj.current_unit_cost() if obj else Decimal('0'),
+                )
+
+        try:
+            menu_item.deduct_stock(1)
+            for opt in options:
+                obj = option_objs.get(opt['id'])
+                if obj:
+                    obj.deduct_stock(1)
+        except Exception:
+            logger.warning("Stock deduction failed for %s", menu_item.title)
 
     return redirect('order-detail', order_id=order.id)
 

@@ -1,7 +1,10 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
 
-from .models import RestaurantSettings, Category, InventoryItem, MenuItem, Recipe, Table, Order, OrderItem, Shift
+from .models import (
+    RestaurantSettings, Category, InventoryItem, MenuItem, Recipe, Table,
+    Order, OrderItem, Shift, AccompanimentGroup, AccompanimentOption,
+)
 
 
 @admin.register(RestaurantSettings)
@@ -71,6 +74,7 @@ class InventoryItemAdmin(ModelAdmin):
 class RecipeInline(TabularInline):
     model = Recipe
     extra = 1
+    fields = ('inventory_item', 'quantity_required')
     autocomplete_fields = ('inventory_item',)
 
 
@@ -82,10 +86,18 @@ class MenuItemAdmin(ModelAdmin):
     prepopulated_fields = {'slug': ('title',)}
     list_editable = ('price', 'is_available', 'is_featured', 'item_tier')
     autocomplete_fields = ('category', 'inventory_item')
+    filter_horizontal = ('accompaniment_groups',)
     inlines = [RecipeInline]
     fieldsets = (
         (None, {
             'fields': ('category', 'title', 'slug', 'description', 'price', 'image', 'item_tier', 'is_available', 'preparation_time'),
+        }),
+        ('Accompaniments', {
+            'description': (
+                "Choice groups offered with this item (e.g. 'Choose a side'). "
+                'Create groups and their options under Accompaniment groups / options first.'
+            ),
+            'fields': ('accompaniment_groups',),
         }),
         ('Public site', {
             'description': (
@@ -162,6 +174,55 @@ class OrderAdmin(ModelAdmin):
 
     def delete_model(self, request, obj):
         obj.delete()
+
+
+class AccompanimentOptionInline(TabularInline):
+    model = AccompanimentOption
+    extra = 1
+    fields = ('label', 'price_delta', 'is_available', 'inventory_item')
+    autocomplete_fields = ('inventory_item',)
+
+
+@admin.register(AccompanimentGroup)
+class AccompanimentGroupAdmin(ModelAdmin):
+    list_display = ('name', 'is_required', 'option_count')
+    list_filter = ('is_required',)
+    search_fields = ('name',)
+    inlines = [AccompanimentOptionInline]
+
+    def option_count(self, obj):
+        return obj.options.count()
+    option_count.short_description = 'Options'
+
+
+@admin.register(AccompanimentOption)
+class AccompanimentOptionAdmin(ModelAdmin):
+    list_display = ('label', 'group', 'price_delta', 'is_available', 'stock_type')
+    list_filter = ('group', 'is_available')
+    search_fields = ('label', 'group__name')
+    list_editable = ('price_delta', 'is_available')
+    autocomplete_fields = ('group', 'inventory_item')
+    inlines = [RecipeInline]
+    fieldsets = (
+        (None, {
+            'fields': ('group', 'label', 'price_delta', 'is_available'),
+        }),
+        ('Inventory', {
+            'description': (
+                'For a <strong>direct-stock side</strong> (e.g. a bottled extra): link an inventory item. '
+                'For a <strong>prepared side</strong> (fries, rice): leave blank and add ingredients in the Recipe section.'
+            ),
+            'fields': ('inventory_item',),
+        }),
+    )
+
+    def stock_type(self, obj):
+        if obj.is_direct_sale:
+            return 'Direct sale'
+        if obj.recipe_items.exists():
+            return 'Prepared'
+        return 'No stock tracking'
+    stock_type.short_description = 'Type'
 
 
 @admin.register(Shift)

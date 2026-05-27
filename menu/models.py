@@ -235,6 +235,10 @@ class MenuItem(models.Model):
         null=True, blank=True, related_name='menu_items',
         help_text="For direct-sale items (soda, water). Leave blank for prepared food.",
     )
+    accompaniment_groups = models.ManyToManyField(
+        'AccompanimentGroup', blank=True, related_name='menu_items',
+        help_text="Choice groups offered with this item, e.g. 'Choose a side'.",
+    )
 
     class Meta:
         verbose_name_plural = 'menu items'
@@ -259,21 +263,11 @@ class MenuItem(models.Model):
         """
         Deduct inventory when this item is ordered.
         Atomic — either everything deducts or nothing does.
-        Returns True on success, False if any ingredient is insufficient.
+        Returns True on success, raises _InsufficientStock if an ingredient is short.
         """
         if self.is_direct_sale:
             return self.inventory_item.deduct(quantity)
-
-        ingredients = self.recipe_items.select_related('inventory_item').all()
-        if not ingredients:
-            return True  # untracked item
-
-        # Check all ingredients first, then deduct
-        for ingredient in ingredients:
-            needed = ingredient.quantity_required * Decimal(str(quantity))
-            if not ingredient.inventory_item.deduct(needed):
-                raise _InsufficientStock(ingredient.inventory_item.name)
-        return True
+        return _deduct_recipe(self.recipe_items, quantity)
 
     @transaction.atomic
     def restore_stock(self, quantity=1):
@@ -281,10 +275,7 @@ class MenuItem(models.Model):
         if self.is_direct_sale:
             self.inventory_item.restore(quantity)
             return
-
-        for ingredient in self.recipe_items.select_related('inventory_item').all():
-            needed = ingredient.quantity_required * Decimal(str(quantity))
-            ingredient.inventory_item.restore(needed)
+        _restore_recipe(self.recipe_items, quantity)
 
     def current_unit_cost(self):
         """
@@ -294,10 +285,7 @@ class MenuItem(models.Model):
         """
         if self.is_direct_sale:
             return self.inventory_item.buying_price
-        cost = Decimal('0')
-        for r in self.recipe_items.select_related('inventory_item').all():
-            cost += r.quantity_required * r.inventory_item.buying_price
-        return cost
+        return _recipe_cost(self.recipe_items)
 
     def suggested_price(self, markup_percent):
         """
@@ -314,6 +302,37 @@ class MenuItem(models.Model):
 class _InsufficientStock(Exception):
     """Raised inside atomic block to trigger rollback."""
     pass
+
+
+# ── Shared recipe stock/cost helpers ──
+# Used by both MenuItem and AccompanimentOption, which each expose a
+# `recipe_items` related manager of Recipe rows.
+
+def _deduct_recipe(recipe_qs, quantity):
+    """Deduct every ingredient in a recipe queryset. Returns True (incl. untracked)."""
+    ingredients = list(recipe_qs.select_related('inventory_item'))
+    if not ingredients:
+        return True  # untracked
+    for ingredient in ingredients:
+        needed = ingredient.quantity_required * Decimal(str(quantity))
+        if not ingredient.inventory_item.deduct(needed):
+            raise _InsufficientStock(ingredient.inventory_item.name)
+    return True
+
+
+def _restore_recipe(recipe_qs, quantity):
+    """Restore every ingredient in a recipe queryset."""
+    for ingredient in recipe_qs.select_related('inventory_item'):
+        needed = ingredient.quantity_required * Decimal(str(quantity))
+        ingredient.inventory_item.restore(needed)
+
+
+def _recipe_cost(recipe_qs):
+    """Sum cost-of-goods across a recipe queryset at current buying_prices."""
+    cost = Decimal('0')
+    for r in recipe_qs.select_related('inventory_item'):
+        cost += r.quantity_required * r.inventory_item.buying_price
+    return cost
 
 
 class StockAdjustment(models.Model):
@@ -352,30 +371,125 @@ class StockAdjustment(models.Model):
         return f'{self.inventory_item.name} {sign}{self.qty_delta} ({self.get_source_display()})'
 
 
-class Recipe(models.Model):
+class AccompanimentGroup(models.Model):
     """
-    Links a prepared MenuItem to the InventoryItems it consumes.
-
-    Example: Mango Juice recipe
-      - 1 piece  Mango
-      - 0.05 kg  Sugar
-      - 0.2 l    Water
+    A reusable choice group attached to menu items, e.g. "Choose a side".
+    Single-choice: the customer picks exactly one option (when required).
+    Attach to items via MenuItem.accompaniment_groups.
     """
 
-    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='recipe_items')
-    inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='used_in_recipes')
-    quantity_required = models.DecimalField(
-        max_digits=8, decimal_places=3,
-        help_text="Amount of this ingredient consumed per 1 menu item sold",
+    name = models.CharField(max_length=120, help_text='e.g. "Choose a side"')
+    is_required = models.BooleanField(
+        default=True,
+        help_text='If ticked, one option must be chosen before the item is added.',
     )
 
     class Meta:
-        unique_together = ('menu_item', 'inventory_item')
-        verbose_name_plural = 'recipes'
+        ordering = ['name']
 
     def __str__(self):
+        return self.name
+
+
+class AccompanimentOption(models.Model):
+    """
+    One choice within an AccompanimentGroup, e.g. "Fries" or "Plantain".
+    `price_delta` is added to the item's base price (0 = free side).
+    Stock/cost work exactly like MenuItem: link an `inventory_item` for a
+    direct side, or add Recipe rows for a prepared one.
+    """
+
+    group = models.ForeignKey(
+        AccompanimentGroup, on_delete=models.CASCADE, related_name='options',
+    )
+    label = models.CharField(max_length=120, help_text='e.g. "Plantain"')
+    price_delta = models.DecimalField(
+        max_digits=7, decimal_places=2, default=0,
+        help_text='Added to the base item price. 0 for a free side.',
+    )
+    is_available = models.BooleanField(default=True)
+    inventory_item = models.ForeignKey(
+        InventoryItem, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='accompaniment_options',
+        help_text='For a direct-stock side. Leave blank and add a Recipe for a prepared side.',
+    )
+
+    class Meta:
+        ordering = ['group', 'label']
+
+    def __str__(self):
+        return f"{self.group.name}: {self.label}"
+
+    @property
+    def is_direct_sale(self):
+        return self.inventory_item_id is not None
+
+    @transaction.atomic
+    def deduct_stock(self, quantity=1):
+        if self.is_direct_sale:
+            return self.inventory_item.deduct(quantity)
+        return _deduct_recipe(self.recipe_items, quantity)
+
+    @transaction.atomic
+    def restore_stock(self, quantity=1):
+        if self.is_direct_sale:
+            self.inventory_item.restore(quantity)
+            return
+        _restore_recipe(self.recipe_items, quantity)
+
+    def current_unit_cost(self):
+        if self.is_direct_sale:
+            return self.inventory_item.buying_price
+        return _recipe_cost(self.recipe_items)
+
+
+class Recipe(models.Model):
+    """
+    Links the InventoryItems consumed by a prepared item — either a MenuItem
+    (e.g. Mango Juice = 1 Mango + 0.05 kg Sugar) or an AccompanimentOption
+    (e.g. Fries = 0.2 kg Potato). Exactly one owner is set per row.
+    """
+
+    menu_item = models.ForeignKey(
+        MenuItem, on_delete=models.CASCADE, related_name='recipe_items',
+        null=True, blank=True,
+    )
+    accompaniment_option = models.ForeignKey(
+        AccompanimentOption, on_delete=models.CASCADE, related_name='recipe_items',
+        null=True, blank=True,
+    )
+    inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='used_in_recipes')
+    quantity_required = models.DecimalField(
+        max_digits=8, decimal_places=3,
+        help_text="Amount of this ingredient consumed per 1 item sold",
+    )
+
+    class Meta:
+        verbose_name_plural = 'recipes'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['menu_item', 'inventory_item'],
+                condition=models.Q(menu_item__isnull=False),
+                name='unique_menuitem_ingredient',
+            ),
+            models.UniqueConstraint(
+                fields=['accompaniment_option', 'inventory_item'],
+                condition=models.Q(accompaniment_option__isnull=False),
+                name='unique_option_ingredient',
+            ),
+            models.CheckConstraint(
+                check=(
+                    models.Q(menu_item__isnull=False, accompaniment_option__isnull=True)
+                    | models.Q(menu_item__isnull=True, accompaniment_option__isnull=False)
+                ),
+                name='recipe_exactly_one_owner',
+            ),
+        ]
+
+    def __str__(self):
+        owner = self.menu_item.title if self.menu_item_id else str(self.accompaniment_option)
         return (
-            f"{self.menu_item.title} — "
+            f"{owner} — "
             f"{self.quantity_required} {self.inventory_item.get_unit_display()} "
             f"{self.inventory_item.name}"
         )
@@ -583,3 +697,24 @@ class OrderItem(models.Model):
 
     def get_cost_subtotal(self):
         return self.unit_cost * self.quantity
+
+
+class OrderItemOption(models.Model):
+    """
+    Snapshot of an accompaniment chosen for an OrderItem. The option's
+    price_delta and cost are already folded into the parent OrderItem's
+    all-in unit_price / unit_cost; these rows are the breakdown detail and
+    survive even if the AccompanimentOption is later edited or deleted.
+    """
+
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name='options')
+    option = models.ForeignKey(
+        AccompanimentOption, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    group_name = models.CharField(max_length=120, blank=True)
+    label = models.CharField(max_length=120)
+    price_delta = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    unit_cost = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+
+    def __str__(self):
+        return f"{self.order_item} — {self.label}"

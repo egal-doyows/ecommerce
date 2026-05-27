@@ -9,6 +9,9 @@
     </div>
     <div class="pos-order-item-details">
         <div class="pos-order-item-name">{{ product.title|capfirst }}</div>
+        {% for opt in item.options %}
+        <div class="pos-order-item-opt">+ {{ opt.label }}</div>
+        {% endfor %}
         <div class="pos-order-item-unit">{{ restaurant.currency_symbol }}{{ item.price|floatformat:2|intcomma }} each</div>
     </div>
     <div class="pos-order-item-price">{{ restaurant.currency_symbol }}{{ item.total|floatformat:2|intcomma }}</div>
