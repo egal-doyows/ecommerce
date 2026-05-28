@@ -179,7 +179,7 @@ class OrderAdmin(ModelAdmin):
 class AccompanimentOptionInline(TabularInline):
     model = AccompanimentOption
     extra = 1
-    fields = ('label', 'price_delta', 'is_available', 'inventory_item')
+    fields = ('label', 'price_delta', 'is_available', 'inventory_item', 'inventory_quantity')
     autocomplete_fields = ('inventory_item',)
 
 
@@ -209,10 +209,11 @@ class AccompanimentOptionAdmin(ModelAdmin):
         }),
         ('Inventory', {
             'description': (
-                'For a <strong>direct-stock side</strong> (e.g. a bottled extra): link an inventory item. '
-                'For a <strong>prepared side</strong> (fries, rice): leave blank and add ingredients in the Recipe section.'
+                'For a <strong>direct-stock side</strong> (e.g. a bottled extra): link an inventory item '
+                'and set how many of its units are consumed per pick (e.g. 0.02 for 20 g of cheese). '
+                'For a <strong>prepared side</strong> (fries, rice): leave the item blank and add ingredients in the Recipe section.'
             ),
-            'fields': ('inventory_item',),
+            'fields': ('inventory_item', 'inventory_quantity'),
         }),
     )
 

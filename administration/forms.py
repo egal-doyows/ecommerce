@@ -212,12 +212,13 @@ class AccompanimentGroupForm(forms.ModelForm):
 class AccompanimentOptionForm(forms.ModelForm):
     class Meta:
         model = AccompanimentOption
-        fields = ['label', 'price_delta', 'is_available', 'inventory_item']
+        fields = ['label', 'price_delta', 'is_available', 'inventory_item', 'inventory_quantity']
         widgets = {
             'label': forms.TextInput(attrs={**_input, 'placeholder': 'e.g. Fries'}),
             'price_delta': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0'}),
             'is_available': forms.CheckboxInput(),
             'inventory_item': forms.Select(attrs=_select),
+            'inventory_quantity': forms.NumberInput(attrs={**_input, 'step': '0.001', 'min': '0'}),
         }
 
 

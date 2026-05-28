@@ -55,7 +55,7 @@
                 <td style="font-weight:500;">{{ o.label }}</td>
                 <td style="color:var(--adm-muted);font-size:12px;">{{ o.price_delta }}</td>
                 <td style="color:var(--adm-muted);font-size:12px;">
-                    {% if o.inventory_item %}{{ o.inventory_item.name }}{% elif o.recipe_items.exists %}recipe{% else %}—{% endif %}
+                    {% if o.inventory_item %}{{ o.inventory_quantity|floatformat:'-3' }} {{ o.inventory_item.get_unit_display }} {{ o.inventory_item.name }}{% elif o.recipe_items.exists %}recipe{% else %}—{% endif %}
                 </td>
                 <td>
                     {% if o.is_available %}

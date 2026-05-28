@@ -413,6 +413,10 @@ class AccompanimentOption(models.Model):
         null=True, blank=True, related_name='accompaniment_options',
         help_text='For a direct-stock side. Leave blank and add a Recipe for a prepared side.',
     )
+    inventory_quantity = models.DecimalField(
+        max_digits=10, decimal_places=3, default=1,
+        help_text='Units of the linked inventory item consumed per pick (e.g. 0.02 kg of cheese). Ignored when using a recipe.',
+    )
 
     class Meta:
         ordering = ['group', 'label']
@@ -427,19 +431,19 @@ class AccompanimentOption(models.Model):
     @transaction.atomic
     def deduct_stock(self, quantity=1):
         if self.is_direct_sale:
-            return self.inventory_item.deduct(quantity)
+            return self.inventory_item.deduct(quantity * self.inventory_quantity)
         return _deduct_recipe(self.recipe_items, quantity)
 
     @transaction.atomic
     def restore_stock(self, quantity=1):
         if self.is_direct_sale:
-            self.inventory_item.restore(quantity)
+            self.inventory_item.restore(quantity * self.inventory_quantity)
             return
         _restore_recipe(self.recipe_items, quantity)
 
     def current_unit_cost(self):
         if self.is_direct_sale:
-            return self.inventory_item.buying_price
+            return self.inventory_item.buying_price * self.inventory_quantity
         return _recipe_cost(self.recipe_items)
 
 
