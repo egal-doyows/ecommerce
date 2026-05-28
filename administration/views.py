@@ -10,7 +10,7 @@ from django.db.models import Sum, Count, Q, F, DecimalField
 from menu.cache import get_restaurant_settings
 from menu.models import (
     Category, MenuItem, InventoryItem, Recipe, Table, Order, OrderItem, Shift,
-    RestaurantSettings,
+    RestaurantSettings, AccompanimentGroup, AccompanimentOption,
 )
 from account.models import WaiterCode
 from staff_compensation.models import StaffCompensation, PaymentRecord
@@ -19,6 +19,7 @@ from .models import Account, Transaction
 from .forms import (
     StaffCreateForm, StaffUpdateForm, WaiterCodeForm,
     CategoryForm, MenuItemForm, RecipeForm,
+    AccompanimentGroupForm, AccompanimentOptionForm,
     InventoryItemForm, StockUpdateForm,
     TableForm, RestaurantSettingsForm,
 )
@@ -428,6 +429,123 @@ def recipe_delete(request, pk):
         'object': recipe,
         'object_name': f'ingredient "{recipe.inventory_item.name}" from {recipe.menu_item.title}',
         'cancel_url': 'admin-menu-list',
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  ACCOMPANIMENTS
+# ═══════════════════════════════════════════════════════════════════════
+
+@manager_required
+def accompaniment_list(request):
+    groups = (
+        AccompanimentGroup.objects
+        .annotate(option_count=Count('options', distinct=True),
+                  item_count=Count('menu_items', distinct=True))
+        .prefetch_related('menu_items')
+    )
+    return render(request, 'administration/accompaniment_list.html', {
+        'groups': groups,
+    })
+
+
+@superuser_only
+def accompaniment_group_create(request):
+    if request.method == 'POST':
+        form = AccompanimentGroupForm(request.POST)
+        if form.is_valid():
+            group = form.save()
+            messages.success(request, f'Group "{group.name}" created. Add options below.')
+            return redirect('admin-accompaniment-edit', pk=group.pk)
+    else:
+        form = AccompanimentGroupForm()
+    return render(request, 'administration/generic_form.html', {
+        'form': form, 'title': 'Add Accompaniment Group',
+        'cancel_url': 'admin-accompaniment-list',
+    })
+
+
+@superuser_only
+def accompaniment_group_edit(request, pk):
+    group = get_object_or_404(AccompanimentGroup, pk=pk)
+    if request.method == 'POST':
+        form = AccompanimentGroupForm(request.POST, instance=group)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'{group.name} updated.')
+            return redirect('admin-accompaniment-list')
+    else:
+        form = AccompanimentGroupForm(instance=group)
+    options = group.options.select_related('inventory_item').all()
+    attached_items = group.menu_items.all()
+    return render(request, 'administration/accompaniment_group_form.html', {
+        'form': form, 'title': f'Edit {group.name}', 'group': group,
+        'options': options, 'attached_items': attached_items,
+    })
+
+
+@superuser_only
+def accompaniment_group_delete(request, pk):
+    group = get_object_or_404(AccompanimentGroup, pk=pk)
+    if request.method == 'POST':
+        group.delete()
+        messages.success(request, 'Accompaniment group deleted.')
+        return redirect('admin-accompaniment-list')
+    return render(request, 'administration/confirm_delete.html', {
+        'object': group,
+        'object_name': f'accompaniment group "{group.name}"',
+        'cancel_url': 'admin-accompaniment-list',
+    })
+
+
+@superuser_only
+def accompaniment_option_add(request, group_id):
+    group = get_object_or_404(AccompanimentGroup, pk=group_id)
+    if request.method == 'POST':
+        form = AccompanimentOptionForm(request.POST)
+        if form.is_valid():
+            option = form.save(commit=False)
+            option.group = group
+            option.save()
+            messages.success(request, 'Option added.')
+            return redirect('admin-accompaniment-edit', pk=group.pk)
+    else:
+        form = AccompanimentOptionForm()
+    return render(request, 'administration/generic_form.html', {
+        'form': form, 'title': f'Add Option to {group.name}',
+        'cancel_url': 'admin-accompaniment-list',
+    })
+
+
+@superuser_only
+def accompaniment_option_edit(request, pk):
+    option = get_object_or_404(AccompanimentOption, pk=pk)
+    if request.method == 'POST':
+        form = AccompanimentOptionForm(request.POST, instance=option)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Option updated.')
+            return redirect('admin-accompaniment-edit', pk=option.group_id)
+    else:
+        form = AccompanimentOptionForm(instance=option)
+    return render(request, 'administration/generic_form.html', {
+        'form': form, 'title': f'Edit {option.label}',
+        'cancel_url': 'admin-accompaniment-list',
+    })
+
+
+@superuser_only
+def accompaniment_option_delete(request, pk):
+    option = get_object_or_404(AccompanimentOption, pk=pk)
+    group_id = option.group_id
+    if request.method == 'POST':
+        option.delete()
+        messages.success(request, 'Option removed.')
+        return redirect('admin-accompaniment-edit', pk=group_id)
+    return render(request, 'administration/confirm_delete.html', {
+        'object': option,
+        'object_name': f'option "{option.label}" from {option.group.name}',
+        'cancel_url': 'admin-accompaniment-list',
     })
 
 

@@ -1,0 +1,80 @@
+{% extends 'administration/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ title }}</h1>
+        <div class="breadcrumb-text"><a href="{% url 'admin-accompaniment-list' %}" style="color:var(--adm-accent);text-decoration:none;">Accompaniments</a> / {{ title }}</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+    <div class="adm-card">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="adm-form-group">
+                <label class="adm-form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="adm-help-text">{{ field.help_text }}</div>{% endif %}
+                {{ field.errors }}
+            </div>
+            {% endfor %}
+            <div style="display:flex;gap:10px;margin-top:24px;">
+                <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save</button>
+                <a href="{% url 'admin-accompaniment-list' %}" class="adm-btn adm-btn-outline">Cancel</a>
+            </div>
+        </form>
+
+        {% if attached_items %}
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06);">
+            <div class="adm-form-label" style="margin-bottom:8px;">Attached to menu items</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                {% for it in attached_items %}
+                <span class="adm-badge adm-badge-info">{{ it.title }}</span>
+                {% endfor %}
+            </div>
+            <div class="adm-help-text" style="margin-top:8px;">Attach this group to menu items from the menu-item edit page.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Options -->
+    <div class="adm-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="font-size:14px;font-weight:700;margin:0;">Options</h3>
+            <a href="{% url 'admin-accompaniment-option-add' group.pk %}" class="adm-btn adm-btn-sm adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Option</a>
+        </div>
+        {% if options %}
+        <table class="adm-table">
+            <thead><tr><th>Label</th><th>Price +</th><th>Stock link</th><th>Available</th><th></th></tr></thead>
+            <tbody>
+            {% for o in options %}
+            <tr>
+                <td style="font-weight:500;">{{ o.label }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ o.price_delta }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">
+                    {% if o.inventory_item %}{{ o.inventory_item.name }}{% elif o.recipe_items.exists %}recipe{% else %}—{% endif %}
+                </td>
+                <td>
+                    {% if o.is_available %}
+                    <span class="adm-badge adm-badge-info">Yes</span>
+                    {% else %}
+                    <span class="adm-badge" style="background:rgba(255,255,255,0.08);color:var(--adm-muted);">No</span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap;">
+                    <a href="{% url 'admin-accompaniment-option-edit' o.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                    <a href="{% url 'admin-accompaniment-option-delete' o.pk %}" class="adm-btn-icon" title="Remove" style="color:var(--adm-danger);"><i class="fa-solid fa-xmark"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="adm-empty" style="padding:20px;"><i class="fa-solid fa-list"></i><p>No options yet</p></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'administration/base.html' %}
+{% block title %}Accompaniments{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Accompaniments</h1>
+        <div class="breadcrumb-text">Reusable choice groups attached to menu items</div>
+    </div>
+    {% if user.is_superuser %}<a href="{% url 'admin-accompaniment-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Group</a>{% endif %}
+</div>
+
+<div class="adm-card">
+    {% if groups %}
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Group</th>
+                <th>Required</th>
+                <th>Options</th>
+                <th>Attached to</th>
+                {% if user.is_superuser %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for g in groups %}
+        <tr>
+            <td style="font-weight:600;"><i class="fa-solid fa-list-check" style="color:var(--adm-accent);margin-right:8px;"></i>{{ g.name }}</td>
+            <td>
+                {% if g.is_required %}
+                <span class="adm-badge adm-badge-info">Required</span>
+                {% else %}
+                <span class="adm-badge" style="background:rgba(255,255,255,0.08);color:var(--adm-muted);">Optional</span>
+                {% endif %}
+            </td>
+            <td><span class="adm-badge adm-badge-info">{{ g.option_count }}</span></td>
+            <td style="font-size:12px;color:var(--adm-muted);">
+                {% for it in g.menu_items.all %}{{ it.title }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+            </td>
+            {% if user.is_superuser %}
+            <td style="white-space:nowrap;">
+                <a href="{% url 'admin-accompaniment-edit' g.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                <a href="{% url 'admin-accompaniment-delete' g.pk %}" class="adm-btn-icon" title="Delete" style="color:var(--adm-danger);"><i class="fa-solid fa-trash"></i></a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-list-check"></i><p>No accompaniment groups yet</p></div>
+    {% endif %}
+</div>
+{% endblock %}

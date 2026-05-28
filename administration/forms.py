@@ -5,6 +5,7 @@ from django.utils.text import slugify
 
 from menu.models import (
     Category, MenuItem, InventoryItem, Recipe, Table, RestaurantSettings,
+    AccompanimentGroup, AccompanimentOption,
 )
 from account.models import WaiterCode
 from staff_compensation.models import StaffCompensation
@@ -193,6 +194,30 @@ class RecipeForm(forms.ModelForm):
         widgets = {
             'inventory_item': forms.Select(attrs=_select),
             'quantity_required': forms.NumberInput(attrs={**_input, 'step': '0.001', 'min': '0'}),
+        }
+
+
+# ── Accompaniments ────────────────────────────────────────────────────
+
+class AccompanimentGroupForm(forms.ModelForm):
+    class Meta:
+        model = AccompanimentGroup
+        fields = ['name', 'is_required']
+        widgets = {
+            'name': forms.TextInput(attrs={**_input, 'placeholder': 'e.g. Choose a side'}),
+            'is_required': forms.CheckboxInput(),
+        }
+
+
+class AccompanimentOptionForm(forms.ModelForm):
+    class Meta:
+        model = AccompanimentOption
+        fields = ['label', 'price_delta', 'is_available', 'inventory_item']
+        widgets = {
+            'label': forms.TextInput(attrs={**_input, 'placeholder': 'e.g. Fries'}),
+            'price_delta': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0'}),
+            'is_available': forms.CheckboxInput(),
+            'inventory_item': forms.Select(attrs=_select),
         }
 
 

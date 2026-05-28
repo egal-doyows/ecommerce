@@ -27,6 +27,15 @@ urlpatterns = [
     path('menu/<int:menu_item_id>/recipe/add/', views.recipe_add, name='admin-recipe-add'),
     path('recipe/<int:pk>/delete/', views.recipe_delete, name='admin-recipe-delete'),
 
+    # Accompaniments
+    path('accompaniments/', views.accompaniment_list, name='admin-accompaniment-list'),
+    path('accompaniments/create/', views.accompaniment_group_create, name='admin-accompaniment-create'),
+    path('accompaniments/<int:pk>/edit/', views.accompaniment_group_edit, name='admin-accompaniment-edit'),
+    path('accompaniments/<int:pk>/delete/', views.accompaniment_group_delete, name='admin-accompaniment-delete'),
+    path('accompaniments/<int:group_id>/option/add/', views.accompaniment_option_add, name='admin-accompaniment-option-add'),
+    path('accompaniments/option/<int:pk>/edit/', views.accompaniment_option_edit, name='admin-accompaniment-option-edit'),
+    path('accompaniments/option/<int:pk>/delete/', views.accompaniment_option_delete, name='admin-accompaniment-option-delete'),
+
     # Inventory
     path('inventory/', views.inventory_list, name='admin-inventory-list'),
     path('inventory/create/', views.inventory_create, name='admin-inventory-create'),
