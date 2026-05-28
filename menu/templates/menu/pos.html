@@ -1370,6 +1370,21 @@
                 label.appendChild(radio);
                 label.appendChild(lbl);
                 label.appendChild(price);
+                // Click an already-checked option to deselect it. Native
+                // radios switch but don't clear; this lets a user undo a
+                // pick (essential for optional groups; on required ones the
+                // submit handler still prompts to choose).
+                label.addEventListener('mousedown', function() {
+                    label._wasChecked = radio.checked;
+                });
+                label.addEventListener('click', function() {
+                    if (label._wasChecked) {
+                        setTimeout(function() {
+                            radio.checked = false;
+                            updateModalTotal();
+                        }, 0);
+                    }
+                });
                 wrap.appendChild(label);
             });
             body.appendChild(wrap);
