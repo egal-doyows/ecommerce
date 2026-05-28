@@ -2,7 +2,7 @@
 import json
 import logging
 
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_GET, require_POST
@@ -229,9 +229,14 @@ def api_place_order(request):
             'error': f'Not enough stock for {item_name}',
             'insufficient_item': item_name,
         }, status=409)
-    except Exception as e:
-        logger.warning("Order placement failed: %s", str(e), exc_info=True)
-        return JsonResponse({'error': 'Order could not be placed. Please try again.'}, status=400)
+    except (KeyError, ValueError, TypeError) as e:
+        # Malformed payload — don't retry.
+        logger.warning("Order placement payload invalid: %s", str(e))
+        return JsonResponse({'error': 'Invalid order payload.'}, status=400)
+    except IntegrityError as e:
+        # Transient DB conflict (race, FK gone) — retry is reasonable.
+        logger.warning("Order placement DB conflict: %s", str(e), exc_info=True)
+        return JsonResponse({'error': 'Order could not be saved. Please try again.'}, status=409)
 
     return JsonResponse({
         'success': True,
@@ -268,6 +273,10 @@ def api_update_order_status(request, order_id):
     if new_status == 'paid':
         if payment_method not in dict(Order.PAYMENT_CHOICES):
             return JsonResponse({'error': 'Invalid payment method'}, status=400)
+        if payment_method == 'mpesa':
+            mpesa_code = (mpesa_code or '').strip().upper()
+            if len(mpesa_code) != 4 or not mpesa_code.isalnum():
+                return JsonResponse({'error': 'M-Pesa code must be 4 alphanumeric characters'}, status=400)
         if payment_method == 'credit':
             debtor_id = data.get('debtor_id')
             if debtor_id:

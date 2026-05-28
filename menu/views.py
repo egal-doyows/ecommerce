@@ -190,9 +190,11 @@ def place_order(request):
             source = 'pos'
 
         if cart.__len__() == 0:
-            return JsonResponse({'error': 'Add items to the order'}, status=400)
+            messages.error(request, 'Add items to the order before placing it.')
+            return redirect('pos')
         if order_type == 'dine_in' and not table_id:
-            return JsonResponse({'error': 'Select a table for dine-in orders'}, status=400)
+            messages.error(request, 'Select a table for dine-in orders.')
+            return redirect('pos')
 
         table = get_object_or_404(Table, id=table_id) if table_id and order_type == 'dine_in' else None
 
@@ -263,10 +265,8 @@ def place_order(request):
                     table.status = 'occupied'
                     table.save()
         except _InsufficientStock as e:
-            return JsonResponse({
-                'error': f'Not enough stock for {e}',
-                'insufficient_item': str(e),
-            }, status=409)
+            messages.error(request, f'Not enough stock for {e}.')
+            return redirect('pos')
 
         cart.clear()
 

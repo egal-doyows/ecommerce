@@ -68,8 +68,13 @@ def cart_add(request):
     cart = Cart(request)
 
     if request.POST.get('action') == 'post':
-        product_id = int(request.POST.get('product_id'))
-        product_quantity = int(request.POST.get('product_quantity'))
+        try:
+            product_id = int(request.POST.get('product_id'))
+            product_quantity = int(request.POST.get('product_quantity'))
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'Invalid product or quantity'}, status=400)
+        if product_quantity < 1:
+            return JsonResponse({'error': 'Quantity must be at least 1'}, status=400)
         product = get_object_or_404(MenuItem, id=product_id)
 
         options, error = resolve_options(product, request.POST.getlist('option_id'))
@@ -87,7 +92,12 @@ def cart_update(request):
 
     if request.POST.get('action') == 'post':
         cart_key = request.POST.get('cart_key', '')
-        product_quantity = int(request.POST.get('product_quantity'))
+        try:
+            product_quantity = int(request.POST.get('product_quantity'))
+        except (TypeError, ValueError):
+            return JsonResponse({'error': 'Invalid quantity'}, status=400)
+        if product_quantity < 1:
+            return JsonResponse({'error': 'Quantity must be at least 1'}, status=400)
 
         # Support legacy product_id param
         if not cart_key:
