@@ -14,7 +14,10 @@ from django.utils import timezone
 
 from administration.models import Account, Transaction
 from menu.cache import get_restaurant_settings
-from menu.models import InventoryItem, MenuItem, Order, OrderItem, Shift, StockAdjustment
+from menu.models import (
+    InventoryItem, MenuItem, Order, OrderItem, OrderItemOption,
+    Shift, StockAdjustment,
+)
 from waste.models import WasteItem, WasteLog
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
@@ -1422,7 +1425,6 @@ def recipe_cost_drift(request):
             cost_sum=Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
         )
     )
-    from menu.models import OrderItemOption
     option_cost_by_item = {
         row['order_item__menu_item_id']: row['option_cost'] or Decimal('0')
         for row in OrderItemOption.objects
@@ -1581,6 +1583,45 @@ def slow_movers(request):
         recipes = Recipe.objects.filter(menu_item_id__in=menu_qtys.keys())
         for r in recipes:
             used = menu_qtys[r.menu_item_id] * r.quantity_required
+            movement[r.inventory_item_id] = movement.get(r.inventory_item_id, Decimal('0')) + used
+
+    # Direct-stock option consumption: OrderItemOption.option.inventory_item
+    # × inventory_quantity × OrderItem.quantity. Snapshot rows whose option
+    # was deleted lose their inventory linkage and are skipped — by design.
+    option_filters = dict(
+        order_item__order__status='paid',
+        order_item__order__is_comp=False,
+        order_item__order__created_at__date__gte=start,
+        order_item__order__created_at__date__lte=end,
+    )
+    option_direct = (
+        OrderItemOption.objects
+        .filter(option__inventory_item__isnull=False, **option_filters)
+        .values('option__inventory_item_id')
+        .annotate(
+            used=Sum(
+                F('option__inventory_quantity') * F('order_item__quantity'),
+                output_field=DecimalField(),
+            ),
+        )
+    )
+    for d in option_direct:
+        inv_id = d['option__inventory_item_id']
+        movement[inv_id] = movement.get(inv_id, Decimal('0')) + (d['used'] or Decimal('0'))
+
+    # Recipe-based option consumption: count picks per option then walk recipes.
+    option_recipe_picks = (
+        OrderItemOption.objects
+        .filter(option__recipe_items__isnull=False, **option_filters)
+        .values('option_id')
+        .annotate(qty=Sum('order_item__quantity'))
+        .distinct()
+    )
+    option_qtys = {r['option_id']: Decimal(str(r['qty'] or 0)) for r in option_recipe_picks}
+    if option_qtys:
+        opt_recipes = Recipe.objects.filter(accompaniment_option_id__in=option_qtys.keys())
+        for r in opt_recipes:
+            used = option_qtys[r.accompaniment_option_id] * r.quantity_required
             movement[r.inventory_item_id] = movement.get(r.inventory_item_id, Decimal('0')) + used
 
     # Waste in the period also counts as movement.
@@ -1975,6 +2016,126 @@ def best_selling(request):
         'categories': categories,
         'category_filter': category_filter,
         'item_count': len(rows),
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
+    })
+
+
+# ── Accompaniment Popularity ───────────────────────────────────────────
+
+@manager_required
+def accompaniment_popularity(request):
+    """
+    Top accompaniment picks in the period, ranked by pick count.
+
+    Aggregates `OrderItemOption` snapshot rows by `(group_name, label)` so
+    deletions/renames of the underlying AccompanimentOption don't break the
+    history. Pick count = sum of parent OrderItem quantity. Revenue = sum of
+    price_delta × OrderItem.quantity; cost = sum of unit_cost × OrderItem.quantity.
+    """
+    start, end, preset = parse_date_range(request)
+    group_filter = request.GET.get('group', '')
+
+    qs = OrderItemOption.objects.filter(
+        order_item__order__status='paid',
+        order_item__order__is_comp=False,
+        order_item__order__created_at__date__gte=start,
+        order_item__order__created_at__date__lte=end,
+    )
+    if group_filter:
+        qs = qs.filter(group_name=group_filter)
+
+    aggregates = (
+        qs.values('group_name', 'label')
+        .annotate(
+            picks=Sum('order_item__quantity'),
+            revenue=Coalesce(
+                Sum(F('price_delta') * F('order_item__quantity'),
+                    output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+            cost=Coalesce(
+                Sum(F('unit_cost') * F('order_item__quantity'),
+                    output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+        )
+    )
+
+    rows = []
+    total_picks = 0
+    total_revenue = Decimal('0')
+    total_cost = Decimal('0')
+    for a in aggregates:
+        picks = a['picks'] or 0
+        revenue = a['revenue'] or Decimal('0')
+        cost = a['cost'] or Decimal('0')
+        margin = revenue - cost
+        rows.append({
+            'group_name': a['group_name'] or '(no group)',
+            'label': a['label'],
+            'picks': picks,
+            'revenue': revenue,
+            'cost': cost,
+            'margin': margin,
+        })
+        total_picks += picks
+        total_revenue += revenue
+        total_cost += cost
+
+    total_margin = total_revenue - total_cost
+
+    # Per-group share for the "which option dominates its group" reading.
+    picks_by_group = {}
+    for r in rows:
+        picks_by_group[r['group_name']] = picks_by_group.get(r['group_name'], 0) + r['picks']
+    for r in rows:
+        g_total = picks_by_group.get(r['group_name'], 0)
+        r['group_share_pct'] = (Decimal(r['picks']) / Decimal(g_total) * 100) if g_total else Decimal('0')
+
+    sort_key = request.GET.get('sort', 'picks')
+    sort_dir = request.GET.get('dir', 'desc')
+    reverse = sort_dir != 'asc'
+    sort_field = {
+        'picks': 'picks',
+        'revenue': 'revenue',
+        'cost': 'cost',
+        'margin': 'margin',
+        'group': 'group_name',
+        'label': 'label',
+    }.get(sort_key, 'picks')
+    rows.sort(key=lambda r: r[sort_field], reverse=reverse)
+
+    if request.GET.get('format') == 'csv':
+        header = ['group', 'option', 'picks', 'group_share_pct', 'revenue', 'cost', 'margin']
+        csv_rows = [
+            [r['group_name'], r['label'], r['picks'],
+             f"{r['group_share_pct']:.1f}", r['revenue'], r['cost'], r['margin']]
+            for r in rows
+        ]
+        return csv_response(
+            f'accompaniment_popularity_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    groups = (
+        OrderItemOption.objects
+        .exclude(group_name='')
+        .values_list('group_name', flat=True)
+        .distinct()
+        .order_by('group_name')
+    )
+
+    return render(request, 'reports/accompaniment_popularity.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'group_filter': group_filter,
+        'groups': groups,
+        'total_picks': total_picks,
+        'total_revenue': total_revenue,
+        'total_cost': total_cost,
+        'total_margin': total_margin,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'currency_symbol': get_restaurant_settings().currency_symbol,
