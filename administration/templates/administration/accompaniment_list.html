@@ -35,7 +35,7 @@
             </td>
             <td><span class="adm-badge adm-badge-info">{{ g.option_count }}</span></td>
             <td style="font-size:12px;color:var(--adm-muted);">
-                {% for it in g.menu_items.all %}{{ it.title }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+                {% for it in g.menu_items.all %}<a href="{% url 'admin-menu-edit' it.pk %}" style="color:var(--adm-accent);text-decoration:none;">{{ it.title }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
             </td>
             {% if user.is_superuser %}
             <td style="white-space:nowrap;">

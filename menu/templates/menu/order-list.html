@@ -350,7 +350,7 @@
                         <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
                         <span>{{ order.get_item_count }} items</span>
                     </div>
-                    <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                    <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if item.options.all %} ({% for opt in item.options.all %}{{ opt.label }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
                 </div>
                 <span class="status-badge status-active">Unpaid</span>
                 <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>
@@ -420,7 +420,7 @@
                         <span><i class="fa fa-clock-o"></i> {{ order.created_at|date:"H:i" }}</span>
                         <span>{{ order.get_item_count }} items</span>
                     </div>
-                    <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                    <div class="ol-card-items">{% for item in order.items.all %}{{ item.quantity }}x {{ item.menu_item.title|capfirst }}{% if item.options.all %} ({% for opt in item.options.all %}{{ opt.label }}{% if not forloop.last %}, {% endif %}{% endfor %}){% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
                 </div>
                 <span class="status-badge status-paid">Paid</span>
                 <div class="ol-card-total">{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</div>

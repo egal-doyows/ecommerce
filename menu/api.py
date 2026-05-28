@@ -9,9 +9,15 @@ from django.views.decorators.http import require_GET, require_POST
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from .models import Category, MenuItem, Table, Order, OrderItem, Shift
-from .views import _is_supervisor, _is_auto_shift_user, _ensure_shift
-from .models import _InsufficientStock
+from decimal import Decimal
+
+from .models import (
+    Category, MenuItem, Table, Order, OrderItem, Shift,
+    AccompanimentOption, OrderItemOption, _InsufficientStock,
+)
+from .views import (
+    _is_supervisor, _is_auto_shift_user, _ensure_shift, _restore_order_stock,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +25,35 @@ logger = logging.getLogger(__name__)
 @login_required(login_url='waiter-login')
 @require_GET
 def api_menu(request):
-    """Return all available menu items with categories."""
+    """Return all available menu items with categories and accompaniments."""
     categories = list(Category.objects.values('id', 'name', 'slug', 'icon'))
-    items = list(
-        MenuItem.objects.filter(is_available=True).values(
-            'id', 'title', 'slug', 'description', 'price',
-            'category_id', 'image', 'item_tier', 'preparation_time',
-        )
+
+    menu_qs = (
+        MenuItem.objects.filter(is_available=True)
+        .prefetch_related('accompaniment_groups__options')
     )
-    for item in items:
-        item['price'] = float(item['price'])
-        if item['image']:
-            item['image'] = f'/media/{item["image"]}'
+    items = []
+    for mi in menu_qs:
+        groups = []
+        for g in mi.accompaniment_groups.all():
+            opts = [
+                {'id': o.id, 'label': o.label,
+                 'delta': float(o.price_delta), 'group_name': g.name}
+                for o in g.options.all() if o.is_available
+            ]
+            if opts:
+                groups.append({
+                    'id': g.id, 'name': g.name,
+                    'required': g.is_required, 'options': opts,
+                })
+        items.append({
+            'id': mi.id, 'title': mi.title, 'slug': mi.slug,
+            'description': mi.description, 'price': float(mi.price),
+            'category_id': mi.category_id,
+            'image': f'/media/{mi.image}' if mi.image else '',
+            'item_tier': mi.item_tier, 'preparation_time': mi.preparation_time,
+            'accompaniment_groups': groups,
+        })
     return JsonResponse({'categories': categories, 'items': items})
 
 
@@ -117,14 +140,23 @@ def api_place_order(request):
     order_waiter = request.user
     order_created_by = None
 
+    # Resolve cart lines: validate menu items, resolve accompaniments, compute
+    # all-in unit_price / unit_cost. Validation happens before opening the atomic
+    # block so a bad payload doesn't even start an order.
+    from cart.views import resolve_options
     cart_items = []
     for cart_item in items:
         menu_item = get_object_or_404(MenuItem, id=cart_item['id'])
         qty = int(cart_item.get('qty', 1))
+        raw_option_ids = cart_item.get('options') or cart_item.get('option_ids') or []
+        option_ids = [int(o['id']) if isinstance(o, dict) else int(o) for o in raw_option_ids]
+        resolved_opts, error = resolve_options(menu_item, option_ids)
+        if error:
+            return JsonResponse({'error': error}, status=400)
         cart_items.append({
             'product': menu_item,
             'qty': qty,
-            'price': menu_item.price,
+            'options': resolved_opts,
         })
 
     try:
@@ -142,14 +174,49 @@ def api_place_order(request):
             for cart_item in cart_items:
                 product = cart_item['product']
                 qty = cart_item['qty']
-                OrderItem.objects.create(
+                opts = cart_item['options']
+
+                option_objs = {}
+                if opts:
+                    option_objs = {
+                        o.id: o for o in AccompanimentOption.objects
+                            .select_related('inventory_item')
+                            .prefetch_related('recipe_items__inventory_item')
+                            .filter(id__in=[o['id'] for o in opts])
+                    }
+                option_delta = sum(
+                    (Decimal(str(o['delta'])) for o in opts), Decimal('0'),
+                )
+                option_cost = sum(
+                    (option_objs[o['id']].current_unit_cost()
+                     for o in opts if o['id'] in option_objs),
+                    Decimal('0'),
+                )
+
+                order_item = OrderItem.objects.create(
                     order=order,
                     menu_item=product,
                     quantity=qty,
-                    unit_price=cart_item['price'],
-                    unit_cost=product.current_unit_cost(),
+                    unit_price=product.price + option_delta,
+                    unit_cost=product.current_unit_cost() + option_cost,
                 )
+                for o in opts:
+                    obj = option_objs.get(o['id'])
+                    OrderItemOption.objects.create(
+                        order_item=order_item,
+                        option=obj,
+                        group_name=o.get('group_name', ''),
+                        label=o['label'],
+                        price_delta=Decimal(str(o['delta'])),
+                        unit_cost=obj.current_unit_cost() if obj else Decimal('0'),
+                    )
+
                 product.deduct_stock(qty)
+                for o in opts:
+                    obj = option_objs.get(o['id'])
+                    if obj:
+                        obj.deduct_stock(qty)
+
             if table:
                 table.status = 'occupied'
                 table.save()
@@ -218,11 +285,7 @@ def api_update_order_status(request, order_id):
             if payment_method == 'credit':
                 order.debtor = debtor
         if new_status == 'cancelled' and order.status == 'active':
-            for oi in order.items.select_related('menu_item').all():
-                try:
-                    oi.menu_item.restore_stock(oi.quantity)
-                except Exception:
-                    logger.warning("Stock restore failed for %s", oi.menu_item.title)
+            _restore_order_stock(order)
         order.status = new_status
         order.save()
         if new_status == 'paid':

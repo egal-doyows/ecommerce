@@ -453,7 +453,7 @@
             <div style="flex:1;">
                 <div class="od-item-name">{{ item.menu_item.title|capfirst }}</div>
                 {% for opt in item.options.all %}
-                <div class="od-item-notes">+ {{ opt.label }}</div>
+                <div class="od-item-notes">+ {{ opt.label }}{% if opt.price_delta > 0 %} (+{{ restaurant.currency_symbol }}{{ opt.price_delta|floatformat:2|intcomma }}){% endif %}</div>
                 {% endfor %}
                 {% if item.notes %}<div class="od-item-notes">{{ item.notes }}</div>{% endif %}
             </div>
@@ -668,6 +668,9 @@
             <span>{{ item.quantity }}x {{ item.menu_item.title|capfirst }}</span>
             <span>{{ item.get_subtotal|floatformat:2|intcomma }}</span>
         </div>
+        {% for opt in item.options.all %}
+        <div class="receipt-item-detail">+ {{ opt.label }}{% if opt.price_delta > 0 %} ({{ restaurant.currency_symbol }}{{ opt.price_delta|floatformat:2|intcomma }}){% endif %}</div>
+        {% endfor %}
         {% if item.notes %}
         <div class="receipt-item-detail">{{ item.notes }}</div>
         {% endif %}
@@ -734,7 +737,8 @@
     .acc-modal-body { padding: 12px 20px; overflow-y: auto; }
     .acc-group { margin-bottom: 18px; }
     .acc-group-title { font-weight: 600; font-size: 13px; text-transform: uppercase;
-        letter-spacing: .03em; color: #667085; margin-bottom: 8px; }
+        letter-spacing: .03em; color: #667085; margin-bottom: 4px; }
+    .acc-group-hint { font-size: 11px; color: #98a2b3; margin-bottom: 8px; }
     .acc-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px;
         border: 1px solid #e4e7ec; border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
     .acc-option:hover { background: #f9fafb; }
@@ -778,6 +782,12 @@
             title.className = 'acc-group-title';
             title.textContent = g.name + (g.required ? ' *' : '');
             wrap.appendChild(title);
+            if (!g.required) {
+                const hint = document.createElement('div');
+                hint.className = 'acc-group-hint';
+                hint.textContent = 'Optional — leave blank for none';
+                wrap.appendChild(hint);
+            }
             g.options.forEach(o => {
                 const label = document.createElement('label');
                 label.className = 'acc-option';
@@ -787,6 +797,19 @@
                 radio.value = o.id;
                 radio.dataset.delta = o.delta;
                 radio.addEventListener('change', updateTotal);
+                let wasChecked = false;
+                radio.addEventListener('pointerdown', function() { wasChecked = radio.checked; });
+                radio.addEventListener('keydown', function(e) {
+                    if (e.key === ' ' || e.key === 'Enter') wasChecked = radio.checked;
+                });
+                radio.addEventListener('click', function(e) {
+                    if (wasChecked) {
+                        e.preventDefault();
+                        radio.checked = false;
+                        updateTotal();
+                    }
+                    wasChecked = false;
+                });
                 const lbl = document.createElement('span');
                 lbl.className = 'acc-option-label';
                 lbl.textContent = o.label;

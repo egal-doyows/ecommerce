@@ -159,6 +159,7 @@ class MenuItemForm(forms.ModelForm):
         fields = [
             'category', 'title', 'description', 'price', 'image',
             'item_tier', 'is_available', 'preparation_time', 'inventory_item',
+            'accompaniment_groups',
         ]
         widgets = {
             'category': forms.Select(attrs=_select),
@@ -170,6 +171,7 @@ class MenuItemForm(forms.ModelForm):
             'is_available': forms.CheckboxInput(),
             'preparation_time': forms.NumberInput(attrs={**_input, 'min': '0'}),
             'inventory_item': forms.Select(attrs=_select),
+            'accompaniment_groups': forms.CheckboxSelectMultiple(),
         }
 
     def save(self, commit=True):
@@ -218,8 +220,19 @@ class AccompanimentOptionForm(forms.ModelForm):
             'price_delta': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0'}),
             'is_available': forms.CheckboxInput(),
             'inventory_item': forms.Select(attrs=_select),
-            'inventory_quantity': forms.NumberInput(attrs={**_input, 'step': '0.001', 'min': '0'}),
+            'inventory_quantity': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0.01'}),
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        inv = cleaned.get('inventory_item')
+        qty = cleaned.get('inventory_quantity')
+        if inv is not None and (qty is None or qty <= 0):
+            self.add_error(
+                'inventory_quantity',
+                'Set a quantity greater than zero when linking an inventory item.',
+            )
+        return cleaned
 
 
 # ── Inventory ─────────────────────────────────────────────────────────

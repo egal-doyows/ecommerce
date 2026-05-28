@@ -15,9 +15,29 @@ logger = logging.getLogger(__name__)
 
 from .models import (
     Category, MenuItem, Table, Order, OrderItem, Shift, RestaurantSettings,
-    AccompanimentOption, OrderItemOption,
+    AccompanimentOption, OrderItemOption, _InsufficientStock,
 )
 from cart.cart import Cart
+
+
+def _restore_order_stock(order):
+    """Restore inventory for every OrderItem and its chosen options.
+    Used by void and cancel flows so accompaniment-side inventory doesn't leak."""
+    items = order.items.select_related('menu_item').prefetch_related(
+        'options__option__inventory_item',
+        'options__option__recipe_items__inventory_item',
+    )
+    for oi in items:
+        try:
+            oi.menu_item.restore_stock(oi.quantity)
+        except Exception:
+            logger.warning("Stock restore failed for %s", oi.menu_item.title)
+        for oio in oi.options.all():
+            if oio.option_id and oio.option is not None:
+                try:
+                    oio.option.restore_stock(oi.quantity)
+                except Exception:
+                    logger.warning("Option stock restore failed for %s", oio.label)
 
 
 def _is_supervisor(user):
@@ -181,68 +201,72 @@ def place_order(request):
 
         active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
 
-        with transaction.atomic():
-            order = Order.objects.create(
-                table=table,
-                order_type=order_type,
-                source=source,
-                waiter=order_waiter,
-                created_by=order_created_by,
-                shift=active_shift,
-                notes=order_notes,
-                status='active',
-            )
-
-            for item in cart:
-                product = item['product']
-                qty = item['qty']
-                options = item.get('options', [])
-
-                option_objs = {}
-                if options:
-                    option_objs = {
-                        o.id: o for o in AccompanimentOption.objects.filter(
-                            id__in=[opt['id'] for opt in options],
-                        )
-                    }
-
-                option_cost = sum(
-                    (option_objs[opt['id']].current_unit_cost()
-                     for opt in options if opt['id'] in option_objs),
-                    Decimal('0'),
+        try:
+            with transaction.atomic():
+                order = Order.objects.create(
+                    table=table,
+                    order_type=order_type,
+                    source=source,
+                    waiter=order_waiter,
+                    created_by=order_created_by,
+                    shift=active_shift,
+                    notes=order_notes,
+                    status='active',
                 )
 
-                order_item = OrderItem.objects.create(
-                    order=order,
-                    menu_item=product,
-                    quantity=qty,
-                    unit_price=item['price'],  # all-in (base + option deltas)
-                    unit_cost=product.current_unit_cost() + option_cost,
-                )
+                for item in cart:
+                    product = item['product']
+                    qty = item['qty']
+                    options = item.get('options', [])
 
-                for opt in options:
-                    obj = option_objs.get(opt['id'])
-                    OrderItemOption.objects.create(
-                        order_item=order_item,
-                        option=obj,
-                        group_name=opt.get('group_name', ''),
-                        label=opt['label'],
-                        price_delta=Decimal(str(opt['delta'])),
-                        unit_cost=obj.current_unit_cost() if obj else Decimal('0'),
+                    option_objs = {}
+                    if options:
+                        option_objs = {
+                            o.id: o for o in AccompanimentOption.objects
+                                .select_related('inventory_item')
+                                .prefetch_related('recipe_items__inventory_item')
+                                .filter(id__in=[opt['id'] for opt in options])
+                        }
+
+                    option_cost = sum(
+                        (option_objs[opt['id']].current_unit_cost()
+                         for opt in options if opt['id'] in option_objs),
+                        Decimal('0'),
                     )
 
-                try:
+                    order_item = OrderItem.objects.create(
+                        order=order,
+                        menu_item=product,
+                        quantity=qty,
+                        unit_price=item['price'],  # all-in (base + option deltas)
+                        unit_cost=product.current_unit_cost() + option_cost,
+                    )
+
+                    for opt in options:
+                        obj = option_objs.get(opt['id'])
+                        OrderItemOption.objects.create(
+                            order_item=order_item,
+                            option=obj,
+                            group_name=opt.get('group_name', ''),
+                            label=opt['label'],
+                            price_delta=Decimal(str(opt['delta'])),
+                            unit_cost=obj.current_unit_cost() if obj else Decimal('0'),
+                        )
+
                     product.deduct_stock(qty)
                     for opt in options:
                         obj = option_objs.get(opt['id'])
                         if obj:
                             obj.deduct_stock(qty)
-                except Exception:
-                    logger.warning("Stock deduction failed for %s", product.title)
 
-            if table:
-                table.status = 'occupied'
-                table.save()
+                if table:
+                    table.status = 'occupied'
+                    table.save()
+        except _InsufficientStock as e:
+            return JsonResponse({
+                'error': f'Not enough stock for {e}',
+                'insufficient_item': str(e),
+            }, status=409)
 
         cart.clear()
 
@@ -254,13 +278,14 @@ def place_order(request):
 @login_required(login_url='waiter-login')
 @shift_required
 def order_detail(request, order_id):
+    order_qs = Order.objects.prefetch_related('items__menu_item', 'items__options')
     if request.user.is_superuser or _is_supervisor(request.user):
-        order = get_object_or_404(Order, id=order_id)
+        order = get_object_or_404(order_qs, id=order_id)
     else:
         # Allow access if user is the waiter OR the creator (marketing)
         from django.db.models import Q
         order = get_object_or_404(
-            Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+            order_qs, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
         )
     menu_items = (
         MenuItem.objects.filter(is_available=True)
@@ -308,57 +333,57 @@ def order_edit_item(request, order_id):
         messages.error(request, error)
         return redirect('order-detail', order_id=order.id)
 
-    with transaction.atomic():
-        # Option-less items merge into an existing matching line; items with
-        # accompaniments always become their own line (different choices = different line).
-        existing = None
-        if not options:
-            existing = order.items.filter(menu_item=menu_item, options__isnull=True).first()
+    try:
+        with transaction.atomic():
+            existing = None
+            if not options:
+                existing = order.items.filter(menu_item=menu_item, options__isnull=True).first()
 
-        option_objs = {}
-        if options:
-            option_objs = {
-                o.id: o for o in AccompanimentOption.objects.filter(
-                    id__in=[opt['id'] for opt in options],
-                )
-            }
-        option_cost = sum(
-            (option_objs[opt['id']].current_unit_cost()
-             for opt in options if opt['id'] in option_objs),
-            Decimal('0'),
-        )
-        option_delta = sum((Decimal(str(opt['delta'])) for opt in options), Decimal('0'))
-
-        if existing:
-            existing.quantity += 1
-            existing.save()
-        else:
-            order_item = OrderItem.objects.create(
-                order=order,
-                menu_item=menu_item,
-                quantity=1,
-                unit_price=menu_item.price + option_delta,
-                unit_cost=menu_item.current_unit_cost() + option_cost,
+            option_objs = {}
+            if options:
+                option_objs = {
+                    o.id: o for o in AccompanimentOption.objects
+                        .select_related('inventory_item')
+                        .prefetch_related('recipe_items__inventory_item')
+                        .filter(id__in=[opt['id'] for opt in options])
+                }
+            option_cost = sum(
+                (option_objs[opt['id']].current_unit_cost()
+                 for opt in options if opt['id'] in option_objs),
+                Decimal('0'),
             )
-            for opt in options:
-                obj = option_objs.get(opt['id'])
-                OrderItemOption.objects.create(
-                    order_item=order_item,
-                    option=obj,
-                    group_name=opt.get('group_name', ''),
-                    label=opt['label'],
-                    price_delta=Decimal(str(opt['delta'])),
-                    unit_cost=obj.current_unit_cost() if obj else Decimal('0'),
-                )
+            option_delta = sum((Decimal(str(opt['delta'])) for opt in options), Decimal('0'))
 
-        try:
+            if existing:
+                existing.quantity += 1
+                existing.save()
+            else:
+                order_item = OrderItem.objects.create(
+                    order=order,
+                    menu_item=menu_item,
+                    quantity=1,
+                    unit_price=menu_item.price + option_delta,
+                    unit_cost=menu_item.current_unit_cost() + option_cost,
+                )
+                for opt in options:
+                    obj = option_objs.get(opt['id'])
+                    OrderItemOption.objects.create(
+                        order_item=order_item,
+                        option=obj,
+                        group_name=opt.get('group_name', ''),
+                        label=opt['label'],
+                        price_delta=Decimal(str(opt['delta'])),
+                        unit_cost=obj.current_unit_cost() if obj else Decimal('0'),
+                    )
+
             menu_item.deduct_stock(1)
             for opt in options:
                 obj = option_objs.get(opt['id'])
                 if obj:
                     obj.deduct_stock(1)
-        except Exception:
-            logger.warning("Stock deduction failed for %s", menu_item.title)
+    except _InsufficientStock as e:
+        messages.error(request, f'Not enough stock for {e}.')
+        return redirect('order-detail', order_id=order.id)
 
     return redirect('order-detail', order_id=order.id)
 
@@ -437,7 +462,7 @@ def order_list(request):
     active_qs = (
         active_qs
         .select_related('waiter', 'table', 'debtor')
-        .prefetch_related('items__menu_item')
+        .prefetch_related('items__menu_item', 'items__options')
     )
 
     paginator = Paginator(active_qs, 25)
@@ -492,11 +517,7 @@ def order_void(request, order_id):
         return redirect('order-detail', order_id=order.id)
 
     with transaction.atomic():
-        for oi in order.items.select_related('menu_item').all():
-            try:
-                oi.menu_item.restore_stock(oi.quantity)
-            except Exception:
-                logger.warning("Stock restore failed for %s", oi.menu_item.title)
+        _restore_order_stock(order)
         order.status = 'cancelled'
         order.authorized_by = request.user
         order.authorization_reason = reason
@@ -545,13 +566,8 @@ def order_update_status(request, order_id):
                     except Debtor.DoesNotExist:
                         return redirect('order-detail', order_id=order.id)
 
-            # Restore stock when cancelling an active order
             if new_status == 'cancelled' and order.status == 'active':
-                for oi in order.items.select_related('menu_item').all():
-                    try:
-                        oi.menu_item.restore_stock(oi.quantity)
-                    except Exception:
-                        logger.warning("Stock restore failed for %s", oi.menu_item.title)
+                _restore_order_stock(order)
 
             order.status = new_status
             order.save()

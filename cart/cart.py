@@ -38,7 +38,7 @@ class Cart():
         key = _make_key(product.id, option_ids)
 
         if key in self.cart:
-            self.cart[key]['qty'] = product_qty
+            self.cart[key]['qty'] += product_qty
         else:
             delta = sum(Decimal(str(o['delta'])) for o in options)
             self.cart[key] = {
@@ -94,6 +94,7 @@ class Cart():
         products = {p.id: p for p in MenuItem.objects.filter(id__in=product_ids)}
 
         cart = copy.deepcopy(self.cart)
+        stale_keys = []
 
         for key, item in cart.items():
             pid = item.get('product_id')
@@ -101,6 +102,7 @@ class Cart():
                 try:
                     pid = int(key)
                 except ValueError:
+                    stale_keys.append(key)
                     continue
 
             if pid in products:
@@ -110,6 +112,13 @@ class Cart():
                 item['total'] = item['price'] * item['qty']
                 item.setdefault('options', [])
                 yield item
+            else:
+                stale_keys.append(key)
+
+        if stale_keys:
+            for k in stale_keys:
+                self.cart.pop(k, None)
+            self.session.modified = True
 
     def get_total(self):
         return sum(Decimal(item['price']) * item['qty'] for item in self.cart.values())

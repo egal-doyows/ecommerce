@@ -80,10 +80,10 @@ def seed_accompaniments(apps, schema_editor):
 
 
 def unseed_accompaniments(apps, schema_editor):
-    AccompanimentGroup = apps.get_model("menu", "AccompanimentGroup")
-    AccompanimentGroup.objects.filter(
-        name__in=[s["group"] for s in SAMPLES]
-    ).delete()
+    # Seed rows may have been renamed or edited by admins, so deleting by name
+    # is destructive. Leave the data alone on reverse; admins can delete groups
+    # they don't want via the admin UI.
+    pass
 
 
 class Migration(migrations.Migration):

@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.db import models, transaction
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 
 
 class RestaurantSettings(models.Model):
@@ -218,7 +219,10 @@ class MenuItem(models.Model):
     title = models.CharField(max_length=250)
     slug = models.SlugField(max_length=250)
     description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=7, decimal_places=2)
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0'))],
+    )
     image = models.ImageField(upload_to='images/', blank=True)
     is_available = models.BooleanField(default=True)
     is_featured = models.BooleanField(
@@ -263,10 +267,13 @@ class MenuItem(models.Model):
         """
         Deduct inventory when this item is ordered.
         Atomic — either everything deducts or nothing does.
-        Returns True on success, raises _InsufficientStock if an ingredient is short.
+        Returns True on success, raises _InsufficientStock if a direct-sale item
+        or any recipe ingredient is short.
         """
         if self.is_direct_sale:
-            return self.inventory_item.deduct(quantity)
+            if not self.inventory_item.deduct(quantity):
+                raise _InsufficientStock(self.inventory_item.name)
+            return True
         return _deduct_recipe(self.recipe_items, quantity)
 
     @transaction.atomic
@@ -404,7 +411,8 @@ class AccompanimentOption(models.Model):
     )
     label = models.CharField(max_length=120, help_text='e.g. "Plantain"')
     price_delta = models.DecimalField(
-        max_digits=7, decimal_places=2, default=0,
+        max_digits=10, decimal_places=2, default=0,
+        validators=[MinValueValidator(Decimal('0'))],
         help_text='Added to the base item price. 0 for a free side.',
     )
     is_available = models.BooleanField(default=True)
@@ -414,8 +422,9 @@ class AccompanimentOption(models.Model):
         help_text='For a direct-stock side. Leave blank and add a Recipe for a prepared side.',
     )
     inventory_quantity = models.DecimalField(
-        max_digits=10, decimal_places=3, default=1,
-        help_text='Units of the linked inventory item consumed per pick (e.g. 0.02 kg of cheese). Ignored when using a recipe.',
+        max_digits=10, decimal_places=2, default=1,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text='Units of the linked inventory item consumed per pick (e.g. 0.02 kg of cheese). Matches the inventory column precision (2dp). Ignored when using a recipe.',
     )
 
     class Meta:
@@ -431,7 +440,9 @@ class AccompanimentOption(models.Model):
     @transaction.atomic
     def deduct_stock(self, quantity=1):
         if self.is_direct_sale:
-            return self.inventory_item.deduct(quantity * self.inventory_quantity)
+            if not self.inventory_item.deduct(quantity * self.inventory_quantity):
+                raise _InsufficientStock(self.inventory_item.name)
+            return True
         return _deduct_recipe(self.recipe_items, quantity)
 
     @transaction.atomic
@@ -442,6 +453,9 @@ class AccompanimentOption(models.Model):
         _restore_recipe(self.recipe_items, quantity)
 
     def current_unit_cost(self):
+        """Cost per single pick. For direct-sale options this is already
+        multiplied by `inventory_quantity` so the caller can use it as the
+        per-pick cost contribution without further scaling."""
         if self.is_direct_sale:
             return self.inventory_item.buying_price * self.inventory_quantity
         return _recipe_cost(self.recipe_items)
@@ -686,7 +700,7 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    unit_price = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     unit_cost = models.DecimalField(
         max_digits=10, decimal_places=4, default=0,
         help_text="COGS per unit, snapshotted at order time",
@@ -717,7 +731,7 @@ class OrderItemOption(models.Model):
     )
     group_name = models.CharField(max_length=120, blank=True)
     label = models.CharField(max_length=120)
-    price_delta = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    price_delta = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     unit_cost = models.DecimalField(max_digits=10, decimal_places=4, default=0)
 
     def __str__(self):

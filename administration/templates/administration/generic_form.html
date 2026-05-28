@@ -22,7 +22,7 @@
             {% endfor %}
             <div style="display:flex;gap:10px;margin-top:24px;">
                 <button type="submit" class="adm-btn adm-btn-primary"><i class="fa-solid fa-check"></i> Save</button>
-                {% if cancel_url %}<a href="{% url cancel_url %}" class="adm-btn adm-btn-outline">Cancel</a>{% endif %}
+                {% if cancel_href %}<a href="{{ cancel_href }}" class="adm-btn adm-btn-outline">Cancel</a>{% elif cancel_url %}<a href="{% url cancel_url %}" class="adm-btn adm-btn-outline">Cancel</a>{% endif %}
             </div>
         </form>
     </div>

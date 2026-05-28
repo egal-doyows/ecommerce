@@ -19,7 +19,7 @@
             {% csrf_token %}
             <div style="display:flex;justify-content:center;gap:10px;">
                 <button type="submit" class="adm-btn adm-btn-danger"><i class="fa-solid fa-trash"></i> Delete</button>
-                <a href="{% url cancel_url %}" class="adm-btn adm-btn-outline">Cancel</a>
+                {% if cancel_href %}<a href="{{ cancel_href }}" class="adm-btn adm-btn-outline">Cancel</a>{% else %}<a href="{% url cancel_url %}" class="adm-btn adm-btn-outline">Cancel</a>{% endif %}
             </div>
         </form>
     </div>

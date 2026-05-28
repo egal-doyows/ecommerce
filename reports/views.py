@@ -1404,19 +1404,33 @@ def recipe_cost_drift(request):
     window_start = today - timedelta(days=lookback_days)
 
     # Historical avg cost per menu item, weighted by quantity sold.
+    # OrderItem.unit_cost is all-in (base + option costs). Subtract the
+    # option-cost contribution so this matches MenuItem.current_unit_cost(),
+    # which is base-only — otherwise items with accompaniments show a
+    # spurious negative drift.
+    historical_filters = dict(
+        order__status='paid', order__is_comp=False,
+        order__created_at__date__gte=window_start,
+        order__created_at__date__lte=window_end,
+    )
     historical = (
         OrderItem.objects
-        .filter(
-            order__status='paid', order__is_comp=False,
-            order__created_at__date__gte=window_start,
-            order__created_at__date__lte=window_end,
-        )
+        .filter(**historical_filters)
         .values('menu_item_id')
         .annotate(
             qty=Sum('quantity'),
             cost_sum=Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
         )
     )
+    from menu.models import OrderItemOption
+    option_cost_by_item = {
+        row['order_item__menu_item_id']: row['option_cost'] or Decimal('0')
+        for row in OrderItemOption.objects
+            .filter(**{f'order_item__{k}': v for k, v in historical_filters.items()})
+            .values('order_item__menu_item_id')
+            .annotate(option_cost=Sum(F('unit_cost') * F('order_item__quantity'),
+                                      output_field=DecimalField()))
+    }
 
     menu_items = (
         MenuItem.objects
@@ -1434,6 +1448,7 @@ def recipe_cost_drift(request):
         if qty <= 0:
             continue
         cost_sum = h['cost_sum'] or Decimal('0')
+        cost_sum -= option_cost_by_item.get(h['menu_item_id'], Decimal('0'))
         historical_avg_cost = cost_sum / qty
         current_cost = mi.current_unit_cost()
         delta = current_cost - historical_avg_cost

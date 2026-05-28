@@ -476,7 +476,11 @@ def accompaniment_group_edit(request, pk):
             return redirect('admin-accompaniment-list')
     else:
         form = AccompanimentGroupForm(instance=group)
-    options = group.options.select_related('inventory_item').all()
+    options = (
+        group.options
+        .select_related('inventory_item')
+        .prefetch_related('recipe_items')
+    )
     attached_items = group.menu_items.all()
     return render(request, 'administration/accompaniment_group_form.html', {
         'form': form, 'title': f'Edit {group.name}', 'group': group,
@@ -511,9 +515,10 @@ def accompaniment_option_add(request, group_id):
             return redirect('admin-accompaniment-edit', pk=group.pk)
     else:
         form = AccompanimentOptionForm()
+    from django.urls import reverse
     return render(request, 'administration/generic_form.html', {
         'form': form, 'title': f'Add Option to {group.name}',
-        'cancel_url': 'admin-accompaniment-list',
+        'cancel_href': reverse('admin-accompaniment-edit', args=[group.pk]),
     })
 
 
@@ -528,9 +533,10 @@ def accompaniment_option_edit(request, pk):
             return redirect('admin-accompaniment-edit', pk=option.group_id)
     else:
         form = AccompanimentOptionForm(instance=option)
+    from django.urls import reverse
     return render(request, 'administration/generic_form.html', {
         'form': form, 'title': f'Edit {option.label}',
-        'cancel_url': 'admin-accompaniment-list',
+        'cancel_href': reverse('admin-accompaniment-edit', args=[option.group_id]),
     })
 
 
@@ -542,10 +548,11 @@ def accompaniment_option_delete(request, pk):
         option.delete()
         messages.success(request, 'Option removed.')
         return redirect('admin-accompaniment-edit', pk=group_id)
+    from django.urls import reverse
     return render(request, 'administration/confirm_delete.html', {
         'object': option,
         'object_name': f'option "{option.label}" from {option.group.name}',
-        'cancel_url': 'admin-accompaniment-list',
+        'cancel_href': reverse('admin-accompaniment-edit', args=[group_id]),
     })
 
 
