@@ -18,6 +18,7 @@ from .models import (
 from .views import (
     _is_supervisor, _is_auto_shift_user, _ensure_shift, _restore_order_stock,
     _backdate_for_correction, _record_order_accounting,
+    _reverse_order_payment_for_correction, _order_refund_blocked_reason,
 )
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,19 @@ def api_place_order(request):
     if not active_shift:
         return JsonResponse({'error': 'No active shift'}, status=400)
 
+    # Idempotency: if this offline_id was already synced (e.g. the response to a
+    # prior attempt was lost and the client retried), return the existing order
+    # instead of creating a duplicate.
+    if offline_id:
+        existing = Order.objects.filter(offline_id=offline_id).first()
+        if existing is not None:
+            return JsonResponse({
+                'success': True,
+                'order_id': existing.id,
+                'offline_id': offline_id,
+                'duplicate': True,
+            })
+
     order_waiter = request.user
     order_created_by = None
 
@@ -171,6 +185,7 @@ def api_place_order(request):
                 shift=active_shift,
                 notes=notes,
                 status='active',
+                offline_id=offline_id or '',
             )
             _backdate_for_correction(order)
             for cart_item in cart_items:
@@ -256,14 +271,6 @@ def api_update_order_status(request, order_id):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-    if request.user.is_superuser or _is_supervisor(request.user):
-        order = get_object_or_404(Order, id=order_id)
-    else:
-        from django.db.models import Q
-        order = get_object_or_404(
-            Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
-        )
-
     new_status = data.get('status')
     if new_status not in dict(Order.STATUS_CHOICES):
         return JsonResponse({'error': 'Invalid status'}, status=400)
@@ -288,15 +295,47 @@ def api_update_order_status(request, order_id):
                 except Debtor.DoesNotExist:
                     return JsonResponse({'error': 'Debtor not found'}, status=400)
 
+    from django.db.models import Q
     with transaction.atomic():
+        # Lock the row so a replayed offline-sync POST can't double-apply.
+        base = Order.objects.select_for_update()
+        if request.user.is_superuser or _is_supervisor(request.user):
+            order = get_object_or_404(base, id=order_id)
+        else:
+            order = get_object_or_404(
+                base, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+            )
+
+        # Idempotency: a replayed sync for an order already in the target state
+        # is a success no-op — so the client dequeues it instead of retrying
+        # forever and double-crediting the account.
+        if order.status == new_status:
+            return JsonResponse({'success': True, 'order_id': order.id, 'idempotent': True})
+
+        # Refund a paid order being cancelled during shift correction (mirrors
+        # the web order_update_status view) — restore stock + reverse payment.
+        refunding = (
+            new_status == 'cancelled' and order.status == 'paid'
+            and order.shift is not None and order.shift.in_correction
+        )
+        if refunding:
+            blocked = _order_refund_blocked_reason(order)
+            if blocked:
+                return JsonResponse({'error': blocked}, status=400)
+
         if new_status == 'paid':
             order.payment_method = payment_method
             if payment_method == 'mpesa':
                 order.mpesa_code = mpesa_code
             if payment_method == 'credit':
                 order.debtor = debtor
+
         if new_status == 'cancelled' and order.status == 'active':
             _restore_order_stock(order)
+        elif refunding:
+            _restore_order_stock(order)
+            _reverse_order_payment_for_correction(order, request.user)
+
         order.status = new_status
         order.save()
         if new_status == 'paid':

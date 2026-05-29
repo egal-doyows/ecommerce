@@ -35,6 +35,12 @@ const SYNC_ENDPOINTS = [
   '/restpos/api/orders/',  // for status updates
 ];
 
+// External CDN hosts to cache-first. All vendor assets are self-hosted under
+// /static/vendor/, so this is empty — but the fetch handler references it, so
+// it must be defined (an undefined reference here throws on every request and
+// kills the whole service worker).
+const CDN_PATTERNS = [];
+
 // ── Install ──────────────────────────────────────────
 self.addEventListener('install', event => {
   event.waitUntil(

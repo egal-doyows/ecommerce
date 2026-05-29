@@ -34,3 +34,19 @@ class MenuConfig(AppConfig):
                 'payment_method',
             ],
         )
+
+        # Audit the financial ledger and money-moving records. These were
+        # previously unaudited — fund transfers, manual transactions, staff
+        # payouts, expense approvals and AR/AP movements left no trail.
+        # Registered here (menu.ready runs after all apps are populated, so
+        # cross-app imports are safe) to keep audit wiring in one place.
+        from administration.models import Account, Transaction
+        from debtor.models import DebtorTransaction
+        from supplier.models import SupplierTransaction
+        from expenses.models import Expense
+        from staff_compensation.models import PaymentRecord, StaffCompensation
+        for _model in (
+            Account, Transaction, DebtorTransaction, SupplierTransaction,
+            Expense, PaymentRecord, StaffCompensation,
+        ):
+            auditlog.register(_model)

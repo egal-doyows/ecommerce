@@ -289,3 +289,93 @@ class CorrectionGuardTests(ShiftCorrectionBase):
             content_type__model='shift',
         )
         self.assertGreaterEqual(entries.count(), 1)
+
+
+# ── Audit-remediation batch: totals, offline idempotency, double-pay guard ──
+
+class OrderTotalTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.cat = Category.objects.create(name='T', slug='t')
+        cls.item = MenuItem.objects.create(
+            category=cls.cat, title='Plate', slug='plate', price=Decimal('100'),
+        )
+
+    def _order(self, **kw):
+        o = Order.objects.create(status='active', **kw)
+        OrderItem.objects.create(
+            order=o, menu_item=self.item, quantity=3,
+            unit_price=Decimal('100'), unit_cost=Decimal('20'),
+        )
+        return o
+
+    def test_plain_total(self):
+        self.assertEqual(self._order().get_total(), Decimal('300'))
+
+    def test_comp_is_zero(self):
+        self.assertEqual(self._order(is_comp=True).get_total(), Decimal('0'))
+
+    def test_discount_subtracted(self):
+        o = self._order(discount_amount=Decimal('50'))
+        self.assertEqual(o.get_total(), Decimal('250'))
+
+    def test_discount_cannot_go_negative(self):
+        o = self._order(discount_amount=Decimal('999'))
+        self.assertEqual(o.get_total(), Decimal('0'))
+
+
+class OfflineSyncIdempotencyTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.server = User.objects.create_user('osrv', password='pw')
+        cls.cat = Category.objects.create(name='O', slug='o')
+        cls.inv = InventoryItem.objects.create(
+            name='Stuff', unit='ea', stock_quantity=Decimal('1000'), buying_price=Decimal('5'),
+        )
+        cls.item = MenuItem.objects.create(
+            category=cls.cat, title='Thing', slug='thing',
+            price=Decimal('100'), inventory_item=cls.inv,
+        )
+
+    def setUp(self):
+        Shift.objects.create(waiter=self.server, is_active=True)
+        self.client.force_login(self.server)
+
+    def _place(self, offline_id):
+        return self.client.post(
+            reverse('api-place-order'),
+            data=json.dumps({
+                'order_type': 'takeaway', 'offline_id': offline_id,
+                'items': [{'id': self.item.id, 'qty': 1}],
+            }),
+            content_type='application/json',
+        )
+
+    def test_replayed_offline_id_does_not_duplicate(self):
+        r1 = self._place('abc-123')
+        r2 = self._place('abc-123')  # replay (lost response)
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r1.json()['order_id'], r2.json()['order_id'])
+        self.assertTrue(r2.json().get('duplicate'))
+        self.assertEqual(Order.objects.filter(offline_id='abc-123').count(), 1)
+
+    def test_double_pay_is_idempotent(self):
+        from administration.models import Account
+        shift = Shift.objects.filter(waiter=self.server, is_active=True).first()
+        order = Order.objects.create(status='active', waiter=self.server, shift=shift)
+        OrderItem.objects.create(
+            order=order, menu_item=self.item, quantity=2,
+            unit_price=Decimal('100'), unit_cost=Decimal('5'),
+        )
+        url = reverse('api-update-order-status', args=[order.id])
+        body = json.dumps({'status': 'paid', 'payment_method': 'cash'})
+        r1 = self.client.post(url, data=body, content_type='application/json')
+        r2 = self.client.post(url, data=body, content_type='application/json')  # replay
+        self.assertEqual(r1.status_code, 200)
+        self.assertTrue(r2.json().get('idempotent'))
+        cash = Account.get_by_type('cash')
+        # Exactly one credit for this order, not two.
+        self.assertEqual(
+            cash.transactions.filter(reference_type='order', reference_id=order.id).count(), 1,
+        )

@@ -379,7 +379,8 @@ class ZReportTests(TestCase):
         self._make_shift(self.other)
         self.client.force_login(self.cashier)
         resp = self.client.get(reverse('reports-z-report'))
-        shift_waiters = {s.waiter_id for s in resp.context['shifts']}
+        # The view renders rows = [{'shift': s, 'gross': ..., 'variance': ...}].
+        shift_waiters = {row['shift'].waiter_id for row in resp.context['rows']}
         self.assertEqual(shift_waiters, {self.cashier.id})
 
     def test_cashier_cannot_view_others_shift_detail(self):

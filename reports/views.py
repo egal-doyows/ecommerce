@@ -43,8 +43,12 @@ def _decimal_sum(qs, expr):
 
 def _pl_for_period(start, end):
     """Compute P&L numbers for the inclusive [start, end] date range."""
+    # Exclude comps: a comped order is free, so it contributes no revenue
+    # (its COGS is a giveaway loss, not cost-of-sales). Every other report
+    # already excludes is_comp; P&L was the outlier.
     paid_orders = Order.objects.filter(
         status='paid',
+        is_comp=False,
         created_at__date__gte=start,
         created_at__date__lte=end,
     )
@@ -152,7 +156,7 @@ def stock_on_hand(request):
 
     items = InventoryItem.objects.select_related('preferred_supplier').order_by('name')
     if low_stock_only:
-        items = [i for i in items if i.is_low_stock]
+        items = items.filter(stock_quantity__lte=F('low_stock_threshold'))
     else:
         items = list(items)
 

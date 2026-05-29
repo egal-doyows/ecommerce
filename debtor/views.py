@@ -202,12 +202,22 @@ def receive_payment(request, pk):
                 created_by=request.user,
             )
 
-            # Allocate payment against invoices (oldest first)
+            # Allocate payment against invoices (oldest first). Re-fetch the
+            # invoices under a row lock and recompute `remaining` inside the
+            # transaction so two concurrent payments can't over-allocate the
+            # same balance / lose an amount_paid update.
+            locked_invoices = list(
+                DebtorTransaction.objects.select_for_update()
+                .filter(debtor=debtor, transaction_type='debit')
+                .order_by('date', 'id')
+            )
             remaining_payment = payment_amount
-            for inv in sorted(unpaid_invoices, key=lambda x: x.date):
+            for inv in locked_invoices:
                 if remaining_payment <= 0:
                     break
                 inv_remaining = inv.remaining
+                if inv_remaining <= 0:
+                    continue
                 allocated = min(remaining_payment, inv_remaining)
                 DebtorPaymentAllocation.objects.create(
                     payment=payment_txn,
@@ -215,7 +225,7 @@ def receive_payment(request, pk):
                     amount=allocated,
                 )
                 inv.amount_paid += allocated
-                inv.save()
+                inv.save(update_fields=['amount_paid'])
                 remaining_payment -= allocated
 
             # Credit the cash account

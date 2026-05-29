@@ -31,13 +31,13 @@ def _restore_order_stock(order):
         try:
             oi.menu_item.restore_stock(oi.quantity)
         except Exception:
-            logger.warning("Stock restore failed for %s", oi.menu_item.title)
+            logger.exception("Stock restore failed for %s", oi.menu_item.title)
         for oio in oi.options.all():
             if oio.option_id and oio.option is not None:
                 try:
                     oio.option.restore_stock(oi.quantity)
                 except Exception:
-                    logger.warning("Option stock restore failed for %s", oio.label)
+                    logger.exception("Option stock restore failed for %s", oio.label)
 
 
 def _backdate_for_correction(order):
@@ -295,6 +295,11 @@ def place_order(request):
         order_created_by = None
 
         active_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
+        if active_shift is None:
+            # Don't create a shift-less order (it would be invisible to the
+            # z-report and clock-out guards). Mirrors the API path's hard fail.
+            messages.error(request, 'No active shift — clock in before taking orders.')
+            return redirect('shift')
 
         try:
             with transaction.atomic():
@@ -640,27 +645,27 @@ def order_reopen_to_active(request, order_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'POST required'}, status=405)
 
-    order = get_object_or_404(Order, id=order_id)
-
-    # The shift's own server or a manager/supervisor may reopen for correction.
-    if not (_can_void(request.user) or order.waiter_id == request.user.id):
-        messages.error(request, 'You are not allowed to correct this order.')
-        return redirect('order-detail', order_id=order.id)
-
-    if not (order.shift is not None and order.shift.in_correction):
-        messages.error(request, 'This order is not in a shift that is open for correction.')
-        return redirect('order-detail', order_id=order.id)
-
-    if order.status != 'paid':
-        messages.error(request, 'Only paid orders can be reopened for correction.')
-        return redirect('order-detail', order_id=order.id)
-
-    blocked = _order_refund_blocked_reason(order)
-    if blocked:
-        messages.error(request, blocked)
-        return redirect('order-detail', order_id=order.id)
-
     with transaction.atomic():
+        order = get_object_or_404(Order.objects.select_for_update(), id=order_id)
+
+        # The shift's own server or a manager/supervisor may reopen for correction.
+        if not (_can_void(request.user) or order.waiter_id == request.user.id):
+            messages.error(request, 'You are not allowed to correct this order.')
+            return redirect('order-detail', order_id=order.id)
+
+        if not (order.shift is not None and order.shift.in_correction):
+            messages.error(request, 'This order is not in a shift that is open for correction.')
+            return redirect('order-detail', order_id=order.id)
+
+        if order.status != 'paid':
+            messages.error(request, 'Only paid orders can be reopened for correction.')
+            return redirect('order-detail', order_id=order.id)
+
+        blocked = _order_refund_blocked_reason(order)
+        if blocked:
+            messages.error(request, blocked)
+            return redirect('order-detail', order_id=order.id)
+
         _reverse_order_payment_for_correction(order, request.user)
         order.status = 'active'
         order.payment_method = ''
@@ -682,73 +687,82 @@ def order_reopen_to_active(request, order_id):
 @login_required(login_url='waiter-login')
 @shift_required
 def order_update_status(request, order_id):
-    if request.method == 'POST':
+    if request.method != 'POST':
+        return redirect('order-list')
+
+    new_status = request.POST.get('status')
+    if new_status not in dict(Order.STATUS_CHOICES):
+        return redirect('order-list')
+
+    from django.db.models import Q
+    with transaction.atomic():
+        # Lock the order row so concurrent submits / offline-sync replays
+        # can't both pass the status guard and double-post money or stock.
+        base = Order.objects.select_for_update()
         if request.user.is_superuser or _is_supervisor(request.user):
-            order = get_object_or_404(Order, id=order_id)
+            order = get_object_or_404(base, id=order_id)
         else:
-            from django.db.models import Q
             order = get_object_or_404(
-                Order, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+                base, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
             )
-        new_status = request.POST.get('status')
 
-        if new_status in dict(Order.STATUS_CHOICES):
-            # Handle payment
-            if new_status == 'paid':
-                payment_method = request.POST.get('payment_method', '')
-                if payment_method not in dict(Order.PAYMENT_CHOICES):
+        # Idempotency: already in the target state → nothing to do. Prevents a
+        # double "mark paid" from crediting the account twice.
+        if order.status == new_status:
+            return redirect('order-detail', order_id=order.id)
+
+        if new_status == 'paid':
+            payment_method = request.POST.get('payment_method', '')
+            if payment_method not in dict(Order.PAYMENT_CHOICES):
+                return redirect('order-detail', order_id=order.id)
+            order.payment_method = payment_method
+            if payment_method == 'mpesa':
+                mpesa_code = request.POST.get('mpesa_code', '').strip().upper()
+                if len(mpesa_code) != 4 or not mpesa_code.isalnum():
                     return redirect('order-detail', order_id=order.id)
-                order.payment_method = payment_method
-                if payment_method == 'mpesa':
-                    mpesa_code = request.POST.get('mpesa_code', '').strip().upper()
-                    if len(mpesa_code) != 4 or not mpesa_code.isalnum():
-                        return redirect('order-detail', order_id=order.id)
-                    order.mpesa_code = mpesa_code
-                if payment_method == 'credit':
-                    debtor_id = request.POST.get('debtor_id')
-                    if not debtor_id:
-                        return redirect('order-detail', order_id=order.id)
-                    from debtor.models import Debtor
-                    try:
-                        order.debtor = Debtor.objects.get(pk=debtor_id, is_active=True)
-                    except Debtor.DoesNotExist:
-                        return redirect('order-detail', order_id=order.id)
-
-            # Refunding = cancelling an already-paid order while its shift is
-            # under correction. Restore stock AND reverse the original payment
-            # so the cash drawer / debtor ledger stay balanced. payment_method
-            # is kept so the z-report still classifies it as a refund.
-            refunding = (
-                new_status == 'cancelled' and order.status == 'paid'
-                and order.shift is not None and order.shift.in_correction
-            )
-            if refunding:
-                blocked = _order_refund_blocked_reason(order)
-                if blocked:
-                    messages.error(request, blocked)
+                order.mpesa_code = mpesa_code
+            if payment_method == 'credit':
+                debtor_id = request.POST.get('debtor_id')
+                if not debtor_id:
+                    return redirect('order-detail', order_id=order.id)
+                from debtor.models import Debtor
+                try:
+                    order.debtor = Debtor.objects.get(pk=debtor_id, is_active=True)
+                except Debtor.DoesNotExist:
                     return redirect('order-detail', order_id=order.id)
 
-            with transaction.atomic():
-                if new_status == 'cancelled' and order.status == 'active':
-                    _restore_order_stock(order)
-                elif refunding:
-                    _restore_order_stock(order)
-                    _reverse_order_payment_for_correction(order, request.user)
+        # Refunding = cancelling an already-paid order while its shift is under
+        # correction. Restore stock AND reverse the original payment so the cash
+        # drawer / debtor ledger stay balanced. payment_method is kept so the
+        # z-report still classifies it as a refund.
+        refunding = (
+            new_status == 'cancelled' and order.status == 'paid'
+            and order.shift is not None and order.shift.in_correction
+        )
+        if refunding:
+            blocked = _order_refund_blocked_reason(order)
+            if blocked:
+                messages.error(request, blocked)
+                return redirect('order-detail', order_id=order.id)
 
-                order.status = new_status
-                order.save()
+        if new_status == 'cancelled' and order.status == 'active':
+            _restore_order_stock(order)
+        elif refunding:
+            _restore_order_stock(order)
+            _reverse_order_payment_for_correction(order, request.user)
 
-                # Record payment in accounts (backdated when correcting a shift)
-                if new_status == 'paid':
-                    _record_order_accounting(order, request.user)
+        order.status = new_status
+        order.save()
 
-                if new_status in ['paid', 'cancelled'] and order.table:
-                    order.table.status = 'available'
-                    order.table.save()
+        # Record payment in accounts (backdated when correcting a shift)
+        if new_status == 'paid':
+            _record_order_accounting(order, request.user)
 
-        return redirect('order-detail', order_id=order.id)
+        if new_status in ['paid', 'cancelled'] and order.table:
+            order.table.status = 'available'
+            order.table.save()
 
-    return redirect('order-list')
+    return redirect('order-detail', order_id=order.id)
 
 
 @login_required(login_url='waiter-login')
@@ -805,8 +819,14 @@ def credit_order_settle(request, order_id):
         card_reference = request.POST.get('card_reference', '').strip()[:50]
 
     settle_ref = mpesa_code or card_reference
-    amount = invoice.remaining
     with transaction.atomic():
+        # Re-lock and re-check under the row lock so two concurrent settles
+        # (double-click, server + manager) can't both credit the cash account.
+        invoice = DebtorTransaction.objects.select_for_update().get(pk=invoice.pk)
+        if invoice.remaining <= 0:
+            messages.info(request, f'Order #{order.id} is already fully paid.')
+            return redirect('order-list')
+        amount = invoice.remaining
         payment_txn = DebtorTransaction.objects.create(
             debtor=order.debtor,
             transaction_type='credit',

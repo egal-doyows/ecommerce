@@ -286,7 +286,7 @@
   window.POS.updateOrderStatus = async function (orderId, statusData) {
     if (navigator.onLine) {
       try {
-        const resp = await fetch(`/api/orders/${orderId}/status/`, {
+        const resp = await fetch(`/restpos/api/orders/${orderId}/status/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -304,7 +304,7 @@
       }
     }
 
-    const offlineId = await addToSyncQueue(`/api/orders/${orderId}/status/`, statusData);
+    const offlineId = await addToSyncQueue(`/restpos/api/orders/${orderId}/status/`, statusData);
     return { success: true, offline_id: offlineId, offline: true };
   };
 

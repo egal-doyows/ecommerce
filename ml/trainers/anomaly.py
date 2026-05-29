@@ -60,10 +60,14 @@ def _shift_metrics(shift):
     voids = orders.filter(status='cancelled').count()
     comps = paid.filter(is_comp=True).count()
 
-    expected_cash = (
-        Decimal(str(shift.starting_cash)) +
-        sum(o.get_total() for o in paid.filter(payment_method='cash'))
+    # Match the z-report reconciliation: opening + cash sales − cash refunds.
+    # (Comps contribute 0 via get_total, so they're already excluded.)
+    cash_sales = sum(o.get_total() for o in paid.filter(payment_method='cash'))
+    cash_refunds = sum(
+        o.get_total()
+        for o in orders.filter(status='cancelled', payment_method='cash')
     )
+    expected_cash = Decimal(str(shift.starting_cash)) + cash_sales - cash_refunds
     if shift.counted_cash is None or expected_cash == 0:
         cash_variance = 0.0
     else:

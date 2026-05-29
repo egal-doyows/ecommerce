@@ -704,12 +704,27 @@ class Order(models.Model):
         null=True, blank=True,
         help_text="Timestamp when the order was voided by a supervisor/manager",
     )
+    offline_id = models.CharField(
+        max_length=64, blank=True, default='', db_index=True,
+        help_text="Client-generated id for an order queued offline. Used to "
+                  "deduplicate sync replays so a dropped response can't create "
+                  "the same order twice. Empty for orders placed online.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     notes = models.TextField(blank=True)
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            # One order per non-empty offline_id. Empty string (online orders)
+            # is exempt via the condition, so it can repeat freely.
+            models.UniqueConstraint(
+                fields=['offline_id'],
+                condition=~models.Q(offline_id=''),
+                name='unique_offline_id',
+            ),
+        ]
 
     def __str__(self):
         if self.order_type == 'dine_in':
@@ -723,8 +738,19 @@ class Order(models.Model):
             table.status = 'available'
             table.save()
 
+    def get_subtotal(self):
+        """Sum of line items before any order-level discount/comp."""
+        return sum((item.get_subtotal() for item in self.items.all()), Decimal('0'))
+
     def get_total(self):
-        return sum(item.get_subtotal() for item in self.items.all())
+        """Amount actually charged: 0 for a comp, else subtotal minus the
+        order-level discount (never below 0). This is the authoritative figure
+        every payment / ledger / refund path uses, so discounts and comps can't
+        silently over-credit the drawer."""
+        if self.is_comp:
+            return Decimal('0')
+        total = self.get_subtotal() - (self.discount_amount or Decimal('0'))
+        return total if total > 0 else Decimal('0')
 
     def get_item_count(self):
         return sum(item.quantity for item in self.items.all())
