@@ -6,7 +6,7 @@ Approach:
   - Optionally join `WeatherObservation` to expose temp_max_c and
     precipitation_mm as Prophet extra regressors.
   - For each item with enough history:
-      a) MA-7 baseline       (no model)
+      a) seasonal-naive (weekday) baseline   (no model)
       b) Prophet no weather  (always tried when Prophet is available)
       c) Prophet w/ weather  (only when weather covers train + holdout)
     Per-item backtest picks the winner by held-out MAE.
@@ -75,7 +75,14 @@ def _weather_dataframe():
 
 
 def _series_for_item(menu_item_id):
-    """Return list of (date, qty) tuples ordered by date, gap-filled with zeros."""
+    """Return list of (date, qty) tuples ordered by date, gap-filled with zeros.
+
+    The series is padded with zeros up to *today* (not just the last sale day):
+    days with no sales genuinely had 0 demand, and — critically — Prophet's
+    make_future_dataframe appends the horizon after the last series row, so
+    without this padding an item not sold recently would have its forecast
+    (and weekday labels) shifted off the dates the rows are written under.
+    """
     rows = (
         OrderItem.objects
         .filter(menu_item_id=menu_item_id, order__status='paid')
@@ -87,7 +94,7 @@ def _series_for_item(menu_item_id):
         return []
     days = {r['order__created_at__date']: float(r['qty']) for r in rows}
     start = min(days)
-    end = max(days)
+    end = max(max(days), timezone.localdate())
     out = []
     cur = start
     while cur <= end:
@@ -102,13 +109,34 @@ def _mae(predictions, actuals):
     return sum(abs(p - a) for p, a in zip(predictions, actuals)) / len(predictions)
 
 
-def _moving_avg_baseline_forecast(series, horizon):
-    """Predict horizon days as the last 7-day mean."""
+SEASONAL_NAIVE_K = 4  # recent same-weekday samples to average
+
+
+def _seasonal_naive_baseline(series, horizon, start_date, k=SEASONAL_NAIVE_K):
+    """Seasonal-naive forecast that preserves day-of-week shape.
+
+    For each future day, predict the mean of the last `k` observations that
+    fell on the same weekday. Falls back to the recent overall mean when the
+    item has no history for that weekday. Unlike a flat moving average this
+    keeps 'Saturdays sell more than Mondays', so the baseline (used when
+    Prophet is unavailable or loses the backtest) is still weekday-aware.
+
+    `start_date` is the date of the first predicted day; predictions are
+    returned for start_date, start_date+1, ... so weekdays line up with the
+    dates the forecast rows are written under.
+    """
     if not series:
         return [0.0] * horizon
-    last7 = [q for _, q in series[-7:]]
-    avg = mean(last7) if last7 else 0.0
-    return [avg] * horizon
+    by_weekday = {}
+    for d, q in series:
+        by_weekday.setdefault(d.weekday(), []).append(q)
+    overall = mean([q for _, q in series[-7:]])
+    out = []
+    for i in range(horizon):
+        wd = (start_date + timedelta(days=i)).weekday()
+        vals = by_weekday.get(wd)
+        out.append(mean(vals[-k:]) if vals else overall)
+    return out
 
 
 def _prophet_forecast(series, horizon, Prophet, weather_df=None, holidays_df=None):
@@ -181,9 +209,12 @@ def _backtest_item(series, Prophet, weather_df, holidays_df):
 
     train = series[:-BACKTEST_TAIL_DAYS]
     holdout = [q for _, q in series[-BACKTEST_TAIL_DAYS:]]
+    holdout_start = series[-BACKTEST_TAIL_DAYS][0]  # first held-out date
 
     out = {
-        'baseline': _mae(_moving_avg_baseline_forecast(train, BACKTEST_TAIL_DAYS), holdout),
+        'baseline': _mae(
+            _seasonal_naive_baseline(train, BACKTEST_TAIL_DAYS, holdout_start), holdout,
+        ),
         'ml_no_weather': float('inf'),
         'ml_weather': float('inf'),
     }
@@ -264,14 +295,16 @@ def train():
                 if item_ready else None
             )
             choice, choice_mae = _pick_strategy(bt)
+            forecast_start = today + timedelta(days=1)
 
             try:
                 p50, p90, source = _forecast_with(
                     choice, series, HORIZON_DAYS, Prophet, weather_df, holidays_df,
+                    start_date=forecast_start,
                 )
             except Exception as e:
                 logger.warning('forecast failed for item %s, falling back: %s', item.pk, e)
-                base = _moving_avg_baseline_forecast(series, HORIZON_DAYS)
+                base = _seasonal_naive_baseline(series, HORIZON_DAYS, forecast_start)
                 p50 = base
                 p90 = [v * 1.4 for v in base]
                 source = 'baseline'
@@ -322,8 +355,12 @@ def _pick_strategy(bt: Optional[dict]):
     return name, mae
 
 
-def _forecast_with(choice, series, horizon, Prophet, weather_df, holidays_df):
-    """Run the picked strategy and return (p50, p90, source_label)."""
+def _forecast_with(choice, series, horizon, Prophet, weather_df, holidays_df, start_date):
+    """Run the picked strategy and return (p50, p90, source_label).
+
+    `start_date` is the first forecast day, used to align the seasonal-naive
+    baseline's weekdays with the dates the rows are written under.
+    """
     if choice == 'ml_weather' and Prophet is not None and weather_df is not None:
         p50, p90 = _prophet_forecast(
             series, horizon, Prophet,
@@ -336,7 +373,7 @@ def _forecast_with(choice, series, horizon, Prophet, weather_df, holidays_df):
             weather_df=None, holidays_df=holidays_df,
         )
         return p50, p90, 'ml'
-    base = _moving_avg_baseline_forecast(series, horizon)
+    base = _seasonal_naive_baseline(series, horizon, start_date)
     return base, [v * 1.4 for v in base], 'baseline'
 
 

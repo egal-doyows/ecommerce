@@ -1,0 +1,93 @@
+{% extends 'ml/_ml_base.html' %}
+{% load humanize %}
+
+{% block ml_title %}Demand by Day{% endblock %}
+{% block ml_breadcrumb %}Demand by Day{% endblock %}
+
+{% block ml_body %}
+{% if not upcoming %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-calendar-day" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No forward forecast yet. Forecasts cover the next 14 days &mdash; trigger a training run.</p>
+    <p style="font-size:12px;margin-top:8px;">CLI: <code>python manage.py train_now forecast</code></p>
+</div>
+{% else %}
+
+<!-- Busiest / slowest upcoming day -->
+<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+    <div class="adm-card" style="flex:1;min-width:220px;border-left:3px solid var(--adm-success);">
+        <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Busiest upcoming day</div>
+        <div style="font-size:20px;font-weight:700;margin-top:4px;">{{ busiest.date|date:"D, d M" }}</div>
+        <div style="color:var(--adm-muted);">~{{ busiest.qty|floatformat:0 }} items &middot; {{ currency_symbol }}{{ busiest.revenue|floatformat:0|intcomma }}</div>
+    </div>
+    <div class="adm-card" style="flex:1;min-width:220px;border-left:3px solid var(--adm-warning);">
+        <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Slowest upcoming day</div>
+        <div style="font-size:20px;font-weight:700;margin-top:4px;">{{ slowest.date|date:"D, d M" }}</div>
+        <div style="color:var(--adm-muted);">~{{ slowest.qty|floatformat:0 }} items &middot; {{ currency_symbol }}{{ slowest.revenue|floatformat:0|intcomma }}</div>
+    </div>
+</div>
+
+<!-- Weekday ranking -->
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;">Predicted volume by weekday</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead><tr><th>Weekday</th><th style="text-align:right;">Avg items / day</th></tr></thead>
+        <tbody>
+            {% for w in weekday_ranked %}
+            <tr>
+                <td style="font-weight:500;">{{ w.name }}{% if forloop.first %} <span style="color:var(--adm-success);font-size:11px;">busiest</span>{% endif %}{% if forloop.last %} <span style="color:var(--adm-warning);font-size:11px;">slowest</span>{% endif %}</td>
+                <td style="text-align:right;font-weight:600;">{{ w.avg_qty|floatformat:1 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Per-item peak weekday -->
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin:0 0 12px;">When each item peaks</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Menu Item</th>
+                <th>Peaks on</th>
+                {% for d in weekday_abbr %}<th style="text-align:right;font-weight:400;color:var(--adm-muted);">{{ d }}</th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for it in items %}
+            <tr>
+                <td style="font-weight:500;">{{ it.item.title }}</td>
+                <td><span style="color:var(--adm-accent);font-weight:600;">{{ it.peak_name }}</span></td>
+                {% for v in it.profile %}<td style="text-align:right;color:var(--adm-muted);">{{ v|floatformat:1 }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p style="color:var(--adm-muted);font-size:11px;margin-top:8px;">Numbers are total predicted units for each weekday across the next 14 days.</p>
+</div>
+
+<!-- Upcoming days detail -->
+<div class="adm-card">
+    <h3 style="margin:0 0 12px;">Next 14 days</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th style="text-align:right;">Predicted items</th>
+                <th style="text-align:right;">Predicted revenue</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in upcoming %}
+            <tr>
+                <td>{{ u.date|date:"D, d M Y" }}</td>
+                <td style="text-align:right;font-weight:600;">{{ u.qty|floatformat:0 }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ currency_symbol }}{{ u.revenue|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

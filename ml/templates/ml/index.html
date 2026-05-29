@@ -21,6 +21,15 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Forecasted demand per menu item for tomorrow &mdash; drives prep volumes.</p>
     </a>
 
+    <a href="{% url 'ml-weekday-forecast' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-calendar-week" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Demand by Day</strong>
+            {% with r=statuses.forecast %}{% if r %}<span style="margin-left:auto;font-size:11px;color:var(--adm-muted);">{{ r.get_status_display }}</span>{% endif %}{% endwith %}
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Predicted busiest/slowest upcoming days and which weekday each item peaks on &mdash; for staffing &amp; prep.</p>
+    </a>
+
     <a href="{% url 'ml-reorders' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-cart-plus" style="font-size:20px;color:var(--adm-accent);"></i>

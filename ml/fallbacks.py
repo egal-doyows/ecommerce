@@ -21,17 +21,22 @@ from menu.models import InventoryItem, MenuItem, Order, OrderItem, Recipe
 
 # ── Forecast ──────────────────────────────────────────────────────────────
 
+FORECAST_LOOKBACK_DAYS = 56  # ~8 weeks → ≥8 samples per weekday
+
+
 def forecast_baseline(horizon_days=14):
     """
-    Per item: predict tomorrow = mean(last 7 days of daily sales).
-    Returns list of (menu_item, date, qty_p50, qty_p90) dicts.
+    Per item: predict each future day = mean of that *weekday's* daily sales
+    over the last 8 weeks (missing days count as 0). Returns list of
+    {menu_item_id, date, qty_p50, qty_p90} dicts.
 
-    p90 = p50 * 1.4 as a no-data guess at variance.
+    Weekday-aware so the cold-start/safety-net baseline still reflects
+    'Saturdays sell more than Mondays'. p90 = p50 * 1.4 as a no-data guess
+    at variance.
     """
     today = timezone.localdate()
-    lookback_start = today - timedelta(days=14)
+    lookback_start = today - timedelta(days=FORECAST_LOOKBACK_DAYS)
 
-    # Aggregate per item per day for the last 14 days.
     rows = (
         OrderItem.objects
         .filter(order__status='paid', order__created_at__date__gte=lookback_start)
@@ -42,20 +47,26 @@ def forecast_baseline(horizon_days=14):
     for r in rows:
         by_item_by_day[r['menu_item_id']][r['order__created_at__date']] = float(r['qty'])
 
+    # Window dates grouped by weekday so empty days correctly pull the average
+    # down (an item that sells 0 on most Mondays should forecast a low Monday).
+    window_dates = [today - timedelta(days=i + 1) for i in range(FORECAST_LOOKBACK_DAYS)]
+    dates_by_weekday = defaultdict(list)
+    for d in window_dates:
+        dates_by_weekday[d.weekday()].append(d)
+
     out = []
     for item_id, day_map in by_item_by_day.items():
-        # Use last 7 days only for the average; missing days count as 0.
-        last7 = []
-        for i in range(7):
-            d = today - timedelta(days=i + 1)
-            last7.append(day_map.get(d, 0.0))
-        avg = mean(last7) if last7 else 0.0
-        if avg <= 0:
+        if not any(day_map.values()):
             continue
+        weekday_avg = {}
+        for wd, dates in dates_by_weekday.items():
+            weekday_avg[wd] = mean([day_map.get(d, 0.0) for d in dates])
         for d_ahead in range(1, horizon_days + 1):
+            target = today + timedelta(days=d_ahead)
+            avg = weekday_avg.get(target.weekday(), 0.0)
             out.append({
                 'menu_item_id': item_id,
-                'date': today + timedelta(days=d_ahead),
+                'date': target,
                 'hour': None,
                 'qty_p50': round(avg, 2),
                 'qty_p90': round(avg * 1.4, 2),

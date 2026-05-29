@@ -6,7 +6,10 @@ A 'source=baseline' indicator flips a banner on so users know the data is
 cold-start.
 """
 
+from collections import defaultdict
 from datetime import datetime, timedelta
+from decimal import Decimal
+from statistics import mean
 
 from django.contrib import messages
 from django.db.models import Max
@@ -86,6 +89,98 @@ def prep_list(request):
         **_settings_ctx(),
     }
     return render(request, 'ml/prep_list.html', ctx)
+
+
+# ── Demand by Day of Week (from DemandForecast) ──────────────────────────
+
+_WEEKDAY_ABBR = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+_WEEKDAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday',
+                 'Friday', 'Saturday', 'Sunday']
+
+
+@supervisor_or_manager_required
+def forecast_by_weekday(request):
+    """Forward-looking demand broken down by day of week.
+
+    Reads the 14-day forward DemandForecast window and answers two questions:
+      1. Which upcoming days / weekdays are busiest and slowest? (staffing)
+      2. Which weekday does each menu item peak on? (prep & purchasing)
+
+    Pure aggregation over forecasts the nightly trainer already wrote — no
+    extra storage, always fresh after a training run.
+    """
+    today = timezone.localdate()
+    rows = (
+        DemandForecast.objects
+        .filter(date__gt=today, hour__isnull=True)
+        .select_related('menu_item')
+    )
+
+    is_baseline = False
+    by_date = defaultdict(lambda: {'qty': 0.0, 'revenue': Decimal('0')})
+    item_profile = defaultdict(lambda: [0.0] * 7)   # item_id → per-weekday qty
+    item_total = defaultdict(float)
+    item_meta = {}
+
+    for r in rows:
+        if r.source == 'baseline':
+            is_baseline = True
+        by_date[r.date]['qty'] += r.qty_p50
+        price = r.menu_item.price or Decimal('0')
+        by_date[r.date]['revenue'] += price * Decimal(str(r.qty_p50))
+        item_profile[r.menu_item_id][r.date.weekday()] += r.qty_p50
+        item_total[r.menu_item_id] += r.qty_p50
+        item_meta[r.menu_item_id] = r.menu_item
+
+    # Upcoming days, in date order.
+    upcoming = [
+        {'date': d, 'weekday': _WEEKDAY_ABBR[d.weekday()],
+         'qty': v['qty'], 'revenue': v['revenue']}
+        for d, v in sorted(by_date.items())
+    ]
+    busiest = max(upcoming, key=lambda x: x['qty']) if upcoming else None
+    slowest = min(upcoming, key=lambda x: x['qty']) if upcoming else None
+
+    # Weekday summary: average predicted volume per weekday across the horizon.
+    wd_vals = defaultdict(list)
+    for u in sorted(by_date.items()):
+        wd_vals[u[0].weekday()].append(u[1]['qty'])
+    weekday_ranked = sorted(
+        (
+            {'name': _WEEKDAY_FULL[wd],
+             'avg_qty': mean(wd_vals[wd]) if wd_vals.get(wd) else 0.0}
+            for wd in range(7)
+        ),
+        key=lambda x: x['avg_qty'], reverse=True,
+    )
+
+    # Per-item peak weekday, items ordered by total predicted volume.
+    items = []
+    for item_id, profile in item_profile.items():
+        if item_total[item_id] <= 0:
+            continue
+        peak_wd = max(range(7), key=lambda w: profile[w])
+        items.append({
+            'item': item_meta[item_id],
+            'total': item_total[item_id],
+            'profile': [round(v, 1) for v in profile],
+            'peak_name': _WEEKDAY_FULL[peak_wd],
+        })
+    items.sort(key=lambda x: x['total'], reverse=True)
+
+    ctx = {
+        'upcoming': upcoming,
+        'busiest': busiest,
+        'slowest': slowest,
+        'weekday_ranked': weekday_ranked,
+        'weekday_abbr': _WEEKDAY_ABBR,
+        'items': items,
+        'today': today,
+        'is_baseline': is_baseline,
+        'run': _model_status('forecast'),
+        **_settings_ctx(),
+    }
+    return render(request, 'ml/weekday_forecast.html', ctx)
 
 
 # ── Suggested Reorders ───────────────────────────────────────────────────
