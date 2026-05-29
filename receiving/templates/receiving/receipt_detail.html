@@ -21,6 +21,9 @@
         <a href="{% url 'po-receiving-summary' receipt.purchase_order.pk %}" class="adm-btn adm-btn-outline">
             <i class="fa-solid fa-list-check"></i> All Receipts for PO
         </a>
+        <a href="{% url 'receipt-reverse' receipt.pk %}" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);">
+            <i class="fa-solid fa-rotate-left"></i> Reverse
+        </a>
     </div>
 </div>
 

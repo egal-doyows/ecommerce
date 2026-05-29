@@ -22,7 +22,9 @@ from .forms import (
     AccompanimentGroupForm, AccompanimentOptionForm,
     InventoryItemForm, StockUpdateForm,
     TableForm, RestaurantSettingsForm,
+    JobOpeningForm, AccountForm, ShiftEditForm,
 )
+from careers.models import JobOpening
 
 
 def _is_admin_user(user):
@@ -1196,4 +1198,98 @@ def transfer_funds(request):
     return render(request, 'administration/transfer_funds.html', {
         'accounts': accounts,
         'account_data': account_data,
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  JOB OPENINGS (careers content — managed from the back-office)
+# ═══════════════════════════════════════════════════════════════════════
+
+@manager_required
+def job_opening_list(request):
+    openings = JobOpening.objects.all()
+    return render(request, 'administration/job_opening_list.html', {'openings': openings})
+
+
+@manager_only
+def job_opening_create(request):
+    if request.method == 'POST':
+        form = JobOpeningForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Job opening created.')
+            return redirect('admin-job-list')
+    else:
+        form = JobOpeningForm()
+    return render(request, 'administration/generic_form.html', {
+        'form': form, 'title': 'Add Job Opening', 'cancel_url': 'admin-job-list',
+    })
+
+
+@manager_only
+def job_opening_edit(request, pk):
+    opening = get_object_or_404(JobOpening, pk=pk)
+    if request.method == 'POST':
+        form = JobOpeningForm(request.POST, instance=opening)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Job opening updated.')
+            return redirect('admin-job-list')
+    else:
+        form = JobOpeningForm(instance=opening)
+    return render(request, 'administration/generic_form.html', {
+        'form': form, 'title': f'Edit {opening.title}', 'cancel_url': 'admin-job-list',
+    })
+
+
+@manager_only
+def job_opening_delete(request, pk):
+    opening = get_object_or_404(JobOpening, pk=pk)
+    if request.method == 'POST':
+        opening.delete()
+        messages.success(request, 'Job opening deleted.')
+        return redirect('admin-job-list')
+    return render(request, 'administration/confirm_delete.html', {
+        'object': opening,
+        'object_name': f'job opening "{opening.title}"',
+        'cancel_url': 'admin-job-list',
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  ACCOUNT EDIT + SHIFT EDIT (back-office parity)
+# ═══════════════════════════════════════════════════════════════════════
+
+@manager_only
+def account_edit(request, pk):
+    account = get_object_or_404(Account, pk=pk)
+    if request.method == 'POST':
+        form = AccountForm(request.POST, instance=account)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Account "{account.name}" updated.')
+            return redirect('admin-accounts')
+    else:
+        form = AccountForm(instance=account)
+    return render(request, 'administration/generic_form.html', {
+        'form': form, 'title': f'Edit {account.name}', 'cancel_url': 'admin-accounts',
+    })
+
+
+@manager_only
+def shift_edit(request, shift_id):
+    """Correct a shift's opening float / notes (e.g. wrong starting cash)."""
+    shift = get_object_or_404(Shift, pk=shift_id)
+    if request.method == 'POST':
+        form = ShiftEditForm(request.POST, instance=shift)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Shift #{shift.id} updated.')
+            return redirect('admin-shift-list')
+    else:
+        form = ShiftEditForm(instance=shift)
+    return render(request, 'administration/generic_form.html', {
+        'form': form,
+        'title': f'Edit Shift #{shift.id} — {shift.waiter.username}',
+        'cancel_url': 'admin-shift-list',
     })

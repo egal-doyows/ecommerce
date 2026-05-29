@@ -1,0 +1,43 @@
+{% extends 'administration/base.html' %}
+{% block title %}Job Openings{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Job Openings</h1>
+        <div class="breadcrumb-text">Careers page content</div>
+    </div>
+    {% if is_manager %}<a href="{% url 'admin-job-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Opening</a>{% endif %}
+</div>
+
+<div class="adm-card">
+    {% if openings %}
+    <table class="adm-table">
+        <thead>
+            <tr><th>Title</th><th>Type</th><th>Location</th><th>Public</th>{% if is_manager %}<th></th>{% endif %}</tr>
+        </thead>
+        <tbody>
+        {% for job in openings %}
+        <tr>
+            <td style="font-weight:600;">{{ job.title }}</td>
+            <td style="color:var(--adm-muted);">{{ job.get_employment_type_display }}</td>
+            <td style="color:var(--adm-muted);font-size:12px;">{{ job.location|default:"—" }}</td>
+            <td>
+                {% if job.is_open %}<span class="adm-badge adm-badge-success">Open</span>
+                {% else %}<span class="adm-badge adm-badge-muted">Hidden</span>{% endif %}
+            </td>
+            {% if is_manager %}
+            <td style="white-space:nowrap;">
+                <a href="{% url 'admin-job-edit' job.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                <a href="{% url 'admin-job-delete' job.pk %}" class="adm-btn-icon" title="Delete" style="color:var(--adm-danger);"><i class="fa-solid fa-trash"></i></a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="adm-empty"><i class="fa-solid fa-briefcase"></i><p>No job openings yet</p></div>
+    {% endif %}
+</div>
+{% endblock %}

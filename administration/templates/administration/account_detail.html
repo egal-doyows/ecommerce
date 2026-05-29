@@ -13,6 +13,7 @@
     <div style="text-align:right;">
         <div style="font-size:11px;font-weight:600;color:var(--adm-muted);text-transform:uppercase;letter-spacing:.5px;">Current Balance</div>
         <div style="font-size:26px;font-weight:800;">{{ restaurant.currency_symbol }} {{ balance|floatformat:2|intcomma }}</div>
+        {% if is_manager %}<a href="{% url 'admin-account-edit-form' account.pk %}" class="adm-btn adm-btn-outline adm-btn-sm" style="margin-top:8px;"><i class="fa-solid fa-pen"></i> Edit</a>{% endif %}
     </div>
 </div>
 

@@ -1,0 +1,35 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+{% block title %}Reverse {{ receipt.grn_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div><h1>Reverse Goods Receipt</h1></div>
+</div>
+
+<div style="max-width:540px;">
+    <div class="adm-card" style="text-align:center;padding:36px 32px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:rgba(231,76,60,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+            <i class="fa-solid fa-rotate-left" style="font-size:22px;color:var(--adm-danger);"></i>
+        </div>
+        <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Reverse {{ receipt.grn_number }}?</h3>
+        <p style="color:var(--adm-muted);font-size:14px;margin:0 0 8px;">
+            This will <strong>decrement the stock</strong> this receipt added,
+            roll back the received quantities on
+            <strong>{{ receipt.purchase_order.po_number }}</strong>,
+            {% if invoice %}and remove the supplier invoice
+            ({{ restaurant.currency_symbol }} {{ invoice.amount|floatformat:2|intcomma }}).{% else %}and update its status.{% endif %}
+        </p>
+        <p style="color:var(--adm-muted);font-size:12px;margin:0 0 28px;">
+            Note: the item buying price is not auto-restored to its pre-receipt value.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <div style="display:flex;justify-content:center;gap:10px;">
+                <button type="submit" class="adm-btn adm-btn-danger"><i class="fa-solid fa-rotate-left"></i> Reverse Receipt</button>
+                <a href="{% url 'receipt-detail' receipt.pk %}" class="adm-btn adm-btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

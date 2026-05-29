@@ -9,6 +9,7 @@ from menu.models import (
 )
 from account.models import WaiterCode
 from staff_compensation.models import StaffCompensation
+from careers.models import JobOpening
 
 
 # ── Shared widget attrs ──────────────────────────────────────────────
@@ -340,3 +341,54 @@ class RestaurantSettingsForm(forms.ModelForm):
         """Yield (label, [bound_field, ...]) so the template can render groups."""
         for label, names in self.FIELDSETS:
             yield label, [self[name] for name in names]
+
+
+class JobOpeningForm(forms.ModelForm):
+    """Back-office CRUD for careers JobOpening (slug auto-generated on save)."""
+    class Meta:
+        model = JobOpening
+        fields = [
+            'title', 'employment_type', 'location', 'summary',
+            'description', 'requirements', 'how_to_apply', 'is_open',
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs=_input),
+            'employment_type': forms.Select(attrs=_select),
+            'location': forms.TextInput(attrs=_input),
+            'summary': forms.TextInput(attrs=_input),
+            'description': forms.Textarea(attrs=_textarea),
+            'requirements': forms.Textarea(attrs=_textarea),
+            'how_to_apply': forms.Textarea(attrs=_textarea),
+        }
+
+
+class AccountForm(forms.ModelForm):
+    """Edit a financial account's label/description/active flag.
+
+    account_type is the immutable system key (one row per type, all
+    auto-created), so it is intentionally not editable here.
+    """
+    class Meta:
+        from .models import Account as _Account
+        model = _Account
+        fields = ['name', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs=_input),
+            'description': forms.Textarea(attrs=_textarea),
+        }
+
+
+class ShiftEditForm(forms.ModelForm):
+    """Manager correction of a shift's opening float / notes.
+
+    Deliberately excludes counted_cash (that goes through the separation-of-
+    duties till-count flow) and the status/timestamps (driven by clock in/out
+    and reopen/reclose)."""
+    class Meta:
+        from menu.models import Shift as _Shift
+        model = _Shift
+        fields = ['starting_cash', 'notes']
+        widgets = {
+            'starting_cash': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0'}),
+            'notes': forms.Textarea(attrs=_textarea),
+        }

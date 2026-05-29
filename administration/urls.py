@@ -56,9 +56,16 @@ urlpatterns = [
     path('shifts/', views.shift_list_admin, name='admin-shift-list'),
     path('shifts/<int:shift_id>/reopen/', views.shift_reopen, name='admin-shift-reopen'),
     path('shifts/<int:shift_id>/close/', views.shift_reclose, name='admin-shift-reclose'),
+    path('shifts/<int:shift_id>/edit/', views.shift_edit, name='admin-shift-edit'),
 
     # Settings
     path('settings/', views.settings_view, name='admin-settings'),
+
+    # Job openings (careers content)
+    path('jobs/', views.job_opening_list, name='admin-job-list'),
+    path('jobs/create/', views.job_opening_create, name='admin-job-create'),
+    path('jobs/<int:pk>/edit/', views.job_opening_edit, name='admin-job-edit'),
+    path('jobs/<int:pk>/delete/', views.job_opening_delete, name='admin-job-delete'),
 
     # Reports
     path('reports/', views.reports_view, name='admin-reports'),
@@ -66,5 +73,6 @@ urlpatterns = [
     # Accounts
     path('accounts/', views.accounts_overview, name='admin-accounts'),
     path('accounts/transfer/', views.transfer_funds, name='admin-transfer-funds'),
+    path('accounts/<int:pk>/edit/', views.account_edit, name='admin-account-edit-form'),
     path('accounts/<int:pk>/', views.account_detail, name='admin-account-detail'),
 ]

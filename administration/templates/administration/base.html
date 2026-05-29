@@ -608,6 +608,9 @@
         <a href="{% url 'admin-settings' %}" class="adm-nav-link {% active_nav 'admin-settings' %}">
             <i class="fa-solid fa-gear"></i> Settings
         </a>
+        <a href="{% url 'admin-job-list' %}" class="adm-nav-link {% active_nav 'admin-job-list' 'admin-job-create' 'admin-job-edit' 'admin-job-delete' %}">
+            <i class="fa-solid fa-briefcase"></i> Job Openings
+        </a>
     </div>
     {% endif %}
 </nav>

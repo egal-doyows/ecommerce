@@ -54,6 +54,7 @@
                 {% else %}
                     <span style="color:var(--adm-muted);font-size:12px;">—</span>
                 {% endif %}
+                <a href="{% url 'admin-shift-edit' shift.id %}" class="adm-btn-icon" title="Edit opening float / notes"><i class="fa-solid fa-pen"></i></a>
             </td>
             {% endif %}
         </tr>

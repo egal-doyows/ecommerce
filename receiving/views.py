@@ -611,3 +611,63 @@ def receipt_pdf(request, pk):
     response = HttpResponse(buf, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{receipt.grn_number}.pdf"'
     return response
+
+
+@manager_required
+def receipt_reverse(request, pk):
+    """Reverse a goods receipt: decrement the stock it added, roll back the
+    PO's received quantities/status, and remove the auto-generated supplier
+    invoice. The safe alternative to deleting a GRN in Django admin (which
+    leaves stock and the supplier ledger overstated).
+
+    Blocked if the supplier invoice has any payment recorded against it —
+    settle/unwind that in the supplier module first.
+    """
+    receipt = get_object_or_404(
+        GoodsReceipt.objects.select_related('purchase_order'), pk=pk,
+    )
+    invoice = SupplierTransaction.objects.filter(
+        reference=receipt.grn_number, transaction_type='debit',
+    ).first()
+
+    if invoice and invoice.amount_paid and invoice.amount_paid > 0:
+        messages.error(
+            request,
+            f'{receipt.grn_number} has a supplier payment recorded against it. '
+            'Unwind that in the supplier ledger before reversing this receipt.',
+        )
+        return redirect('receipt-detail', pk=receipt.pk)
+
+    if request.method != 'POST':
+        return render(request, 'receiving/receipt_reverse_confirm.html', {
+            'receipt': receipt, 'invoice': invoice,
+        })
+
+    from django.db.models import F
+    from menu.models import InventoryItem
+
+    grn = receipt.grn_number
+    po = receipt.purchase_order
+    with transaction.atomic():
+        for gi in receipt.items.select_related('po_item'):
+            InventoryItem.objects.filter(pk=gi.po_item.inventory_item_id).update(
+                stock_quantity=F('stock_quantity') - gi.received_quantity,
+            )
+            PurchaseOrderItem.objects.filter(pk=gi.po_item_id).update(
+                received_quantity=F('received_quantity') - gi.received_quantity,
+            )
+        if po.status == 'received':
+            po.status = 'approved'
+            po.received_date = None
+            po.save(update_fields=['status', 'received_date'])
+        if invoice:
+            invoice.delete()
+        receipt.delete()
+
+    import logging
+    logging.getLogger('audit').info(
+        "Goods receipt reversed: grn=%s po=%s by=%s",
+        grn, po.po_number, request.user.username,
+    )
+    messages.success(request, f'{grn} reversed — stock and the {po.po_number} invoice were rolled back.')
+    return redirect('receipt-list')
