@@ -792,7 +792,98 @@ def shift_list_admin(request):
         shifts = shifts.filter(is_active=True)
     return render(request, 'administration/shift_list.html', {
         'shifts': shifts[:50], 'show': show,
+        'can_reopen': _is_manager(request.user),
     })
+
+
+@manager_only
+def shift_reopen(request, shift_id):
+    """Reopen a closed shift so its server can correct/add orders.
+
+    While reopened (is_active=True, reopened_at set) the shift is in
+    "correction mode": it becomes the server's single active shift and any
+    order they create/edit is backdated to the shift's date. A manager
+    re-closes it with shift_reclose once corrections are done.
+    """
+    if request.method != 'POST':
+        return redirect('admin-shift-list')
+
+    from django.db import transaction
+    from django.http import Http404
+
+    with transaction.atomic():
+        try:
+            shift = Shift.objects.select_for_update().get(pk=shift_id)
+        except Shift.DoesNotExist:
+            raise Http404
+
+        if shift.is_active:
+            messages.warning(request, f'Shift #{shift.id} is already open.')
+            return redirect('admin-shift-list')
+
+        # The order-attach logic picks the server's single active shift; two
+        # active shifts would be ambiguous, so require them clocked out first.
+        other_active = (
+            Shift.objects.filter(waiter=shift.waiter, is_active=True)
+            .exclude(pk=shift.pk).exists()
+        )
+        if other_active:
+            messages.error(
+                request,
+                f'{shift.waiter.username} has another open shift. They must '
+                'clock out of it before this shift can be reopened.',
+            )
+            return redirect('admin-shift-list')
+
+        shift.is_active = True
+        shift.reopened_at = timezone.now()
+        shift.reopened_by = request.user
+        shift.save()
+
+    messages.success(
+        request,
+        f'Shift #{shift.id} reopened for correction. {shift.waiter.username} '
+        'can now log in; their entries will be dated to the shift.',
+    )
+    return redirect('admin-shift-list')
+
+
+@manager_only
+def shift_reclose(request, shift_id):
+    """Re-close a shift that was reopened for correction."""
+    if request.method != 'POST':
+        return redirect('admin-shift-list')
+
+    from django.db import transaction
+    from django.http import Http404
+
+    with transaction.atomic():
+        try:
+            shift = Shift.objects.select_for_update().get(pk=shift_id)
+        except Shift.DoesNotExist:
+            raise Http404
+
+        if not shift.in_correction:
+            messages.warning(request, f'Shift #{shift.id} is not open for correction.')
+            return redirect('admin-shift-list')
+
+        unpaid = shift.orders.filter(status='active').count()
+        if unpaid:
+            messages.error(
+                request,
+                f'Settle or void the {unpaid} open order'
+                f'{"s" if unpaid != 1 else ""} before re-closing.',
+            )
+            return redirect('admin-shift-list')
+
+        shift.is_active = False
+        shift.reopened_at = None
+        shift.reopened_by = None
+        shift.ended_at = timezone.now()
+        shift.save()
+
+    messages.success(request, f'Shift #{shift.id} re-closed.')
+    return redirect('admin-shift-list')
 
 
 # ═══════════════════════════════════════════════════════════════════════

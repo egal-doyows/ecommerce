@@ -17,6 +17,7 @@ from .models import (
 )
 from .views import (
     _is_supervisor, _is_auto_shift_user, _ensure_shift, _restore_order_stock,
+    _backdate_for_correction, _record_order_accounting,
 )
 
 logger = logging.getLogger(__name__)
@@ -171,6 +172,7 @@ def api_place_order(request):
                 notes=notes,
                 status='active',
             )
+            _backdate_for_correction(order)
             for cart_item in cart_items:
                 product = cart_item['product']
                 qty = cart_item['qty']
@@ -298,19 +300,7 @@ def api_update_order_status(request, order_id):
         order.status = new_status
         order.save()
         if new_status == 'paid':
-            if order.payment_method == 'credit':
-                from debtor.models import DebtorTransaction
-                DebtorTransaction.objects.create(
-                    debtor=order.debtor,
-                    transaction_type='debit',
-                    amount=order.get_total(),
-                    description=f'Order #{order.id} — Table {order.table.number if order.table else "N/A"}',
-                    reference=str(order.id),
-                    created_by=request.user,
-                )
-            else:
-                from administration.models import record_order_payment
-                record_order_payment(order, created_by=request.user)
+            _record_order_accounting(order, request.user)
         if new_status in ['paid', 'cancelled'] and order.table:
             order.table.status = 'available'
             order.table.save()

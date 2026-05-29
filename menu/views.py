@@ -40,6 +40,99 @@ def _restore_order_stock(order):
                     logger.warning("Option stock restore failed for %s", oio.label)
 
 
+def _backdate_for_correction(order):
+    """Date a newly created order to its shift's date when the shift is in
+    correction mode (a manager reopened it).
+
+    created_at is auto_now_add, so it can't be set on create()/save() — it
+    must be overwritten post-insert with .update(), which issues a raw SQL
+    UPDATE that bypasses the auto behaviour. This is the single guard that
+    keeps backdating from ever leaking into normal operation: outside
+    correction mode (reopened_at=None) it's a no-op.
+    """
+    shift = order.shift
+    if shift is not None and shift.in_correction:
+        ts = shift.correction_timestamp()
+        Order.objects.filter(pk=order.pk).update(created_at=ts)
+        order.created_at = ts  # keep the in-memory instance consistent
+
+
+def _record_order_accounting(order, user):
+    """Record the ledger / debtor entry for a just-paid order.
+
+    Backdates the entry to the shift's date when the order's shift is in
+    correction mode, so the cash drawer and debtor ledger attribute the money
+    to the shift's business day rather than today. Shared by the web
+    (order_update_status) and offline-sync (api_update_order_status) pay paths.
+    """
+    shift = order.shift
+    backdate = (
+        shift.correction_timestamp()
+        if (shift is not None and shift.in_correction) else None
+    )
+    if order.payment_method == 'credit':
+        from debtor.models import DebtorTransaction
+        kwargs = {
+            'debtor': order.debtor,
+            'transaction_type': 'debit',
+            'amount': order.get_total(),
+            'description': f'Order #{order.id} — Table {order.table.number if order.table else "N/A"}',
+            'reference': str(order.id),
+            'created_by': user,
+        }
+        if backdate is not None:
+            kwargs['date'] = backdate.date()
+        DebtorTransaction.objects.create(**kwargs)
+    else:
+        from administration.models import record_order_payment
+        record_order_payment(order, created_by=user, created_at=backdate)
+
+
+def _credit_invoice_for_order(order):
+    """The debtor invoice (debit txn) created when this order was paid on credit."""
+    from debtor.models import DebtorTransaction
+    return (
+        DebtorTransaction.objects
+        .filter(reference=str(order.id), transaction_type='debit')
+        .order_by('-id').first()
+    )
+
+
+def _order_refund_blocked_reason(order):
+    """Reason a paid order can't be reversed during correction, or None.
+
+    A credit order whose invoice has any payment allocated against it must be
+    unwound in the debtor module first — silently reversing it would orphan
+    those allocations.
+    """
+    if order.payment_method == 'credit':
+        inv = _credit_invoice_for_order(order)
+        if inv is not None and inv.amount_paid and inv.amount_paid > 0:
+            return (
+                'This credit order has payments recorded against it. Reverse '
+                'them in the debtor module before correcting this order.'
+            )
+    return None
+
+
+def _reverse_order_payment_for_correction(order, user):
+    """Undo the accounting created when this order was paid, backdated to the
+    shift. Cash/M-Pesa/card: post a reversing debit. Credit: delete the unpaid
+    invoice. Caller must first check _order_refund_blocked_reason.
+    """
+    backdate = (
+        order.shift.correction_timestamp()
+        if (order.shift is not None and order.shift.in_correction) else None
+    )
+    if order.payment_method == 'credit':
+        inv = _credit_invoice_for_order(order)
+        if inv is not None:
+            inv.delete()
+    else:
+        from administration.models import reverse_order_payment
+        reverse_order_payment(order, created_by=user, created_at=backdate)
+
+
 def _is_supervisor(user):
     """Return True if user is in the Supervisor group."""
     return user.groups.filter(name='Supervisor').exists()
@@ -215,6 +308,7 @@ def place_order(request):
                     notes=order_notes,
                     status='active',
                 )
+                _backdate_for_correction(order)
 
                 for item in cart:
                     product = item['product']
@@ -296,10 +390,12 @@ def order_detail(request, order_id):
     if order.status == 'active':
         from debtor.models import Debtor
         debtors = Debtor.objects.filter(is_active=True)
+    correction_mode = order.shift is not None and order.shift.in_correction
     return render(request, 'menu/order-detail.html', {
         'order': order, 'menu_items': menu_items, 'debtors': debtors,
         'accompaniments': _build_accompaniments(menu_items) if menu_items else {},
         'can_void': _can_void(request.user),
+        'correction_mode': correction_mode,
     })
 
 
@@ -533,6 +629,58 @@ def order_void(request, order_id):
 
 @login_required(login_url='waiter-login')
 @shift_required
+def order_reopen_to_active(request, order_id):
+    """Reopen a paid order back to 'active' so its items can be corrected.
+
+    Only allowed while the order's shift is under correction. Reverses the
+    original payment (backdated to the shift) and clears payment_method, so
+    the server can edit items and re-pay through the normal flow — the new
+    payment is recorded (and backdated) when they settle again.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    order = get_object_or_404(Order, id=order_id)
+
+    # The shift's own server or a manager/supervisor may reopen for correction.
+    if not (_can_void(request.user) or order.waiter_id == request.user.id):
+        messages.error(request, 'You are not allowed to correct this order.')
+        return redirect('order-detail', order_id=order.id)
+
+    if not (order.shift is not None and order.shift.in_correction):
+        messages.error(request, 'This order is not in a shift that is open for correction.')
+        return redirect('order-detail', order_id=order.id)
+
+    if order.status != 'paid':
+        messages.error(request, 'Only paid orders can be reopened for correction.')
+        return redirect('order-detail', order_id=order.id)
+
+    blocked = _order_refund_blocked_reason(order)
+    if blocked:
+        messages.error(request, blocked)
+        return redirect('order-detail', order_id=order.id)
+
+    with transaction.atomic():
+        _reverse_order_payment_for_correction(order, request.user)
+        order.status = 'active'
+        order.payment_method = ''
+        order.mpesa_code = ''
+        order.debtor = None
+        order.save()
+        if order.table:
+            order.table.status = 'occupied'
+            order.table.save()
+
+    messages.success(
+        request,
+        f'Order #{order.id} reopened for correction. Edit the items, then take '
+        'payment again.',
+    )
+    return redirect('order-detail', order_id=order.id)
+
+
+@login_required(login_url='waiter-login')
+@shift_required
 def order_update_status(request, order_id):
     if request.method == 'POST':
         if request.user.is_superuser or _is_supervisor(request.user):
@@ -566,30 +714,35 @@ def order_update_status(request, order_id):
                     except Debtor.DoesNotExist:
                         return redirect('order-detail', order_id=order.id)
 
-            if new_status == 'cancelled' and order.status == 'active':
-                _restore_order_stock(order)
+            # Refunding = cancelling an already-paid order while its shift is
+            # under correction. Restore stock AND reverse the original payment
+            # so the cash drawer / debtor ledger stay balanced. payment_method
+            # is kept so the z-report still classifies it as a refund.
+            refunding = (
+                new_status == 'cancelled' and order.status == 'paid'
+                and order.shift is not None and order.shift.in_correction
+            )
+            if refunding:
+                blocked = _order_refund_blocked_reason(order)
+                if blocked:
+                    messages.error(request, blocked)
+                    return redirect('order-detail', order_id=order.id)
 
-            order.status = new_status
-            order.save()
+            with transaction.atomic():
+                if new_status == 'cancelled' and order.status == 'active':
+                    _restore_order_stock(order)
+                elif refunding:
+                    _restore_order_stock(order)
+                    _reverse_order_payment_for_correction(order, request.user)
 
-            # Record payment in accounts
-            if new_status == 'paid':
-                if order.payment_method == 'credit':
-                    from debtor.models import DebtorTransaction
-                    DebtorTransaction.objects.create(
-                        debtor=order.debtor,
-                        transaction_type='debit',
-                        amount=order.get_total(),
-                        description=f'Order #{order.id} — Table {order.table.number if order.table else "N/A"}',
-                        reference=str(order.id),
-                        created_by=request.user,
-                    )
-                else:
-                    from administration.models import record_order_payment
-                    record_order_payment(order, created_by=request.user)
+                order.status = new_status
+                order.save()
 
-            if new_status in ['paid', 'cancelled']:
-                if order.table:
+                # Record payment in accounts (backdated when correcting a shift)
+                if new_status == 'paid':
+                    _record_order_accounting(order, request.user)
+
+                if new_status in ['paid', 'cancelled'] and order.table:
                     order.table.status = 'available'
                     order.table.save()
 
@@ -765,6 +918,15 @@ def shift_clock_out(request):
     if request.method == 'POST':
         shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
         if shift:
+            if shift.in_correction:
+                # Don't let clock-out silently exit a manager-initiated
+                # correction; the manager re-closes it from the admin shifts page.
+                messages.error(
+                    request,
+                    'This shift was reopened for correction by a manager. '
+                    'Ask them to re-close it when you are done.',
+                )
+                return redirect('shift')
             unpaid = shift.orders.filter(status='active').count()
             if unpaid:
                 messages.error(

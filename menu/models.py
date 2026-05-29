@@ -554,6 +554,18 @@ class Shift(models.Model):
                   "for a supervisor to count the till. Cleared once the "
                   "supervisor records the count and finalizes ended_at.",
     )
+    reopened_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Set when a manager reopens this closed shift for "
+                  "correction. While set (and is_active=True) the shift is in "
+                  "correction mode: the waiter's entries are dated to the "
+                  "shift's own date. Cleared when the shift is re-closed.",
+    )
+    reopened_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reopened_shifts',
+        help_text="Manager who reopened the shift for correction.",
+    )
     notes = models.TextField(blank=True)
 
     class Meta:
@@ -561,6 +573,28 @@ class Shift(models.Model):
 
     def __str__(self):
         return f"Shift #{self.id} — {self.waiter.username} ({self.started_at.strftime('%d %b %H:%M')})"
+
+    @property
+    def in_correction(self):
+        """True while a manager has reopened this closed shift for correction.
+
+        Data created or edited in this window is backdated to the shift's own
+        date (see correction_timestamp) so reports land on the right business
+        day. A normal open shift has reopened_at=None, so this stays False and
+        no backdating ever leaks into regular operation.
+        """
+        return self.is_active and self.reopened_at is not None
+
+    def correction_timestamp(self):
+        """Timestamp to stamp on corrections made while in correction mode.
+
+        Uses the shift's start time so corrected orders fall on the shift's
+        original business day. The z-report groups by the shift FK (not by
+        created_at), so a single fixed timestamp per shift is fine; what
+        matters is that date-range reports and the cash drawer attribute the
+        entry to the shift's day, not today.
+        """
+        return self.started_at
 
     def get_duration(self):
         from django.utils import timezone

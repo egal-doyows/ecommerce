@@ -19,7 +19,7 @@ class MenuConfig(AppConfig):
             include_fields=[
                 'counted_cash', 'counted_by', 'counted_at',
                 'pending_close_at', 'ended_at', 'is_active',
-                'starting_cash',
+                'starting_cash', 'reopened_at', 'reopened_by',
             ],
         )
         # Audit loss-prevention fields on Order. Scoped to status changes

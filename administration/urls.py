@@ -54,6 +54,8 @@ urlpatterns = [
 
     # Shifts
     path('shifts/', views.shift_list_admin, name='admin-shift-list'),
+    path('shifts/<int:shift_id>/reopen/', views.shift_reopen, name='admin-shift-reopen'),
+    path('shifts/<int:shift_id>/close/', views.shift_reclose, name='admin-shift-reclose'),
 
     # Settings
     path('settings/', views.settings_view, name='admin-settings'),

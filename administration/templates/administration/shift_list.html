@@ -18,7 +18,7 @@
     {% if shifts %}
     <table class="adm-table">
         <thead>
-            <tr><th>Waiter</th><th>Started</th><th>Ended</th><th>Status</th></tr>
+            <tr><th>Waiter</th><th>Started</th><th>Ended</th><th>Status</th>{% if can_reopen %}<th>Actions</th>{% endif %}</tr>
         </thead>
         <tbody>
         {% for shift in shifts %}
@@ -29,12 +29,33 @@
                 {% if shift.ended_at %}{{ shift.ended_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
             </td>
             <td>
-                {% if shift.is_active %}
+                {% if shift.reopened_at and shift.is_active %}
+                    <span class="adm-badge adm-badge-warning">Reopened</span>
+                {% elif shift.is_active %}
                     <span class="adm-badge adm-badge-success">Active</span>
                 {% else %}
                     <span class="adm-badge adm-badge-muted">Ended</span>
                 {% endif %}
             </td>
+            {% if can_reopen %}
+            <td>
+                {% if shift.reopened_at and shift.is_active %}
+                <form method="POST" action="{% url 'admin-shift-reclose' shift.id %}" style="display:inline;"
+                      onsubmit="return confirm('Re-close shift #{{ shift.id }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="adm-btn adm-btn-sm">Re-close</button>
+                </form>
+                {% elif not shift.is_active %}
+                <form method="POST" action="{% url 'admin-shift-reopen' shift.id %}" style="display:inline;"
+                      onsubmit="return confirm('Reopen shift #{{ shift.id }} for correction? {{ shift.waiter.username }} will be able to add/edit orders dated to this shift.');">
+                    {% csrf_token %}
+                    <button type="submit" class="adm-btn adm-btn-sm">Reopen</button>
+                </form>
+                {% else %}
+                    <span style="color:var(--adm-muted);font-size:12px;">—</span>
+                {% endif %}
+            </td>
+            {% endif %}
         </tr>
         {% endfor %}
         </tbody>

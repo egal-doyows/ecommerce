@@ -91,6 +91,20 @@
         cursor: not-allowed;
     }
 
+    .shift-correction-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        margin-bottom: 14px;
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        color: #92400e;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    .shift-correction-banner i { font-size: 18px; }
     .shift-unpaid-warning {
         display: flex;
         align-items: center;
@@ -323,6 +337,14 @@
     {% if active_shift %}
     <!-- Active shift -->
     <div class="shift-active-card">
+        {% if active_shift.in_correction %}
+        <div class="shift-correction-banner">
+            <i class="fa fa-triangle-exclamation"></i>
+            <span>Correction mode — a manager reopened this shift. Orders you add or
+            edit are dated to <strong>{{ active_shift.started_at|date:"d M Y" }}</strong>.
+            A manager will re-close it when you're done.</span>
+        </div>
+        {% endif %}
         {% if unpaid_orders %}
         <div class="shift-unpaid-warning">
             <i class="fa fa-exclamation-triangle"></i>

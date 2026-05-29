@@ -418,10 +418,31 @@
     }
     .od-void-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(185, 28, 28, 0.3); }
     @media print { .od-void-form { display: none !important; } }
+    .od-correction-banner {
+        background: #fef3c7; border: 1px solid #f59e0b; color: #92400e;
+        border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+        font-size: 14px; display: flex; align-items: center; gap: 10px;
+    }
+    .od-correction-banner i { font-size: 18px; }
+    .od-correction-reopen-btn {
+        margin-top: 12px; width: 100%; padding: 12px; border: none;
+        border-radius: 10px; background: #92400e; color: #fff; font-weight: 600;
+        cursor: pointer; display: inline-flex; align-items: center;
+        justify-content: center; gap: 8px;
+    }
+    .od-correction-reopen-btn:hover { background: #7c360b; }
 </style>
 
 <div class="od-page">
     <a href="{% url 'order-list' %}" class="od-back"><i class="fa fa-arrow-left"></i> All Orders</a>
+
+    {% if correction_mode %}
+    <div class="od-correction-banner">
+        <i class="fa fa-triangle-exclamation"></i>
+        <span>Correction mode — this order's shift was reopened. Entries are dated to
+        <strong>{{ order.shift.started_at|date:"d M Y" }}</strong>.</span>
+    </div>
+    {% endif %}
 
     <div class="od-card">
         <div class="od-header">
@@ -497,6 +518,15 @@
                 {% if order.mpesa_code %} &mdash; Code: <strong>{{ order.mpesa_code }}</strong>{% endif %}
                 {% if order.debtor %} &mdash; <strong>{{ order.debtor.name }}</strong>{% endif %}
             </div>
+            {% if correction_mode %}
+            <form method="POST" action="{% url 'order-reopen' order.id %}"
+                  onsubmit="return confirm('Reopen this paid order to correct its items? The original payment will be reversed.');">
+                {% csrf_token %}
+                <button type="submit" class="od-correction-reopen-btn">
+                    <i class="fa fa-rotate-left"></i> Reopen for correction
+                </button>
+            </form>
+            {% endif %}
             {% endif %}
 
             {% if order.status == 'active' %}
