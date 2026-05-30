@@ -459,6 +459,21 @@
       setTimeout(refreshAllData, 2000);
     }
 
+    // Silently refresh cached live data (menu, prices, tables, orders) on a
+    // regular interval so long-running POS terminals don't drift stale. This
+    // only swaps IndexedDB read-caches — each cacheXData() clears its store
+    // *after* a successful fetch, so a failed/offline refresh never loses data,
+    // and the un-synced order queue is never touched. No page reload, so a
+    // waiter mid-order is never interrupted; the fresher data is picked up on
+    // the next navigation/read.
+    const DATA_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // hourly
+    setInterval(() => {
+      // Skip when offline (would no-op) or when the tab is hidden/asleep.
+      if (navigator.onLine && document.visibilityState === 'visible') {
+        refreshAllData();
+      }
+    }, DATA_REFRESH_INTERVAL_MS);
+
     // Sync any pending items
     if (navigator.onLine) {
       setTimeout(processSyncQueue, 3000);

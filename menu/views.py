@@ -197,7 +197,12 @@ def service_worker_view(request):
     """Serve sw.js from root scope with correct content type."""
     sw_path = django_settings.BASE_DIR / 'static' / 'js' / 'sw.js'
     with open(sw_path, 'r') as f:
-        return HttpResponse(f.read(), content_type='application/javascript')
+        resp = HttpResponse(f.read(), content_type='application/javascript')
+    # The SW script must always be revalidated so a version bump (and the cache
+    # invalidation it triggers) reaches terminals promptly instead of being
+    # masked by an HTTP cache.
+    resp['Cache-Control'] = 'no-cache'
+    return resp
 
 
 def offline_view(request):
