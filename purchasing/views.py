@@ -166,7 +166,7 @@ def po_detail(request, pk):
         'po': po,
         'items': items,
         'currency_symbol': symbol,
-        'inventory_items_data': inventory_items,
+        'inventory_json': json.dumps(inventory_items),
         'suppliers': suppliers,
         'can_approve': _is_manager(request.user),
         'can_edit': can_edit,
