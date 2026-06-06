@@ -190,6 +190,7 @@ def receipt_create(request, po_pk):
 
             total_received_value = Decimal('0')
             any_received = False
+            received_lines = []
 
             for item in po.items.select_related('inventory_item'):
                 # "Already received" is recomputed from the GRN audit trail
@@ -221,6 +222,7 @@ def receipt_create(request, po_pk):
                     received_quantity=received_qty,
                     notes=item_notes,
                 )
+                received_lines.append(f'{item.inventory_item.name}×{received_qty}')
 
                 # Update inventory stock atomically. F() avoids the lost-update
                 # race; PurchaseOrderItem.received_quantity is now derived from
@@ -265,6 +267,32 @@ def receipt_create(request, po_pk):
                     reference=receipt.grn_number,
                     created_by=request.user,
                 )
+
+        # ── Strong audit trail ──────────────────────────────────────────
+        # Supervisors can create AND receive their own POs (no separate
+        # approver), so every receipt is recorded as an explicit business
+        # event. A self-receive — the user who created the PO also receiving
+        # the goods, i.e. no separation of duties — is additionally flagged at
+        # WARNING so it stands out in the audit log and any monitoring.
+        import logging
+        self_receive = (po.created_by_id == request.user.id)
+        client_ip = request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR', '')
+        audit = logging.getLogger('audit')
+        audit.info(
+            "Goods received: grn=%s po=%s supplier=%s received_by=%s "
+            "self_receive=%s status=%s value=%s items=[%s] ip=%s",
+            receipt.grn_number, po.po_number, po.supplier.name,
+            request.user.username, self_receive,
+            'fully' if fully_received else 'partial',
+            total_received_value, '; '.join(received_lines), client_ip,
+        )
+        if self_receive:
+            audit.warning(
+                "SELF-RECEIVE (no separation of duties): %s received goods on "
+                "%s which they created — grn=%s value=%s ip=%s",
+                request.user.username, po.po_number, receipt.grn_number,
+                total_received_value, client_ip,
+            )
 
         status_msg = 'fully received' if fully_received else 'partially received'
         messages.success(

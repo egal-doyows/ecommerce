@@ -70,7 +70,13 @@
 <!-- Info -->
 <div class="adm-card" style="margin-bottom:24px;">
     <div style="display:flex;flex-wrap:wrap;gap:24px;font-size:13px;">
-        <div><span style="color:var(--adm-muted);font-weight:600;">Received by:</span> {{ receipt.received_by.username|default:"—" }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Received by:</span> {{ receipt.received_by.username|default:"—" }}
+            {% if receipt.is_self_received %}
+            <span class="adm-badge adm-badge-danger" title="The user who received these goods also created the purchase order — no separation of duties. Flagged for review.">
+                <i class="fa-solid fa-triangle-exclamation"></i> Self-received
+            </span>
+            {% endif %}
+        </div>
         <div><span style="color:var(--adm-muted);font-weight:600;">Date:</span> {{ receipt.received_date|date:"d M Y" }}</div>
         <div><span style="color:var(--adm-muted);font-weight:600;">Timestamp:</span> {{ receipt.created_at|date:"d M Y, H:i:s" }}</div>
         <div><span style="color:var(--adm-muted);font-weight:600;">PO Status:</span>

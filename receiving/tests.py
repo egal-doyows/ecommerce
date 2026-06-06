@@ -157,3 +157,43 @@ class SupervisorPurchasingTests(TestCase):
         )
         self.inv.refresh_from_db()
         self.assertEqual(self.inv.stock_quantity, Decimal('0'))
+
+    def test_self_receive_is_audit_logged_and_flagged(self):
+        from receiving.models import GoodsReceipt
+        sup = self._make_supervisor('sup_audit')
+        po = self._po_with_item(sup)
+        c = Client(); c.force_login(sup)
+        item = po.items.first()
+
+        with self.assertLogs('audit', level='INFO') as cm:
+            c.post(
+                reverse('receipt-create', kwargs={'po_pk': po.pk}),
+                data={f'received_{item.pk}': '5'},
+            )
+        out = '\n'.join(cm.output)
+        self.assertIn('self_receive=True', out)      # the event line
+        self.assertIn('SELF-RECEIVE', out)            # the WARNING flag
+
+        grn = GoodsReceipt.objects.get(purchase_order=po)
+        self.assertTrue(grn.is_self_received)
+
+    def test_manager_receiving_others_po_is_not_self_receive(self):
+        from django.contrib.auth.models import User
+        from receiving.models import GoodsReceipt
+        owner = self._make_supervisor('sup_owner2')
+        po = self._po_with_item(owner)
+        mgr = User.objects.create_superuser('boss2', 'b@e.com', 'pw')
+        c = Client(); c.force_login(mgr)
+        item = po.items.first()
+
+        with self.assertLogs('audit', level='INFO') as cm:
+            c.post(
+                reverse('receipt-create', kwargs={'po_pk': po.pk}),
+                data={f'received_{item.pk}': '5'},
+            )
+        out = '\n'.join(cm.output)
+        self.assertIn('self_receive=False', out)
+        self.assertNotIn('SELF-RECEIVE', out)
+
+        grn = GoodsReceipt.objects.get(purchase_order=po)
+        self.assertFalse(grn.is_self_received)

@@ -49,6 +49,16 @@ class GoodsReceipt(models.Model):
             for i in self.items.select_related('po_item').all()
         )
 
+    @property
+    def is_self_received(self):
+        """True when the user who received the goods also created the purchase
+        order — i.e. no separation of duties. Surfaced as an audit flag so
+        these receipts are easy to review."""
+        return (
+            self.received_by_id is not None
+            and self.received_by_id == self.purchase_order.created_by_id
+        )
+
 
 class GoodsReceiptItem(models.Model):
     """Line item on a goods receipt — how much was actually received."""

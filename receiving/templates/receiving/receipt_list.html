@@ -158,7 +158,9 @@ function toggleAllPending() {
                 <td style="color:var(--adm-muted);font-size:12px;white-space:nowrap;">{{ r.received_date|date:"d M Y" }}</td>
                 <td>{{ r.item_count }}</td>
                 <td style="text-align:right;font-weight:700;">{{ restaurant.currency_symbol }} {{ r.total_value|floatformat:2|intcomma }}</td>
-                <td style="color:var(--adm-muted);font-size:12px;">{{ r.received_by.username|default:"—" }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ r.received_by.username|default:"—" }}
+                    {% if r.is_self_received %}<span class="adm-badge adm-badge-danger" title="Self-received: PO creator also received the goods (no separation of duties)."><i class="fa-solid fa-triangle-exclamation"></i></span>{% endif %}
+                </td>
                 <td style="color:var(--adm-muted);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.notes|default:"—"|truncatechars:40 }}</td>
             </tr>
             {% endfor %}
