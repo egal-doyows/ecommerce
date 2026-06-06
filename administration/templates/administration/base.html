@@ -548,7 +548,7 @@
             <i class="fa-solid fa-clipboard-list"></i> Purchasing
         </a>
         {% endif %}
-        {% if is_manager %}
+        {% if is_manager or is_supervisor %}
         <a href="{% url 'receipt-list' %}" class="adm-nav-link {% active_nav 'receipt-list' 'receipt-detail' 'receipt-create' 'po-receiving-summary' %}">
             <i class="fa-solid fa-truck-ramp-box"></i> Receiving
         </a>

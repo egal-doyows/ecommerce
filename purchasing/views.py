@@ -20,6 +20,10 @@ def _is_manager(user):
     return user.groups.filter(name='Manager').exists()
 
 
+def _is_supervisor(user):
+    return user.groups.filter(name='Supervisor').exists()
+
+
 def _is_admin_user(user):
     if user.is_superuser:
         return True
@@ -51,11 +55,24 @@ def manager_required(view_func):
 
 
 def _can_edit_po(user, po):
-    """Managers/Superuser can edit any draft/pending PO; supervisors only their own drafts."""
+    """A PO is editable while it's still open (not received/cancelled) and has
+    no goods receipts against it — once stock has been received, the line items
+    are locked. Managers edit any open PO; supervisors edit their own."""
+    if po.status in ('received', 'cancelled') or po.receipts.exists():
+        return False
     if _is_manager(user):
-        return po.status in ('draft', 'pending')
-    # Supervisor — only their own draft POs
-    return po.status == 'draft' and po.created_by == user
+        return True
+    return po.created_by_id == user.id
+
+
+def _can_receive_po(user, po):
+    """Managers/Superuser receive any PO; supervisors receive their own.
+
+    There is no approval step — a PO is created and received directly.
+    """
+    if _is_manager(user):
+        return True
+    return _is_supervisor(user) and po.created_by_id == user.id
 
 
 def superuser_only(view_func):
@@ -133,7 +150,7 @@ def po_create(request):
 @staff_required
 def po_detail(request, pk):
     po = get_object_or_404(PurchaseOrder.objects.select_related('supplier', 'created_by', 'approved_by'), pk=pk)
-    items = po.items.select_related('inventory_item').all()
+    items = po.items.select_related('inventory_item').prefetch_related('receipt_items').all()
 
     from menu.cache import get_restaurant_settings
     from menu.models import InventoryItem
@@ -168,7 +185,7 @@ def po_detail(request, pk):
         'currency_symbol': symbol,
         'inventory_json': json.dumps(inventory_items),
         'suppliers': suppliers,
-        'can_approve': _is_manager(request.user),
+        'can_receive': _can_receive_po(request.user, po),
         'can_edit': can_edit,
     })
 
@@ -310,56 +327,13 @@ def po_remove_item(request, pk, item_pk):
     return redirect('po-detail', pk=po.pk)
 
 
-# ── Submit Purchase Order for Approval ─────────────────────────────
-
-@staff_required
-def po_submit(request, pk):
-    po = get_object_or_404(PurchaseOrder, pk=pk)
-    if not _can_edit_po(request.user, po):
-        messages.error(request, 'You do not have permission to submit this order.')
-        return redirect('po-detail', pk=po.pk)
-    if po.status != 'draft':
-        messages.error(request, 'Only draft orders can be submitted.')
-        return redirect('po-detail', pk=po.pk)
-    if po.items.count() == 0:
-        messages.error(request, 'Cannot submit an empty purchase order.')
-        return redirect('po-detail', pk=po.pk)
-
-    if request.method == 'POST':
-        po.status = 'pending'
-        po.save()
-        messages.success(request, f'{po.po_number} submitted for approval.')
-    return redirect('po-detail', pk=po.pk)
-
-
-# ── Approve Purchase Order ───────────────────────────────────────────
-
-@manager_required
-def po_approve(request, pk):
-    po = get_object_or_404(PurchaseOrder, pk=pk)
-    if po.status not in ('draft', 'pending'):
-        messages.error(request, 'Only draft or pending orders can be approved.')
-        return redirect('po-detail', pk=po.pk)
-
-    if po.items.count() == 0:
-        messages.error(request, 'Cannot approve an empty purchase order.')
-        return redirect('po-detail', pk=po.pk)
-
-    if request.method == 'POST':
-        po.status = 'approved'
-        po.approved_by = request.user
-        po.save()
-        messages.success(request, f'{po.po_number} approved.')
-    return redirect('po-detail', pk=po.pk)
-
-
 # ── Receive Goods ────────────────────────────────────────────────────
 # Canonical receiving flow lives in `receiving.views.receipt_create`. It supports
 # partial receipts, creates a GRN audit trail, and logs stock movements. Calling
 # both this view and `receipt_create` on the same PO previously double-posted
 # the supplier invoice.
 
-@manager_required
+@staff_required
 def po_receive(request, pk):
     return redirect('receipt-create', po_pk=pk, permanent=True)
 
@@ -410,7 +384,7 @@ def po_pdf(request, pk):
         PurchaseOrder.objects.select_related('supplier', 'created_by', 'approved_by'),
         pk=pk,
     )
-    items = po.items.select_related('inventory_item').all()
+    items = po.items.select_related('inventory_item').prefetch_related('receipt_items').all()
 
     from menu.cache import get_restaurant_settings
     rs = get_restaurant_settings()

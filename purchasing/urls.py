@@ -12,8 +12,6 @@ urlpatterns = [
     path('<int:pk>/items/<int:item_pk>/remove/', views.po_remove_item, name='po-remove-item'),
     path('<int:pk>/change-supplier/', views.po_change_supplier, name='po-change-supplier'),
     path('<int:pk>/pdf/', views.po_pdf, name='po-pdf'),
-    path('<int:pk>/submit/', views.po_submit, name='po-submit'),
-    path('<int:pk>/approve/', views.po_approve, name='po-approve'),
     path('<int:pk>/receive/', views.po_receive, name='po-receive'),
     path('<int:pk>/cancel/', views.po_cancel, name='po-cancel'),
 ]

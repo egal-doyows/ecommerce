@@ -15,7 +15,7 @@
     </div>
     <div style="display:flex;gap:8px;">
         <a href="{% url 'po-detail' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-clipboard-list"></i> View PO</a>
-        {% if po.status == 'approved' %}
+        {% if po.status != 'received' and po.status != 'cancelled' %}
         <a href="{% url 'receipt-create' po.pk %}" class="adm-btn adm-btn-primary" style="background:var(--adm-success);">
             <i class="fa-solid fa-truck-ramp-box"></i> Receive More Goods
         </a>
@@ -40,10 +40,10 @@
         <div style="font-size:16px;font-weight:700;">
             {% if po.status == 'received' %}
             <span class="adm-badge adm-badge-success">Fully Received</span>
-            {% elif po.status == 'approved' %}
+            {% elif receipts %}
             <span class="adm-badge" style="background:rgba(245,158,11,.1);color:#d97706;">Partially Received</span>
             {% else %}
-            <span class="adm-badge adm-badge-muted" style="text-transform:capitalize;">{{ po.status }}</span>
+            <span class="adm-badge adm-badge-muted">Not Yet Received</span>
             {% endif %}
         </div>
     </div>

@@ -15,63 +15,25 @@
         {% if items %}
         <a href="{% url 'po-pdf' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-file-pdf"></i> Download PDF</a>
         {% endif %}
-        {% if po.status == 'draft' %}
-            {% if can_edit %}
-            <a href="{% url 'po-edit' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-pen"></i> Edit</a>
-            {% endif %}
-            {% if can_approve %}
-                {% if items %}
-                <form method="POST" action="{% url 'po-approve' po.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="adm-btn" style="background:#B83E1E;color:#fff;" onclick="return confirm('Approve this purchase order?')">
-                        <i class="fa-solid fa-check-double"></i> Approve
-                    </button>
-                </form>
-                {% endif %}
-                <form method="POST" action="{% url 'po-cancel' po.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);" onclick="return confirm('Cancel this purchase order?')">
-                        <i class="fa-solid fa-xmark"></i> Cancel
-                    </button>
-                </form>
-            {% elif can_edit and items %}
-                <form method="POST" action="{% url 'po-submit' po.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="adm-btn" style="background:#B83E1E;color:#fff;" onclick="return confirm('Submit this PO for manager approval?')">
-                        <i class="fa-solid fa-paper-plane"></i> Submit for Approval
-                    </button>
-                </form>
-            {% endif %}
-        {% elif po.status == 'pending' %}
-            {% if can_approve %}
-                <a href="{% url 'po-edit' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-pen"></i> Edit</a>
-                {% if items %}
-                <form method="POST" action="{% url 'po-approve' po.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="adm-btn" style="background:#B83E1E;color:#fff;" onclick="return confirm('Approve this purchase order?')">
-                        <i class="fa-solid fa-check-double"></i> Approve
-                    </button>
-                </form>
-                {% endif %}
-                <form method="POST" action="{% url 'po-cancel' po.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);" onclick="return confirm('Cancel this purchase order?')">
-                        <i class="fa-solid fa-xmark"></i> Cancel
-                    </button>
-                </form>
-            {% else %}
-                <span class="adm-btn adm-btn-outline" style="opacity:.6;cursor:default;">
-                    <i class="fa-solid fa-clock"></i> Awaiting Manager Approval
-                </span>
-            {% endif %}
-        {% elif po.status == 'approved' %}
-            {% if can_approve %}
-            <a href="{% url 'receipt-create' po.pk %}" class="adm-btn adm-btn-primary" style="background:var(--adm-success);">
-                <i class="fa-solid fa-truck-ramp-box"></i> Receive Goods
-            </a>
+        {% if po.status == 'received' %}
             <a href="{% url 'po-receiving-summary' po.pk %}" class="adm-btn adm-btn-outline">
                 <i class="fa-solid fa-list-check"></i> Receiving History
             </a>
+        {% elif po.status != 'cancelled' %}
+            {% if can_edit %}
+            <a href="{% url 'po-edit' po.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-pen"></i> Edit</a>
+            {% endif %}
+            {% if can_receive and items %}
+            <a href="{% url 'receipt-create' po.pk %}" class="adm-btn adm-btn-primary" style="background:var(--adm-success);">
+                <i class="fa-solid fa-truck-ramp-box"></i> Receive Goods
+            </a>
+            {% endif %}
+            {% if po.receipts.exists %}
+            <a href="{% url 'po-receiving-summary' po.pk %}" class="adm-btn adm-btn-outline">
+                <i class="fa-solid fa-list-check"></i> Receiving History
+            </a>
+            {% endif %}
+            {% if can_edit or can_receive %}
             <form method="POST" action="{% url 'po-cancel' po.pk %}" style="display:inline;">
                 {% csrf_token %}
                 <button type="submit" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);" onclick="return confirm('Cancel this purchase order?')">
@@ -79,10 +41,6 @@
                 </button>
             </form>
             {% endif %}
-        {% elif po.status == 'received' %}
-            <a href="{% url 'po-receiving-summary' po.pk %}" class="adm-btn adm-btn-outline">
-                <i class="fa-solid fa-list-check"></i> Receiving History
-            </a>
         {% endif %}
     </div>
 </div>

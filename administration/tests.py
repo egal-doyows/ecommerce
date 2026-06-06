@@ -88,7 +88,7 @@ class ReceiptReversalTests(_Base):
         po = PurchaseOrder.objects.create(supplier=supplier, status='received', created_by=self.manager)
         po_item = PurchaseOrderItem.objects.create(
             purchase_order=po, inventory_item=inv,
-            quantity=Decimal('10'), unit_price=Decimal('50'), received_quantity=Decimal('10'),
+            quantity=Decimal('10'), unit_price=Decimal('50'),
         )
         receipt = GoodsReceipt.objects.create(purchase_order=po, received_by=self.manager)
         GoodsReceiptItem.objects.create(receipt=receipt, po_item=po_item, received_quantity=Decimal('10'))
@@ -108,7 +108,7 @@ class ReceiptReversalTests(_Base):
         inv.refresh_from_db(); po_item.refresh_from_db(); po.refresh_from_db()
         self.assertEqual(inv.stock_quantity, Decimal('0'))
         self.assertEqual(po_item.received_quantity, Decimal('0'))
-        self.assertEqual(po.status, 'approved')
+        self.assertEqual(po.status, 'draft')
         self.assertFalse(SupplierTransaction.objects.filter(pk=invoice.pk).exists())
 
     def test_reversal_blocked_when_invoice_paid(self):

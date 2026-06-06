@@ -71,9 +71,6 @@ class PurchaseOrderItem(models.Model):
     )
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    received_quantity = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0,
-    )
 
     class Meta:
         ordering = ['pk']
@@ -84,6 +81,23 @@ class PurchaseOrderItem(models.Model):
     @property
     def line_total(self):
         return self.quantity * self.unit_price
+
+    @property
+    def received_quantity(self):
+        """Total quantity received, derived from the goods-receipt (GRN) rows,
+        which are the single source of truth. Previously this was a stored
+        field updated in lockstep with the GRN rows, which could drift (e.g. a
+        GRN deleted directly in admin). Sums in Python when ``receipt_items``
+        is prefetched, otherwise aggregates in the DB."""
+        cache = getattr(self, '_prefetched_objects_cache', None) or {}
+        if 'receipt_items' in cache:
+            return sum(
+                (gri.received_quantity for gri in self.receipt_items.all()),
+                Decimal('0'),
+            )
+        return self.receipt_items.aggregate(
+            total=models.Sum('received_quantity'),
+        )['total'] or Decimal('0')
 
     @property
     def received_total(self):

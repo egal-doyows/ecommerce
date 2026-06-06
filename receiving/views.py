@@ -8,7 +8,7 @@ from django.core.paginator import Paginator
 from django.db import models, transaction
 from django.utils import timezone as tz
 
-from purchasing.models import PurchaseOrder, PurchaseOrderItem
+from purchasing.models import PurchaseOrder
 from supplier.models import SupplierTransaction
 from .models import GoodsReceipt, GoodsReceiptItem
 
@@ -18,6 +18,15 @@ def _is_manager(user):
     return user.is_authenticated and (
         user.is_superuser or user.groups.filter(name='Manager').exists()
     )
+
+
+def _is_supervisor(user):
+    return user.is_authenticated and user.groups.filter(name='Supervisor').exists()
+
+
+def _can_receive_po(user, po):
+    """Managers/superusers receive any PO; supervisors receive their own."""
+    return _is_manager(user) or (_is_supervisor(user) and po.created_by_id == user.id)
 
 
 def manager_required(view_func):
@@ -33,13 +42,33 @@ def manager_required(view_func):
     return wrapper
 
 
+def staff_required(view_func):
+    """Managers, supervisors, and superusers can access. Per-PO ownership is
+    enforced inside each view via `_can_receive_po`, so supervisors are scoped
+    to the purchase orders they created."""
+    @login_required(login_url='my-login')
+    def wrapper(request, *args, **kwargs):
+        if not (_is_manager(request.user) or _is_supervisor(request.user)):
+            messages.error(request, 'Only managers and supervisors can access goods receiving.')
+            return redirect('admin-dashboard')
+        return view_func(request, *args, **kwargs)
+    wrapper.__name__ = view_func.__name__
+    wrapper.__doc__ = view_func.__doc__
+    return wrapper
+
+
 # ── Receipt List ─────────────────────────────────────────────────────
 
-@manager_required
+@staff_required
 def receipt_list(request):
     receipts = GoodsReceipt.objects.select_related(
         'purchase_order__supplier', 'received_by',
     ).order_by('-received_date', '-pk')
+
+    # Supervisors are scoped to receiving for the POs they created.
+    own_only = not _is_manager(request.user)
+    if own_only:
+        receipts = receipts.filter(purchase_order__created_by=request.user)
 
     # Date filtering
     date_from = request.GET.get('date_from', '')
@@ -71,10 +100,12 @@ def receipt_list(request):
     paginator = Paginator(receipts, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
 
-    # Approved POs available for receiving
+    # POs ready to receive: open (not fully received / cancelled) and have items.
     approved_pos = PurchaseOrder.objects.filter(
-        status='approved',
-    ).select_related('supplier').order_by('-order_date')
+        status__in=['draft', 'approved'],
+    ).exclude(items__isnull=True).distinct().select_related('supplier').order_by('-order_date')
+    if own_only:
+        approved_pos = approved_pos.filter(created_by=request.user)
 
     # Suppliers for filter dropdown
     from supplier.models import Supplier
@@ -94,15 +125,19 @@ def receipt_list(request):
 
 # ── Create Receipt (Receive Goods) ──────────────────────────────────
 
-@manager_required
+@staff_required
 def receipt_create(request, po_pk):
     po = get_object_or_404(
         PurchaseOrder.objects.select_related('supplier'),
         pk=po_pk,
     )
 
-    if po.status not in ('approved', 'received'):
-        messages.error(request, 'Only approved or partially received orders can be received.')
+    if not _can_receive_po(request.user, po):
+        messages.error(request, 'You can only receive goods on purchase orders you created.')
+        return redirect('po-detail', pk=po.pk)
+
+    if po.status not in ('draft', 'approved', 'received'):
+        messages.error(request, 'This purchase order can no longer be received.')
         return redirect('po-detail', pk=po.pk)
 
     items = po.items.select_related('inventory_item').all()
@@ -131,7 +166,21 @@ def receipt_create(request, po_pk):
     if request.method == 'POST':
         notes = request.POST.get('notes', '').strip()
 
+        from django.db.models import F
+        from menu.models import InventoryItem
+
         with transaction.atomic():
+            # Lock the PO so concurrent or double-submitted receipts serialise.
+            # Each one then recomputes `remaining` below against the GRN rows the
+            # other has already committed, instead of a stale GET-time value —
+            # this is what prevents over-receiving past the ordered quantity.
+            po = (
+                PurchaseOrder.objects
+                .select_for_update()
+                .select_related('supplier')
+                .get(pk=po.pk)
+            )
+
             receipt = GoodsReceipt.objects.create(
                 purchase_order=po,
                 received_by=request.user,
@@ -142,9 +191,13 @@ def receipt_create(request, po_pk):
             total_received_value = Decimal('0')
             any_received = False
 
-            for data in items_data:
-                item = data['item']
-                remaining = data['remaining']
+            for item in po.items.select_related('inventory_item'):
+                # "Already received" is recomputed from the GRN audit trail
+                # under the PO lock — the single source of truth.
+                prev_received = GoodsReceiptItem.objects.filter(
+                    po_item=item,
+                ).aggregate(total=models.Sum('received_quantity'))['total'] or Decimal('0')
+                remaining = max(item.quantity - prev_received, Decimal('0'))
 
                 received_qty = request.POST.get(f'received_{item.pk}', '0')
                 item_notes = request.POST.get(f'notes_{item.pk}', '').strip()
@@ -169,18 +222,17 @@ def receipt_create(request, po_pk):
                     notes=item_notes,
                 )
 
-                # Update PO item received quantity
-                item.received_quantity += received_qty
-                item.save()
-
-                # Update inventory stock
+                # Update inventory stock atomically. F() avoids the lost-update
+                # race; PurchaseOrderItem.received_quantity is now derived from
+                # the GRN rows above, so there is nothing to write back there.
                 if received_qty > 0:
                     any_received = True
-                    inv = item.inventory_item
-                    inv.stock_quantity += received_qty
+                    stock_update = {'stock_quantity': F('stock_quantity') + received_qty}
                     if item.unit_price > 0:
-                        inv.buying_price = item.unit_price
-                    inv.save()
+                        stock_update['buying_price'] = item.unit_price
+                    InventoryItem.objects.filter(
+                        pk=item.inventory_item_id,
+                    ).update(**stock_update)
                     total_received_value += received_qty * item.unit_price
 
             if not any_received:
@@ -231,7 +283,7 @@ def receipt_create(request, po_pk):
 
 # ── Receipt Detail ──────────────────────────────────────────────────
 
-@manager_required
+@staff_required
 def receipt_detail(request, pk):
     receipt = get_object_or_404(
         GoodsReceipt.objects.select_related(
@@ -239,6 +291,9 @@ def receipt_detail(request, pk):
         ),
         pk=pk,
     )
+    if not _can_receive_po(request.user, receipt.purchase_order):
+        messages.error(request, 'You can only view receipts for purchase orders you created.')
+        return redirect('receipt-list')
     items = receipt.items.select_related('po_item__inventory_item').all()
 
     from menu.cache import get_restaurant_settings
@@ -253,13 +308,16 @@ def receipt_detail(request, pk):
 
 # ── PO Receiving Summary ────────────────────────────────────────────
 
-@manager_required
+@staff_required
 def po_receiving_summary(request, po_pk):
     """Show all receipts for a specific PO."""
     po = get_object_or_404(
         PurchaseOrder.objects.select_related('supplier'),
         pk=po_pk,
     )
+    if not _can_receive_po(request.user, po):
+        messages.error(request, 'You can only view receiving for purchase orders you created.')
+        return redirect('receipt-list')
     receipts = po.receipts.select_related('received_by').order_by('-received_date')
 
     items = po.items.select_related('inventory_item').all()
@@ -288,7 +346,7 @@ def po_receiving_summary(request, po_pk):
 
 # ── GRN PDF ─────────────────────────────────────────────────────────
 
-@manager_required
+@staff_required
 def receipt_pdf(request, pk):
     """Generate a printable Goods Received Note PDF."""
     import io
@@ -322,6 +380,9 @@ def receipt_pdf(request, pk):
         ),
         pk=pk,
     )
+    if not _can_receive_po(request.user, receipt.purchase_order):
+        messages.error(request, 'You can only view receipts for purchase orders you created.')
+        return redirect('receipt-list')
     items = receipt.items.select_related('po_item__inventory_item').all()
     po = receipt.purchase_order
 
@@ -653,11 +714,10 @@ def receipt_reverse(request, pk):
             InventoryItem.objects.filter(pk=gi.po_item.inventory_item_id).update(
                 stock_quantity=F('stock_quantity') - gi.received_quantity,
             )
-            PurchaseOrderItem.objects.filter(pk=gi.po_item_id).update(
-                received_quantity=F('received_quantity') - gi.received_quantity,
-            )
+            # PurchaseOrderItem.received_quantity is derived from the GRN rows,
+            # so deleting this receipt below rolls it back automatically.
         if po.status == 'received':
-            po.status = 'approved'
+            po.status = 'draft'
             po.received_date = None
             po.save(update_fields=['status', 'received_date'])
         if invoice:

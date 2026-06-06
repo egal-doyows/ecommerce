@@ -61,3 +61,99 @@ class ReceivingFlowTests(TestCase):
         )
         self.assertEqual(txns.first().transaction_type, 'debit')
         self.assertEqual(txns.first().amount, Decimal('500.00'))
+
+    def test_received_quantity_is_derived_from_grn_rows(self):
+        """PurchaseOrderItem.received_quantity is no longer a stored column —
+        it sums the goods-receipt rows, so two partial receipts add up and
+        stock is incremented exactly once per receipt."""
+        for qty in ('4', '6'):
+            self.client.post(
+                reverse('receipt-create', kwargs={'po_pk': self.po.pk}),
+                data={f'received_{self.po_item.pk}': qty},
+            )
+        self.po_item.refresh_from_db()
+        self.inv.refresh_from_db()
+        self.assertEqual(self.po_item.received_quantity, Decimal('10.00'))
+        self.assertEqual(self.inv.stock_quantity, Decimal('10.00'))
+        self.po.refresh_from_db()
+        self.assertEqual(self.po.status, 'received')
+
+    def test_cannot_over_receive_past_ordered_quantity(self):
+        """Receiving more than remains is capped — stock and the invoice only
+        ever reflect the ordered quantity, never more."""
+        self.client.post(
+            reverse('receipt-create', kwargs={'po_pk': self.po.pk}),
+            data={f'received_{self.po_item.pk}': '8'},
+        )
+        # Try to receive 8 more on a PO with only 2 remaining.
+        self.client.post(
+            reverse('receipt-create', kwargs={'po_pk': self.po.pk}),
+            data={f'received_{self.po_item.pk}': '8'},
+        )
+        self.po_item.refresh_from_db()
+        self.inv.refresh_from_db()
+        self.assertEqual(self.po_item.received_quantity, Decimal('10.00'))
+        self.assertEqual(self.inv.stock_quantity, Decimal('10.00'))
+        total_invoiced = sum(
+            t.amount for t in SupplierTransaction.objects.filter(supplier=self.supplier)
+        )
+        self.assertEqual(total_invoiced, Decimal('500.00'))
+
+
+class SupervisorPurchasingTests(TestCase):
+    """Supervisors create, self-approve, and receive their own POs without a
+    separate approver — and cannot act on POs they did not create."""
+
+    def setUp(self):
+        from django.contrib.auth.models import Group
+        self.sup_group = Group.objects.create(name='Supervisor')
+        self.supplier = Supplier.objects.create(name='Acme Foods')
+        self.inv = InventoryItem.objects.create(
+            name='Onion', unit='kg',
+            stock_quantity=Decimal('0'), buying_price=Decimal('20'),
+        )
+
+    def _make_supervisor(self, username):
+        u = User.objects.create_user(username=username, password='pw')
+        u.groups.add(self.sup_group)
+        return u
+
+    def _po_with_item(self, owner):
+        po = PurchaseOrder.objects.create(
+            supplier=self.supplier, status='draft', created_by=owner,
+        )
+        PurchaseOrderItem.objects.create(
+            purchase_order=po, inventory_item=self.inv,
+            quantity=Decimal('5'), unit_price=Decimal('20'),
+        )
+        return po
+
+    def test_supervisor_receives_own_draft_po_directly(self):
+        """No approval step — a supervisor receives goods straight off their
+        own draft PO."""
+        sup = self._make_supervisor('sup1')
+        po = self._po_with_item(sup)  # status='draft'
+        c = Client(); c.force_login(sup)
+
+        item = po.items.first()
+        c.post(
+            reverse('receipt-create', kwargs={'po_pk': po.pk}),
+            data={f'received_{item.pk}': '5'},
+        )
+        po.refresh_from_db(); self.inv.refresh_from_db()
+        self.assertEqual(po.status, 'received')
+        self.assertEqual(self.inv.stock_quantity, Decimal('5.00'))
+
+    def test_supervisor_cannot_receive_others_po(self):
+        owner = self._make_supervisor('owner')
+        other = self._make_supervisor('other')
+        po = self._po_with_item(owner)
+        c = Client(); c.force_login(other)
+
+        item = po.items.first()
+        c.post(
+            reverse('receipt-create', kwargs={'po_pk': po.pk}),
+            data={f'received_{item.pk}': '5'},
+        )
+        self.inv.refresh_from_db()
+        self.assertEqual(self.inv.stock_quantity, Decimal('0'))
