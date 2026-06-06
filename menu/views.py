@@ -88,6 +88,65 @@ def _record_order_accounting(order, user):
         record_order_payment(order, created_by=user, created_at=backdate)
 
 
+def _apply_split_payment(request, order, user):
+    """Validate split-tender lines from the POST and create OrderPayment rows.
+
+    Each line must be a SPLIT_METHODS mode with amount > 0; an M-Pesa line
+    needs its 4-char code; and the lines must sum exactly to the order total.
+    Validates fully before creating any rows. Returns (ok, error_message).
+    """
+    from decimal import InvalidOperation
+    from .models import OrderPayment
+
+    total = order.get_total()
+    if total <= 0:
+        return False, 'This order has no payable balance to split.'
+
+    methods = request.POST.getlist('split_method')
+    amounts = request.POST.getlist('split_amount')
+    codes = request.POST.getlist('split_mpesa_code')
+    if len(methods) != len(amounts):
+        return False, 'Malformed split payment.'
+
+    lines = []
+    running = Decimal('0')
+    for i, (method, raw_amount) in enumerate(zip(methods, amounts)):
+        method = (method or '').strip()
+        raw_amount = (raw_amount or '').strip()
+        if not method and not raw_amount:
+            continue  # blank row from the form
+        if method not in Order.SPLIT_METHODS:
+            return False, 'Invalid payment mode in split.'
+        try:
+            amount = Decimal(raw_amount).quantize(Decimal('0.01'))
+        except (InvalidOperation, TypeError):
+            return False, 'Invalid amount in split.'
+        if amount <= 0:
+            return False, 'Split amounts must be greater than zero.'
+        mpesa_code = ''
+        if method == 'mpesa':
+            mpesa_code = (codes[i] if i < len(codes) else '').strip().upper()
+            if len(mpesa_code) != 4 or not mpesa_code.isalnum():
+                return False, 'Enter the last 4 characters of the M-Pesa code for the M-Pesa portion.'
+        lines.append((method, amount, mpesa_code))
+        running += amount
+
+    if len(lines) < 2:
+        return False, 'A split payment needs at least two tender lines.'
+    if running != total:
+        return False, (
+            f'Split lines must add up to the order total ({total}); '
+            f'they currently total {running}.'
+        )
+
+    for method, amount, mpesa_code in lines:
+        OrderPayment.objects.create(
+            order=order, payment_method=method, amount=amount,
+            mpesa_code=mpesa_code, created_by=user,
+        )
+    return True, None
+
+
 def _credit_invoice_for_order(order):
     """The debtor invoice (debit txn) created when this order was paid on credit."""
     from debtor.models import DebtorTransaction
@@ -721,6 +780,11 @@ def order_update_status(request, order_id):
             if payment_method not in dict(Order.PAYMENT_CHOICES):
                 return redirect('order-detail', order_id=order.id)
             order.payment_method = payment_method
+            if payment_method == 'split':
+                ok, err = _apply_split_payment(request, order, request.user)
+                if not ok:
+                    messages.error(request, err)
+                    return redirect('order-detail', order_id=order.id)
             if payment_method == 'mpesa':
                 mpesa_code = request.POST.get('mpesa_code', '').strip().upper()
                 if len(mpesa_code) != 4 or not mpesa_code.isalnum():

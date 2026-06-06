@@ -282,6 +282,11 @@ def api_update_order_status(request, order_id):
     if new_status == 'paid':
         if payment_method not in dict(Order.PAYMENT_CHOICES):
             return JsonResponse({'error': 'Invalid payment method'}, status=400)
+        if payment_method == 'split':
+            # Split tender is an online cashier action (needs the multi-line
+            # form). Reject it here so a sync replay can't create a 'split'
+            # order with no tender lines and silently lose the money.
+            return JsonResponse({'error': 'Split payment is not supported offline'}, status=400)
         if payment_method == 'mpesa':
             mpesa_code = (mpesa_code or '').strip().upper()
             if len(mpesa_code) != 4 or not mpesa_code.isalnum():

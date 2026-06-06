@@ -379,3 +379,84 @@ class OfflineSyncIdempotencyTests(TestCase):
         self.assertEqual(
             cash.transactions.filter(reference_type='order', reference_id=order.id).count(), 1,
         )
+
+
+class SplitPaymentTests(ShiftCorrectionBase):
+    """Split tender: one order settled across several modes that must sum to
+    the total. See menu.views._apply_split_payment / Order.payment_breakdown."""
+
+    def setUp(self):
+        self.shift = Shift.objects.create(waiter=self.server, is_active=True)
+        self.client.force_login(self.server)
+
+    def _pay_split(self, order, methods, amounts, codes=None):
+        data = {
+            'status': 'paid',
+            'payment_method': 'split',
+            'split_method': methods,
+            'split_amount': amounts,
+        }
+        if codes is not None:
+            data['split_mpesa_code'] = codes
+        return self.client.post(
+            reverse('order-update-status', args=[order.id]), data,
+        )
+
+    def test_split_pays_in_full_and_posts_per_mode_ledger(self):
+        from administration.models import Account
+        order = self._order(self.shift, status='active')  # total 300
+        self._pay_split(order, ['cash', 'mpesa'], ['200', '100'], ['', 'AB12'])
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'paid')
+        self.assertEqual(order.payment_method, 'split')
+        self.assertEqual(order.payments.count(), 2)
+
+        bd = order.payment_breakdown()
+        self.assertEqual(bd['cash'], Decimal('200.00'))
+        self.assertEqual(bd['mpesa'], Decimal('100.00'))
+
+        cash = Account.get_by_type('cash')
+        mpesa = Account.get_by_type('mpesa')
+        cash_txn = cash.transactions.get(reference_type='order', reference_id=order.id)
+        mpesa_txn = mpesa.transactions.get(reference_type='order', reference_id=order.id)
+        self.assertEqual(cash_txn.transaction_type, 'credit')
+        self.assertEqual(cash_txn.amount, Decimal('200.00'))
+        self.assertEqual(mpesa_txn.amount, Decimal('100.00'))
+        # M-Pesa code captured on the line.
+        self.assertEqual(order.payments.get(payment_method='mpesa').mpesa_code, 'AB12')
+
+    def test_split_must_sum_to_total(self):
+        from administration.models import Account
+        order = self._order(self.shift, status='active')  # total 300
+        resp = self._pay_split(order, ['cash', 'card'], ['200', '50'])  # = 250 ≠ 300
+        self.assertEqual(resp.status_code, 302)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'active')          # not settled
+        self.assertEqual(order.payments.count(), 0)        # no rows created
+        self.assertFalse(
+            Account.get_by_type('cash').transactions
+            .filter(reference_id=order.id).exists()
+        )
+
+    def test_split_refund_reverses_each_mode(self):
+        from administration.models import Account
+        shift = self._reopen(self._closed_shift())
+        order = self._order(shift, status='active')        # total 300
+        self._pay_split(order, ['cash', 'mpesa'], ['200', '100'], ['', 'AB12'])
+        # Refund (cancel a paid order while its shift is under correction).
+        self.client.post(
+            reverse('order-update-status', args=[order.id]),
+            {'status': 'cancelled'},
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
+        for acct_type in ('cash', 'mpesa'):
+            txns = Account.get_by_type(acct_type).transactions.filter(reference_id=order.id)
+            self.assertEqual(txns.count(), 2)              # credit + reversing debit
+            net = sum(
+                (t.amount if t.transaction_type == 'credit' else -t.amount)
+                for t in txns
+            )
+            self.assertEqual(net, Decimal('0'))

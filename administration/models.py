@@ -146,57 +146,54 @@ ORDER_PAYMENT_TO_ACCOUNT = {
 }
 
 
+def _order_payment_transaction(order, transaction_type, description, created_by, created_at):
+    """Post one ledger entry per payment mode for an order, using its
+    per-mode breakdown (so split tenders hit each account for its share).
+    Returns the list of created transactions."""
+    txns = []
+    for method, amount in order.payment_breakdown().items():
+        account_type = ORDER_PAYMENT_TO_ACCOUNT.get(method)
+        if not account_type or amount <= 0:
+            continue
+        kwargs = {
+            'account': Account.get_by_type(account_type),
+            'transaction_type': transaction_type,
+            'amount': amount,
+            'description': description,
+            'reference_type': 'order',
+            'reference_id': order.id,
+            'created_by': created_by,
+        }
+        if created_at is not None:
+            kwargs['created_at'] = created_at
+        txns.append(Transaction.objects.create(**kwargs))
+    return txns
+
+
 def record_order_payment(order, created_by=None, created_at=None):
     """
-    Create a credit transaction when an order is paid.
+    Create a credit transaction (one per tender mode) when an order is paid.
     Called from menu.views.order_update_status.
 
     created_at lets a shift-correction backdate the ledger entry to the
     shift's date (Transaction.created_at defaults to now when omitted).
     """
-    account_type = ORDER_PAYMENT_TO_ACCOUNT.get(order.payment_method)
-    if not account_type:
-        return None
-
-    account = Account.get_by_type(account_type)
-    kwargs = {
-        'account': account,
-        'transaction_type': 'credit',
-        'amount': order.get_total(),
-        'description': f'Order #{order.id} — Table {order.table.number if order.table else "N/A"}',
-        'reference_type': 'order',
-        'reference_id': order.id,
-        'created_by': created_by,
-    }
-    if created_at is not None:
-        kwargs['created_at'] = created_at
-    return Transaction.objects.create(**kwargs)
+    table = order.table.number if order.table else "N/A"
+    return _order_payment_transaction(
+        order, 'credit', f'Order #{order.id} — Table {table}',
+        created_by, created_at,
+    )
 
 
 def reverse_order_payment(order, created_by=None, created_at=None):
-    """Post a reversing debit when a previously-paid order is refunded/voided.
-
-    Mirrors record_order_payment but debits the same account by the order
-    total, so the cash-drawer / receivable ledger stays balanced after a
-    correction. created_at backdates the reversal to the shift's date.
+    """Post a reversing debit (one per tender mode) when a previously-paid
+    order is refunded/voided, so the cash-drawer / receivable ledger stays
+    balanced after a correction. created_at backdates to the shift's date.
     """
-    account_type = ORDER_PAYMENT_TO_ACCOUNT.get(order.payment_method)
-    if not account_type:
-        return None
-
-    account = Account.get_by_type(account_type)
-    kwargs = {
-        'account': account,
-        'transaction_type': 'debit',
-        'amount': order.get_total(),
-        'description': f'Refund/void — Order #{order.id}',
-        'reference_type': 'order',
-        'reference_id': order.id,
-        'created_by': created_by,
-    }
-    if created_at is not None:
-        kwargs['created_at'] = created_at
-    return Transaction.objects.create(**kwargs)
+    return _order_payment_transaction(
+        order, 'debit', f'Refund/void — Order #{order.id}',
+        created_by, created_at,
+    )
 
 
 STAFF_PAYMENT_TO_ACCOUNT = {

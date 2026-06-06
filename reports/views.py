@@ -410,11 +410,12 @@ def z_report_list(request):
         pm_totals = {'cash': Decimal('0'), 'mpesa': Decimal('0'),
                      'card': Decimal('0'), 'other': Decimal('0')}
         for o in paid:
-            key = o.payment_method if o.payment_method in PRIMARY_METHODS else 'other'
-            pm_totals[key] += o.get_total()
+            for method, amount in o.payment_breakdown().items():
+                key = method if method in PRIMARY_METHODS else 'other'
+                pm_totals[key] += amount
         cash_refunds = sum(
-            (o.get_total() for o in s.orders.all()
-             if o.status == 'cancelled' and o.payment_method == 'cash'),
+            (o.payment_breakdown().get('cash', Decimal('0'))
+             for o in s.orders.all() if o.status == 'cancelled'),
             Decimal('0'),
         )
         expected = (s.starting_cash or Decimal('0')) + pm_totals['cash'] - cash_refunds
@@ -554,11 +555,13 @@ def z_report_detail(request, shift_id):
     avg_ticket = (gross_sales / txn_count) if txn_count else Decimal('0')
 
     # Payment method breakdown across paid sales.
-    pm_breakdown = {pm: {'count': 0, 'amount': Decimal('0')} for pm, _ in Order.PAYMENT_CHOICES}
+    pm_breakdown = {pm: {'count': 0, 'amount': Decimal('0')}
+                    for pm, _ in Order.PAYMENT_CHOICES if pm != 'split'}
     for o in paid_sales:
-        if o.payment_method in pm_breakdown:
-            pm_breakdown[o.payment_method]['count'] += 1
-            pm_breakdown[o.payment_method]['amount'] += o.get_total()
+        for method, amount in o.payment_breakdown().items():
+            if method in pm_breakdown:
+                pm_breakdown[method]['count'] += 1
+                pm_breakdown[method]['amount'] += amount
 
     def _category_total(orders_in_cat, use_discount=False):
         return sum(
@@ -576,7 +579,7 @@ def z_report_detail(request, shift_id):
 
     cash_sales = pm_breakdown['cash']['amount']
     cash_refunds = sum(
-        (o.get_total() for o in categorised['refund'] if o.payment_method == 'cash'),
+        (o.payment_breakdown().get('cash', Decimal('0')) for o in categorised['refund']),
         Decimal('0'),
     )
     expected_cash = (shift.starting_cash or Decimal('0')) + cash_sales - cash_refunds
@@ -691,12 +694,13 @@ def _daily_sales_for(date):
     avg_ticket = (revenue / txn_count) if txn_count else Decimal('0')
 
     # Payment-method split.
-    pm_totals = {pm: Decimal('0') for pm, _ in Order.PAYMENT_CHOICES}
-    pm_counts = {pm: 0 for pm, _ in Order.PAYMENT_CHOICES}
+    pm_totals = {pm: Decimal('0') for pm, _ in Order.PAYMENT_CHOICES if pm != 'split'}
+    pm_counts = {pm: 0 for pm, _ in Order.PAYMENT_CHOICES if pm != 'split'}
     for o in paid_orders:
-        if o.payment_method in pm_totals:
-            pm_totals[o.payment_method] += o.get_total()
-            pm_counts[o.payment_method] += 1
+        for method, amount in o.payment_breakdown().items():
+            if method in pm_totals:
+                pm_totals[method] += amount
+                pm_counts[method] += 1
 
     # By hour.
     hourly = {h: {'count': 0, 'revenue': Decimal('0')} for h in range(24)}
@@ -802,11 +806,11 @@ def daily_sales(request):
     pm_rows = [
         {
             'method': dict(Order.PAYMENT_CHOICES).get(pm, pm),
-            'amount': today_data['pm_totals'][pm],
+            'amount': amount,
             'count': today_data['pm_counts'][pm],
             'pct': pm_pct[pm],
         }
-        for pm, _ in Order.PAYMENT_CHOICES
+        for pm, amount in today_data['pm_totals'].items()
     ]
 
     return render(request, 'reports/daily_sales.html', {
@@ -938,13 +942,13 @@ def _shift_cash_reconciliation(shift):
     cash_sales = Decimal('0')
     cash_refunds = Decimal('0')
     for o in shift.orders.all():
-        if o.payment_method != 'cash':
+        cash = o.payment_breakdown().get('cash', Decimal('0'))
+        if cash <= 0:
             continue
-        total = o.get_total()
-        if o.status == 'paid' and not o.is_comp:
-            cash_sales += total
+        if o.status == 'paid':
+            cash_sales += cash
         elif o.status == 'cancelled':
-            cash_refunds += total
+            cash_refunds += cash
 
     expected = (shift.starting_cash or Decimal('0')) + cash_sales - cash_refunds
     counted = shift.counted_cash

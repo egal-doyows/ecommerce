@@ -517,6 +517,13 @@
                 Paid via <strong>{{ order.get_payment_method_display }}</strong>
                 {% if order.mpesa_code %} &mdash; Code: <strong>{{ order.mpesa_code }}</strong>{% endif %}
                 {% if order.debtor %} &mdash; <strong>{{ order.debtor.name }}</strong>{% endif %}
+                {% if order.payment_method == 'split' %}
+                <div style="margin-top:6px;font-weight:600;">
+                    {% for p in order.payments.all %}
+                        {{ p.get_payment_method_display }} {{ restaurant.currency_symbol }}{{ p.amount|floatformat:2|intcomma }}{% if p.mpesa_code %} ({{ p.mpesa_code }}){% endif %}{% if not forloop.last %} &nbsp;+&nbsp; {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
             {% if correction_mode %}
             <form method="POST" action="{% url 'order-reopen' order.id %}"
@@ -570,6 +577,10 @@
                             <i class="fa-solid fa-motorcycle"></i>
                             <span>Jumia Food</span>
                         </div>
+                        <div class="od-pay-tab" data-method="split" onclick="selectPayment('split')">
+                            <i class="fa-solid fa-money-bill-transfer"></i>
+                            <span>Split</span>
+                        </div>
                     </div>
 
                     <div class="od-mpesa-input" id="mpesaInput">
@@ -585,6 +596,19 @@
                         </select>
                     </div>
 
+                    <div class="od-split-panel" id="splitPanel" style="display:none;margin-bottom:14px;">
+                        <div id="splitLines"></div>
+                        <button type="button" id="splitAddBtn" onclick="addSplitLine()"
+                            style="background:none;border:1px dashed var(--pos-border);border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;width:100%;margin-bottom:10px;">
+                            <i class="fa-solid fa-plus"></i> Add tender line
+                        </button>
+                        <div id="splitSummary" style="font-weight:700;font-size:14px;text-align:center;">
+                            Allocated {{ restaurant.currency_symbol }}<span id="splitAllocated">0.00</span>
+                            of <span id="splitTotal"></span> &mdash;
+                            <span id="splitRemaining">0.00</span> remaining
+                        </div>
+                    </div>
+
                     <button type="submit" class="od-pay-confirm" id="payBtn" disabled>
                         <i class="fa fa-check-circle"></i> Confirm Payment
                     </button>
@@ -592,6 +616,9 @@
             </div>
 
             <script>
+                const OD_TOTAL_CENTS = Math.round(parseFloat("{{ order.get_total|stringformat:'f' }}") * 100);
+                const OD_CCY = "{{ restaurant.currency_symbol }}";
+
                 function selectPayment(method) {
                     document.getElementById('paymentMethod').value = method;
                     document.querySelectorAll('.od-pay-tab').forEach(t => t.classList.remove('selected'));
@@ -601,12 +628,14 @@
                     const mpesaCode = document.getElementById('mpesaCode');
                     const debtorSelect = document.getElementById('debtorSelect');
                     const debtorId = document.getElementById('debtorId');
+                    const splitPanel = document.getElementById('splitPanel');
                     const payBtn = document.getElementById('payBtn');
 
                     mpesaInput.classList.remove('show');
                     mpesaCode.required = false;
                     debtorSelect.style.display = 'none';
                     debtorId.required = false;
+                    splitPanel.style.display = 'none';
 
                     if (method === 'mpesa') {
                         mpesaInput.classList.add('show');
@@ -616,9 +645,51 @@
                         debtorSelect.style.display = 'block';
                         debtorId.required = true;
                         payBtn.disabled = !debtorId.value;
+                    } else if (method === 'split') {
+                        mpesaCode.value = '';
+                        splitPanel.style.display = 'block';
+                        document.getElementById('splitTotal').textContent = OD_CCY + (OD_TOTAL_CENTS / 100).toFixed(2);
+                        if (document.querySelectorAll('#splitLines .od-split-line').length === 0) {
+                            addSplitLine(); addSplitLine();
+                        }
+                        onSplitChange();
                     } else {
                         mpesaCode.value = '';
                         payBtn.disabled = false;
+                    }
+                }
+
+                function addSplitLine() {
+                    const row = document.createElement('div');
+                    row.className = 'od-split-line';
+                    row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+                    row.innerHTML =
+                        '<select name="split_method" class="od-split-method" onchange="onSplitChange()" style="flex:0 0 96px;padding:10px;border:2px solid var(--pos-border);border-radius:8px;">'+
+                            '<option value="cash">Cash</option><option value="mpesa">M-Pesa</option><option value="card">Card</option>'+
+                        '</select>'+
+                        '<input type="number" name="split_amount" class="od-split-amount" step="0.01" min="0" placeholder="Amount" oninput="onSplitChange()" style="flex:1;min-width:0;padding:10px;border:2px solid var(--pos-border);border-radius:8px;">'+
+                        '<input type="text" name="split_mpesa_code" class="od-split-code" maxlength="4" placeholder="Code" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,&quot;&quot;);onSplitChange()" style="flex:0 0 76px;display:none;padding:10px;border:2px solid var(--pos-border);border-radius:8px;text-transform:uppercase;text-align:center;">'+
+                        '<button type="button" onclick="this.parentNode.remove();onSplitChange()" style="flex:0 0 auto;background:none;border:none;color:#c0392b;font-size:20px;line-height:1;cursor:pointer;">&times;</button>';
+                    document.getElementById('splitLines').appendChild(row);
+                }
+
+                function onSplitChange() {
+                    let cents = 0, valid = true, count = 0;
+                    document.querySelectorAll('#splitLines .od-split-line').forEach(function(row) {
+                        count++;
+                        const method = row.querySelector('.od-split-method').value;
+                        const codeEl = row.querySelector('.od-split-code');
+                        if (method === 'mpesa') { codeEl.style.display = 'block'; }
+                        else { codeEl.style.display = 'none'; codeEl.value = ''; }
+                        const amt = parseFloat(row.querySelector('.od-split-amount').value);
+                        if (!isNaN(amt) && amt > 0) { cents += Math.round(amt * 100); }
+                        else { valid = false; }
+                        if (method === 'mpesa' && codeEl.value.trim().length !== 4) { valid = false; }
+                    });
+                    document.getElementById('splitAllocated').textContent = (cents / 100).toFixed(2);
+                    document.getElementById('splitRemaining').textContent = ((OD_TOTAL_CENTS - cents) / 100).toFixed(2);
+                    if (document.getElementById('paymentMethod').value === 'split') {
+                        document.getElementById('payBtn').disabled = !(valid && count >= 2 && cents === OD_TOTAL_CENTS);
                     }
                 }
 

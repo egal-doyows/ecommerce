@@ -644,7 +644,12 @@ class Order(models.Model):
         ('glovo', 'Glovo'),
         ('bolt', 'Bolt Food'),
         ('jumia', 'Jumia Food'),
+        ('split', 'Split (multiple modes)'),
     ]
+
+    # Tender modes allowed on a split payment — money received at settlement.
+    # Credit/marketplace are deferred settlements and excluded.
+    SPLIT_METHODS = ('cash', 'mpesa', 'card')
 
     ORDER_TYPE_CHOICES = [
         ('dine_in', 'Dine-in'),
@@ -755,6 +760,26 @@ class Order(models.Model):
     def get_item_count(self):
         return sum(item.quantity for item in self.items.all())
 
+    def payment_breakdown(self):
+        """Amount received per payment mode, as {method: Decimal}.
+
+        The authoritative per-mode split used by the ledger and the reports.
+        For a split order it reads the OrderPayment tender lines; for any
+        single-mode order the whole get_total() is attributed to its one
+        method. Comps (total 0) and unpaid orders return an empty mapping.
+        """
+        if self.payment_method == 'split':
+            breakdown = {}
+            for p in self.payments.all():
+                breakdown[p.payment_method] = (
+                    breakdown.get(p.payment_method, Decimal('0')) + p.amount
+                )
+            return breakdown
+        total = self.get_total()
+        if not self.payment_method or total <= 0:
+            return {}
+        return {self.payment_method: total}
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
@@ -796,3 +821,34 @@ class OrderItemOption(models.Model):
 
     def __str__(self):
         return f"{self.order_item} — {self.label}"
+
+
+class OrderPayment(models.Model):
+    """One tender line of a split payment (e.g. 600 cash + 400 M-Pesa).
+
+    Only created for orders whose payment_method is 'split'. The rows must sum
+    to Order.get_total() — the order is always settled in full. Single-mode
+    orders don't get rows; their breakdown is derived from payment_method.
+    """
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments')
+    payment_method = models.CharField(max_length=10, choices=Order.PAYMENT_CHOICES)
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+    )
+    mpesa_code = models.CharField(
+        max_length=4, blank=True,
+        help_text="Last 4 characters of the M-Pesa code, for an M-Pesa line",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='order_payments',
+    )
+
+    class Meta:
+        ordering = ['pk']
+
+    def __str__(self):
+        return f"Order #{self.order_id} — {self.get_payment_method_display()} {self.amount}"
