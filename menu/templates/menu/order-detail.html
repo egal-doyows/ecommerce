@@ -214,6 +214,30 @@
             border-bottom: 2.5px solid #000;
         }
 
+        .receipt-till {
+            text-align: center;
+            margin: 10px 0;
+            padding: 8px 4px;
+            border: 3px solid #000;
+            border-radius: 4px;
+            color: #000 !important;
+        }
+
+        .receipt-till-label {
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #000 !important;
+        }
+
+        .receipt-till-number {
+            font-size: 40px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            line-height: 1.1;
+            color: #000 !important;
+        }
+
         .receipt-footer {
             text-align: center;
             font-size: 13px;
@@ -727,7 +751,7 @@
 <div class="receipt">
     <div class="receipt-logo">
         {% if restaurant.logo %}
-        <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:auto;max-width:160px;height:auto;max-height:90px;object-fit:contain;margin:0 auto;display:block;">
+        <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:auto;max-width:280px;height:auto;max-height:160px;object-fit:contain;margin:0 auto;display:block;">
         {% else %}
         <i class="fa-solid fa-utensils"></i>
         {% endif %}
@@ -737,7 +761,6 @@
     {% if restaurant.address %}<div class="receipt-center receipt-sm" style="white-space:pre-line;">{{ restaurant.address }}</div>{% endif %}
     {% if restaurant.phone %}<div class="receipt-center receipt-sm">Tel: {{ restaurant.phone }}</div>{% endif %}
     {% if restaurant.tax_number %}<div class="receipt-center receipt-sm">PIN: {{ restaurant.tax_number }}</div>{% endif %}
-    {% if restaurant.mpesa_till_number %}<div class="receipt-center receipt-sm">Buy Goods Till: {{ restaurant.mpesa_till_number }}</div>{% endif %}
     <hr class="receipt-divider">
 
     <div class="receipt-row">
@@ -798,6 +821,13 @@
     </div>
     {% endif %}
     <hr class="receipt-divider">
+    {% endif %}
+
+    {% if restaurant.mpesa_till_number %}
+    <div class="receipt-till">
+        <div class="receipt-till-label">M-PESA &middot; BUY GOODS</div>
+        <div class="receipt-till-number">{{ restaurant.mpesa_till_number }}</div>
+    </div>
     {% endif %}
 
     <div class="receipt-footer">
