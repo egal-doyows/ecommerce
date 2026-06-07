@@ -727,7 +727,7 @@
 <div class="receipt">
     <div class="receipt-logo">
         {% if restaurant.logo %}
-        <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:50px;height:50px;object-fit:contain;margin:0 auto;display:block;">
+        <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:auto;max-width:160px;height:auto;max-height:90px;object-fit:contain;margin:0 auto;display:block;">
         {% else %}
         <i class="fa-solid fa-utensils"></i>
         {% endif %}
@@ -737,6 +737,7 @@
     {% if restaurant.address %}<div class="receipt-center receipt-sm" style="white-space:pre-line;">{{ restaurant.address }}</div>{% endif %}
     {% if restaurant.phone %}<div class="receipt-center receipt-sm">Tel: {{ restaurant.phone }}</div>{% endif %}
     {% if restaurant.tax_number %}<div class="receipt-center receipt-sm">PIN: {{ restaurant.tax_number }}</div>{% endif %}
+    {% if restaurant.mpesa_till_number %}<div class="receipt-center receipt-sm">Buy Goods Till: {{ restaurant.mpesa_till_number }}</div>{% endif %}
     <hr class="receipt-divider">
 
     <div class="receipt-row">

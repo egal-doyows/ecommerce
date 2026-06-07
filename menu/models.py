@@ -53,6 +53,10 @@ class RestaurantSettings(models.Model):
         max_length=50, blank=True,
         help_text='Tax / VAT / PIN number printed on customer receipts (e.g. KRA PIN).',
     )
+    mpesa_till_number = models.CharField(
+        max_length=20, blank=True,
+        help_text='M-Pesa Till / Buy Goods number printed on customer receipts.',
+    )
     map_embed_url = models.URLField(
         max_length=500, blank=True,
         help_text=(
