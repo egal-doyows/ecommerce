@@ -19,6 +19,7 @@ urlpatterns = [
     path('online-sales/', views.online_sales, name='reports-online-sales'),
     path('menu-margin/', views.menu_margin, name='reports-menu-margin'),
     path('best-selling/', views.best_selling, name='reports-best-selling'),
+    path('promotional-pairings/', views.promotional_pairings, name='reports-promotional-pairings'),
     path('accompaniment-popularity/', views.accompaniment_popularity, name='reports-accompaniment-popularity'),
     path('category-performance/', views.category_performance, name='reports-category-performance'),
     path('waste-analysis/', views.waste_analysis, name='reports-waste-analysis'),
