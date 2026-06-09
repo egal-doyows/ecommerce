@@ -22,6 +22,7 @@ urlpatterns = [
     path('accompaniment-popularity/', views.accompaniment_popularity, name='reports-accompaniment-popularity'),
     path('category-performance/', views.category_performance, name='reports-category-performance'),
     path('waste-analysis/', views.waste_analysis, name='reports-waste-analysis'),
+    path('staff-meals-cost/', views.staff_meals_cost, name='reports-staff-meals-cost'),
     path('slow-movers/', views.slow_movers, name='reports-slow-movers'),
     path('recipe-cost-drift/', views.recipe_cost_drift, name='reports-recipe-cost-drift'),
     path('channel-margin/', views.channel_margin, name='reports-channel-margin'),

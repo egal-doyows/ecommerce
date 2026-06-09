@@ -2,8 +2,8 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import Sum, F, DecimalField
-from django.db.models.functions import Coalesce
+from django.db.models import Sum, F, DecimalField, Count
+from django.db.models.functions import Coalesce, TruncWeek, TruncMonth
 from django.http import Http404
 from django.shortcuts import render
 
@@ -1818,6 +1818,82 @@ def waste_analysis(request):
         'event_count': len(event_ids),
         'reason_choices': WasteLog.REASON_CHOICES,
         'reason_filter': reason_filter,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
+    })
+
+
+# ── Staff Meals Cost ───────────────────────────────────────────────────
+
+def _staff_meal_rollup(qs, period_expr):
+    """Roll up staff-meal cost grouped by a period expression of the log date.
+
+    `period_expr` is an ORM expression yielding the grouping key — the raw
+    date for the daily rollup, or TruncWeek/TruncMonth for the others.
+    """
+    return list(
+        qs.values(period=period_expr)
+          .annotate(
+              cost=Coalesce(
+                  Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
+                  Decimal('0'), output_field=DecimalField(),
+              ),
+              events=Count('staff_meal_log_id', distinct=True),
+              items=Count('id'),
+          )
+          .order_by('period')
+    )
+
+
+@manager_required
+def staff_meals_cost(request):
+    """
+    Staff-meal cost over the period, rolled up daily, weekly and monthly.
+    Uses StaffMealItem.unit_cost (snapshotted when the meal was logged), so
+    values reflect the cost on the day consumed, not today's buying price.
+    """
+    start, end, preset = parse_date_range(request)
+
+    items = StaffMealItem.objects.filter(
+        staff_meal_log__date__gte=start,
+        staff_meal_log__date__lte=end,
+    )
+
+    by_day = _staff_meal_rollup(items, F('staff_meal_log__date'))
+    by_week = _staff_meal_rollup(items, TruncWeek('staff_meal_log__date'))
+    by_month = _staff_meal_rollup(items, TruncMonth('staff_meal_log__date'))
+
+    totals = items.aggregate(
+        cost=Coalesce(
+            Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
+            Decimal('0'), output_field=DecimalField(),
+        ),
+        items=Count('id'),
+        events=Count('staff_meal_log_id', distinct=True),
+    )
+
+    if request.GET.get('format') == 'csv':
+        header = ['rollup', 'period', 'events', 'items', 'cost']
+        rows = []
+        for label, data, fmt in (
+            ('Daily', by_day, '%Y-%m-%d'),
+            ('Weekly', by_week, 'Week of %Y-%m-%d'),
+            ('Monthly', by_month, '%b %Y'),
+        ):
+            for r in data:
+                rows.append([label, r['period'].strftime(fmt), r['events'], r['items'], r['cost']])
+        return csv_response(
+            f'staff_meals_cost_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, rows,
+        )
+
+    return render(request, 'reports/staff_meals_cost.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'by_day': by_day,
+        'by_week': by_week,
+        'by_month': by_month,
+        'total_cost': totals['cost'],
+        'total_items': totals['items'],
+        'total_events': totals['events'],
         'currency_symbol': get_restaurant_settings().currency_symbol,
     })
 
