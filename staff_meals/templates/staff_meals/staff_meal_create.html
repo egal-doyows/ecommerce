@@ -4,6 +4,27 @@
 {% block title %}Log Staff Meal{% endblock %}
 
 {% block content %}
+<style>
+    .sm-combo { position:relative; }
+    .sm-search { width:100%; font-size:12px; padding:5px 8px; }
+    .sm-options {
+        position:absolute; top:100%; left:0; z-index:100;
+        min-width:240px; max-height:240px; overflow-y:auto;
+        background:var(--adm-card); border:1px solid var(--adm-border);
+        border-radius:6px; box-shadow:0 6px 18px rgba(0,0,0,.14);
+        margin-top:2px; display:none;
+    }
+    .sm-options.open { display:block; }
+    .sm-group {
+        padding:5px 10px; font-size:10px; text-transform:uppercase;
+        letter-spacing:.04em; font-weight:700; color:var(--adm-muted);
+        background:var(--adm-bg); position:sticky; top:0;
+    }
+    .sm-opt { padding:6px 10px; font-size:12px; cursor:pointer; white-space:nowrap; }
+    .sm-opt:hover, .sm-opt.active { background:rgba(124,131,255,.14); }
+    .sm-hidden { display:none; }
+</style>
+
 <div class="adm-page-header">
     <div>
         <h1>Log Staff Meal</h1>
@@ -88,19 +109,20 @@
 <template id="rowTemplate">
     <tr class="item-row">
         <td>
-            <select class="adm-input line-select" style="font-size:12px;padding:5px 8px;" required>
-                <option value="">Select item...</option>
-                <optgroup label="Menu Items">
+            <div class="sm-combo">
+                <input type="text" class="adm-input sm-search" placeholder="Search item..." autocomplete="off">
+                <input type="hidden" class="sm-value">
+                <div class="sm-options">
+                    <div class="sm-group" data-group="menu">Menu Items</div>
                     {% for mi in menu_items %}
-                    <option value="menu:{{ mi.pk }}" data-kind="menu" data-unit="serving" data-stock="">{{ mi.title }}</option>
+                    <div class="sm-opt" data-group="menu" data-value="menu:{{ mi.pk }}" data-kind="menu" data-unit="serving" data-stock="">{{ mi.title }}</div>
                     {% endfor %}
-                </optgroup>
-                <optgroup label="Raw Inventory">
+                    <div class="sm-group" data-group="inv">Raw Inventory</div>
                     {% for inv in inventory_items %}
-                    <option value="inv:{{ inv.pk }}" data-kind="inv" data-unit="{{ inv.get_unit_display }}" data-stock="{{ inv.stock_quantity }}">{{ inv.name }}</option>
+                    <div class="sm-opt" data-group="inv" data-value="inv:{{ inv.pk }}" data-kind="inv" data-unit="{{ inv.get_unit_display }}" data-stock="{{ inv.stock_quantity }}">{{ inv.name }}</div>
                     {% endfor %}
-                </optgroup>
-            </select>
+                </div>
+            </div>
         </td>
         <td class="unit-cell" style="color:var(--adm-muted);font-size:12px;">—</td>
         <td class="stock-cell" style="text-align:right;font-size:12px;">—</td>
@@ -127,15 +149,16 @@ function addRow() {
     const tpl = document.getElementById('rowTemplate');
     const tr = tpl.content.firstElementChild.cloneNode(true);
 
-    const sel = tr.querySelector('.line-select');
+    const search = tr.querySelector('.sm-search');
+    const value = tr.querySelector('.sm-value');
     const qty = tr.querySelector('.qty-input');
     const notes = tr.querySelector('.notes-input');
-    sel.name = 'line_' + idx;
+    value.name = 'line_' + idx;
     qty.name = 'line_qty_' + idx;
     notes.name = 'line_notes_' + idx;
 
     tr.querySelector('.remove-row').addEventListener('click', function() { removeRow(tr); });
-    sel.addEventListener('change', function() { onItemChange(tr); });
+    initCombo(tr);
 
     document.getElementById('itemRows').appendChild(tr);
 }
@@ -146,20 +169,92 @@ function removeRow(row) {
     }
 }
 
-function onItemChange(row) {
-    const sel = row.querySelector('.line-select');
-    const opt = sel.options[sel.selectedIndex];
-    const unit = opt.dataset.unit || '';
-    const stock = opt.dataset.stock || '';
-    row.querySelector('.unit-cell').textContent = unit !== '' ? unit : '—';
-    row.querySelector('.stock-cell').textContent = stock !== '' ? parseFloat(stock).toFixed(2) : '—';
-    const qtyInput = row.querySelector('.qty-input');
-    // Cap quantity at stock only for raw inventory (menu items vary by recipe).
-    if (opt.dataset.kind === 'inv' && stock !== '') {
-        qtyInput.max = stock;
-    } else {
-        qtyInput.removeAttribute('max');
+function initCombo(row) {
+    const search = row.querySelector('.sm-search');
+    const value = row.querySelector('.sm-value');
+    const box = row.querySelector('.sm-options');
+    const opts = Array.from(box.querySelectorAll('.sm-opt'));
+    const groups = Array.from(box.querySelectorAll('.sm-group'));
+    let active = -1;
+
+    function visibleOpts() { return opts.filter(o => o.style.display !== 'none'); }
+
+    function setUnitStock(opt) {
+        const unit = opt ? (opt.dataset.unit || '') : '';
+        const stock = opt ? (opt.dataset.stock || '') : '';
+        row.querySelector('.unit-cell').textContent = unit !== '' ? unit : '—';
+        row.querySelector('.stock-cell').textContent = stock !== '' ? parseFloat(stock).toFixed(2) : '—';
+        const qtyInput = row.querySelector('.qty-input');
+        if (opt && opt.dataset.kind === 'inv' && stock !== '') {
+            qtyInput.max = stock;
+        } else {
+            qtyInput.removeAttribute('max');
+        }
     }
+
+    function clearSelection() {
+        value.value = '';
+        setUnitStock(null);
+    }
+
+    function filter() {
+        const q = search.value.trim().toLowerCase();
+        opts.forEach(o => {
+            o.style.display = o.textContent.toLowerCase().includes(q) ? '' : 'none';
+            o.classList.remove('active');
+        });
+        // Show a group header only if it has at least one visible option.
+        groups.forEach(g => {
+            const any = opts.some(o => o.dataset.group === g.dataset.group && o.style.display !== 'none');
+            g.style.display = any ? '' : 'none';
+        });
+        active = -1;
+    }
+
+    function open() { box.classList.add('open'); }
+    function close() { box.classList.remove('open'); }
+
+    function choose(opt) {
+        value.value = opt.dataset.value;
+        search.value = opt.textContent.trim();
+        setUnitStock(opt);
+        close();
+    }
+
+    function setActive(i) {
+        const vis = visibleOpts();
+        if (!vis.length) return;
+        if (i < 0) i = vis.length - 1;
+        if (i >= vis.length) i = 0;
+        vis.forEach(o => o.classList.remove('active'));
+        vis[i].classList.add('active');
+        vis[i].scrollIntoView({ block: 'nearest' });
+        active = i;
+    }
+
+    search.addEventListener('focus', function() { filter(); open(); });
+    search.addEventListener('input', function() { clearSelection(); filter(); open(); });
+    search.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); open(); setActive(active + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+        else if (e.key === 'Enter') {
+            const vis = visibleOpts();
+            if (box.classList.contains('open') && vis.length) {
+                e.preventDefault();
+                choose(active >= 0 ? vis[active] : vis[0]);
+            }
+        } else if (e.key === 'Escape') { close(); }
+    });
+
+    opts.forEach(o => o.addEventListener('mousedown', function(e) {
+        e.preventDefault();  // keep focus, fire before blur
+        choose(o);
+    }));
+
+    // Close when clicking outside this combo.
+    document.addEventListener('click', function(e) {
+        if (!row.querySelector('.sm-combo').contains(e.target)) close();
+    });
 }
 
 // Start with one row.
