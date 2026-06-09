@@ -2605,6 +2605,11 @@ def promotional_pairings(request):
                 continue
             denom = item_orders.get(mi.id, 0) * item_orders.get(f.id, 0)
             lift = (c * total_baskets / denom) if denom else 0
+            # Only a genuine bundle when they sell together MORE than chance
+            # (lift > 1). Neutral/negative co-occurrence (lift <= 1) is not
+            # surfaced as affinity — it falls through to an exposure pairing.
+            if lift <= 1:
+                continue
             affinity.append({'item': f, 'count': c, 'lift': lift})
         affinity.sort(key=lambda x: (-x['lift'], -x['count'], -x['item'].units))
 
