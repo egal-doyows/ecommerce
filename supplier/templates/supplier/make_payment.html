@@ -77,6 +77,21 @@
             <form method="POST">
                 {% csrf_token %}
                 <div class="adm-form-group">
+                    <label class="adm-form-label">Pay From Account</label>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        {% for acct in account_list %}
+                        <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--adm-border);border-radius:8px;cursor:pointer;">
+                            <span style="display:flex;align-items:center;gap:8px;">
+                                <input type="radio" name="account_id" value="{{ acct.pk }}" {% if forloop.first %}checked{% endif %} required>
+                                <span style="font-weight:600;">{{ acct.name }}</span>
+                            </span>
+                            <span style="color:var(--adm-muted);font-size:12px;">Bal: {{ currency_symbol }} {{ acct.balance|floatformat:2|intcomma }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="adm-form-group">
                     <label class="adm-form-label">Payment Amount</label>
                     <input type="number" name="payment_amount" class="adm-input" step="0.01" min="0.01"
                            value="{{ total_outstanding }}"

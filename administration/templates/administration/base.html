@@ -538,7 +538,7 @@
         <a href="{% url 'admin-inventory-list' %}" class="adm-nav-link {% active_nav 'admin-inventory-list' %}">
             <i class="fa-solid fa-boxes-stacked"></i> Inventory
         </a>
-        {% if is_manager %}
+        {% if is_manager or is_supervisor %}
         <a href="{% url 'supplier-list' %}" class="adm-nav-link {% active_nav 'supplier-list' 'supplier-detail' 'supplier-create' 'supplier-edit' 'supplier-transaction-create' %}">
             <i class="fa-solid fa-truck-field"></i> Suppliers
         </a>
