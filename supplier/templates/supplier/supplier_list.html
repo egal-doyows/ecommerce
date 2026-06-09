@@ -9,7 +9,9 @@
         <h1><i class="fa-solid fa-truck-field" style="color:var(--adm-accent);margin-right:8px;"></i> Suppliers</h1>
         <div class="breadcrumb-text">Manage suppliers and their accounts</div>
     </div>
+    {% if user.is_superuser %}
     <a href="{% url 'supplier-create' %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-plus"></i> Add Supplier</a>
+    {% endif %}
 </div>
 
 <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
@@ -53,7 +55,9 @@
                 </td>
                 <td style="text-align:right;">
                     <a href="{% url 'supplier-detail' s.pk %}" class="adm-btn-icon" title="View"><i class="fa-solid fa-eye"></i></a>
+                    {% if user.is_superuser %}
                     <a href="{% url 'supplier-edit' s.pk %}" class="adm-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

@@ -12,9 +12,13 @@
         </div>
     </div>
     <div style="display:flex;gap:8px;">
+        {% if user.is_superuser %}
         <a href="{% url 'supplier-transaction-create' supplier.pk %}" class="adm-btn adm-btn-primary"><i class="fa-solid fa-file-invoice"></i> Record Invoice</a>
+        {% endif %}
         <a href="{% url 'supplier-make-payment' supplier.pk %}" class="adm-btn adm-btn-primary" style="background:var(--adm-success);"><i class="fa-solid fa-money-bill-wave"></i> Make Payment</a>
+        {% if user.is_superuser %}
         <a href="{% url 'supplier-edit' supplier.pk %}" class="adm-btn adm-btn-outline"><i class="fa-solid fa-pen"></i> Edit</a>
+        {% endif %}
     </div>
 </div>
 
