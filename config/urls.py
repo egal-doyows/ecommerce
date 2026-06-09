@@ -70,6 +70,7 @@ urlpatterns = [
         path('purchasing/', include('purchasing.urls')),
         path('receiving/', include('receiving.urls')),
         path('waste/', include('waste.urls')),
+        path('staff-meals/', include('staff_meals.urls')),
         path('expenses/', include('expenses.urls')),
         path('hr/', include('hr.urls')),
         path('reports/', include('reports.urls')),

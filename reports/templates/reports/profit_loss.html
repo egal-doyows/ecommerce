@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block report_body %}
-{% if not current.revenue and not current.expenses_total and not current.staff_paid and not current.waste %}
+{% if not current.revenue and not current.expenses_total and not current.staff_paid and not current.waste and not current.staff_meals %}
 <div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
     <i class="fa-solid fa-chart-line" style="font-size:32px;margin-bottom:12px;"></i>
     <p>No financial activity in the selected period.</p>
@@ -52,6 +52,12 @@
                 <td style="text-align:right;color:var(--adm-danger);">({{ currency_symbol }} {{ current.waste|floatformat:2|intcomma }})</td>
                 <td style="text-align:right;color:var(--adm-muted);">({{ currency_symbol }} {{ previous.waste|floatformat:2|intcomma }})</td>
                 <td style="text-align:right;">{% if deltas.waste is not None %}{{ deltas.waste|floatformat:1 }}%{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+                <td style="padding-left:20px;color:var(--adm-muted);">Less: Staff Meals</td>
+                <td style="text-align:right;color:var(--adm-danger);">({{ currency_symbol }} {{ current.staff_meals|floatformat:2|intcomma }})</td>
+                <td style="text-align:right;color:var(--adm-muted);">({{ currency_symbol }} {{ previous.staff_meals|floatformat:2|intcomma }})</td>
+                <td style="text-align:right;">{% if deltas.staff_meals is not None %}{{ deltas.staff_meals|floatformat:1 }}%{% else %}—{% endif %}</td>
             </tr>
             <tr>
                 <td style="padding-left:20px;color:var(--adm-muted);">Less: Operating Expenses</td>

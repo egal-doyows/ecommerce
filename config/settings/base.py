@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'purchasing',
     'receiving',
     'waste',
+    'staff_meals',
     'expenses',
     'hr',
     'reports',

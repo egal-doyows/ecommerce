@@ -19,6 +19,7 @@ from menu.models import (
     Shift, StockAdjustment,
 )
 from waste.models import WasteItem, WasteLog
+from staff_meals.models import StaffMealItem
 from expenses.models import Expense
 from staff_compensation.models import PaymentRecord
 from debtor.models import Debtor, DebtorTransaction
@@ -62,6 +63,13 @@ def _pl_for_period(start, end):
         F('unit_cost') * F('quantity'),
     )
 
+    staff_meals = _decimal_sum(
+        StaffMealItem.objects.filter(
+            staff_meal_log__date__gte=start, staff_meal_log__date__lte=end,
+        ),
+        F('unit_cost') * F('quantity'),
+    )
+
     expenses_qs = Expense.objects.filter(
         date__gte=start, date__lte=end, status='approved',
     )
@@ -82,7 +90,7 @@ def _pl_for_period(start, end):
     )
 
     gross = revenue - cogs
-    op_profit = gross - waste - expenses_total - staff_paid
+    op_profit = gross - waste - staff_meals - expenses_total - staff_paid
     gross_margin = (gross / revenue * 100) if revenue else Decimal('0')
     net_margin = (op_profit / revenue * 100) if revenue else Decimal('0')
 
@@ -92,6 +100,7 @@ def _pl_for_period(start, end):
         'gross_profit': gross,
         'gross_margin': gross_margin,
         'waste': waste,
+        'staff_meals': staff_meals,
         'expenses_total': expenses_total,
         'expenses_by_cat': expenses_by_cat,
         'staff_paid': staff_paid,
@@ -117,7 +126,7 @@ def profit_loss(request):
     previous = _pl_for_period(prev_start, prev_end)
 
     deltas = {k: _pct_change(current[k], previous[k]) for k in (
-        'revenue', 'cogs', 'gross_profit', 'waste',
+        'revenue', 'cogs', 'gross_profit', 'waste', 'staff_meals',
         'expenses_total', 'staff_paid', 'op_profit',
     )}
 
@@ -127,6 +136,7 @@ def profit_loss(request):
             ['COGS', current['cogs'], previous['cogs']],
             ['Gross Profit', current['gross_profit'], previous['gross_profit']],
             ['Waste', current['waste'], previous['waste']],
+            ['Staff Meals', current['staff_meals'], previous['staff_meals']],
             ['Operating Expenses', current['expenses_total'], previous['expenses_total']],
             ['Staff Compensation', current['staff_paid'], previous['staff_paid']],
             ['Operating Profit', current['op_profit'], previous['op_profit']],
