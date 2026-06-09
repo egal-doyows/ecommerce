@@ -1,0 +1,117 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Staff Meals Cost{% endblock %}
+{% block report_breadcrumb %}Staff Meals Cost{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block report_body %}
+<!-- Summary -->
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Total Cost</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-success);">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Meal Events</div>
+            <div style="font-size:20px;font-weight:600;">{{ total_events|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Items Consumed</div>
+            <div style="font-size:20px;font-weight:600;">{{ total_items|intcomma }}</div>
+        </div>
+    </div>
+</div>
+
+{% if by_day %}
+<!-- Daily -->
+<div class="adm-card" style="margin-bottom:16px;">
+    <h3 style="margin-top:0;font-size:14px;text-transform:uppercase;color:var(--adm-muted);">Daily</h3>
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th style="text-align:right;">Events</th>
+                <th style="text-align:right;">Items</th>
+                <th style="text-align:right;">Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in by_day %}
+            <tr>
+                <td style="font-weight:500;">{{ r.period|date:"D, d M Y" }}</td>
+                <td style="text-align:right;">{{ r.events }}</td>
+                <td style="text-align:right;">{{ r.items }}</td>
+                <td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td colspan="3" style="text-align:right;font-weight:700;">Total</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_cost|floatformat:2|intcomma }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;">
+    <!-- Weekly -->
+    <div class="adm-card">
+        <h3 style="margin-top:0;font-size:14px;text-transform:uppercase;color:var(--adm-muted);">Weekly</h3>
+        <table class="adm-table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Week</th>
+                    <th style="text-align:right;">Events</th>
+                    <th style="text-align:right;">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in by_week %}
+                <tr>
+                    <td style="font-weight:500;">Week of {{ r.period|date:"d M Y" }}</td>
+                    <td style="text-align:right;">{{ r.events }}</td>
+                    <td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Monthly -->
+    <div class="adm-card">
+        <h3 style="margin-top:0;font-size:14px;text-transform:uppercase;color:var(--adm-muted);">Monthly</h3>
+        <table class="adm-table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th style="text-align:right;">Events</th>
+                    <th style="text-align:right;">Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in by_month %}
+                <tr>
+                    <td style="font-weight:500;">{{ r.period|date:"M Y" }}</td>
+                    <td style="text-align:right;">{{ r.events }}</td>
+                    <td style="text-align:right;font-weight:500;">{{ currency_symbol }} {{ r.cost|floatformat:2|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-mug-hot" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No staff meals logged in the selected period.</p>
+</div>
+{% endif %}
+{% endblock %}

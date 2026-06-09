@@ -45,24 +45,15 @@
         <table class="adm-table" id="itemsTable">
             <thead>
                 <tr>
-                    <th style="width:32%;">Item</th>
+                    <th style="width:38%;">Item</th>
                     <th>Unit</th>
                     <th style="text-align:right;">In Stock</th>
-                    <th style="text-align:right;">Unit Cost</th>
                     <th style="text-align:center;width:120px;">Qty</th>
-                    <th style="text-align:right;">Cost</th>
                     <th>Notes</th>
                     <th style="width:40px;"></th>
                 </tr>
             </thead>
             <tbody id="itemRows"></tbody>
-            <tfoot>
-                <tr style="border-top:2px solid var(--adm-border);">
-                    <td colspan="5" style="text-align:right;font-weight:700;">Total Cost</td>
-                    <td style="text-align:right;font-weight:800;font-size:15px;color:var(--adm-success);" id="totalCost">{{ currency_symbol }} 0.00</td>
-                    <td colspan="2"></td>
-                </tr>
-            </tfoot>
         </table>
 
         <div style="padding:10px 20px;border-top:1px solid var(--adm-border);">
@@ -101,24 +92,22 @@
                 <option value="">Select item...</option>
                 <optgroup label="Menu Items">
                     {% for mi in menu_items %}
-                    <option value="menu:{{ mi.pk }}" data-kind="menu" data-unit="serving" data-stock="" data-cost="{{ mi.current_unit_cost }}">{{ mi.title }}</option>
+                    <option value="menu:{{ mi.pk }}" data-kind="menu" data-unit="serving" data-stock="">{{ mi.title }}</option>
                     {% endfor %}
                 </optgroup>
                 <optgroup label="Raw Inventory">
                     {% for inv in inventory_items %}
-                    <option value="inv:{{ inv.pk }}" data-kind="inv" data-unit="{{ inv.get_unit_display }}" data-stock="{{ inv.stock_quantity }}" data-cost="{{ inv.buying_price }}">{{ inv.name }}</option>
+                    <option value="inv:{{ inv.pk }}" data-kind="inv" data-unit="{{ inv.get_unit_display }}" data-stock="{{ inv.stock_quantity }}">{{ inv.name }}</option>
                     {% endfor %}
                 </optgroup>
             </select>
         </td>
         <td class="unit-cell" style="color:var(--adm-muted);font-size:12px;">—</td>
         <td class="stock-cell" style="text-align:right;font-size:12px;">—</td>
-        <td class="cost-cell" style="text-align:right;font-size:12px;">—</td>
         <td style="text-align:center;">
             <input type="number" class="adm-input qty-input"
                    style="width:100px;text-align:center;font-size:12px;padding:5px 8px;" step="0.01" min="0.01" value="" placeholder="0.00">
         </td>
-        <td class="line-cost" style="text-align:right;font-weight:600;font-size:12px;">{{ currency_symbol }} 0.00</td>
         <td>
             <input type="text" class="adm-input notes-input" style="width:120px;font-size:11px;padding:4px 8px;" placeholder="Optional...">
         </td>
@@ -131,12 +120,7 @@
 </template>
 
 <script>
-const currencySymbol = '{{ currency_symbol }}';
 let rowIndex = 0;
-
-function fmt(n) {
-    return currencySymbol + ' ' + n.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-}
 
 function addRow() {
     const idx = rowIndex++;
@@ -152,7 +136,6 @@ function addRow() {
 
     tr.querySelector('.remove-row').addEventListener('click', function() { removeRow(tr); });
     sel.addEventListener('change', function() { onItemChange(tr); });
-    qty.addEventListener('input', function() { onQtyChange(tr); });
 
     document.getElementById('itemRows').appendChild(tr);
 }
@@ -160,19 +143,16 @@ function addRow() {
 function removeRow(row) {
     if (document.querySelectorAll('.item-row').length > 1) {
         row.remove();
-        updateTotal();
     }
 }
 
 function onItemChange(row) {
     const sel = row.querySelector('.line-select');
     const opt = sel.options[sel.selectedIndex];
-    const unit = opt.dataset.unit || '—';
+    const unit = opt.dataset.unit || '';
     const stock = opt.dataset.stock || '';
-    const cost = opt.dataset.cost || '';
     row.querySelector('.unit-cell').textContent = unit !== '' ? unit : '—';
     row.querySelector('.stock-cell').textContent = stock !== '' ? parseFloat(stock).toFixed(2) : '—';
-    row.querySelector('.cost-cell').textContent = cost !== '' ? fmt(parseFloat(cost)) : '—';
     const qtyInput = row.querySelector('.qty-input');
     // Cap quantity at stock only for raw inventory (menu items vary by recipe).
     if (opt.dataset.kind === 'inv' && stock !== '') {
@@ -180,28 +160,6 @@ function onItemChange(row) {
     } else {
         qtyInput.removeAttribute('max');
     }
-    onQtyChange(row);
-}
-
-function onQtyChange(row) {
-    const sel = row.querySelector('.line-select');
-    const opt = sel.options[sel.selectedIndex];
-    const cost = parseFloat(opt.dataset.cost) || 0;
-    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-    row.querySelector('.line-cost').textContent = fmt(qty * cost);
-    updateTotal();
-}
-
-function updateTotal() {
-    let total = 0;
-    document.querySelectorAll('.item-row').forEach(function(row) {
-        const sel = row.querySelector('.line-select');
-        const opt = sel.options[sel.selectedIndex];
-        const cost = parseFloat(opt.dataset.cost) || 0;
-        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-        total += qty * cost;
-    });
-    document.getElementById('totalCost').textContent = fmt(total);
 }
 
 // Start with one row.
