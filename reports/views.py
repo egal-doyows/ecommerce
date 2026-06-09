@@ -1,3 +1,4 @@
+from collections import Counter, defaultdict
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -2479,5 +2480,204 @@ def online_sales(request):
         'total_count': total_count,
         'total_outstanding': total_outstanding,
         'settlement_total': settlement_total,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
+    })
+
+
+# ── Promotional Pairings ───────────────────────────────────────────────
+
+def _menu_sales_qty(start, end):
+    """Units sold per menu item over the period (paid, non-comp orders)."""
+    rows = (
+        OrderItem.objects.filter(
+            order__status='paid', order__is_comp=False,
+            order__created_at__date__gte=start,
+            order__created_at__date__lte=end,
+        )
+        .values('menu_item_id')
+        .annotate(qty=Sum('quantity'))
+    )
+    return {r['menu_item_id']: (r['qty'] or 0) for r in rows}
+
+
+def _period_baskets(start, end):
+    """
+    Market-basket data for the period.
+
+    Returns (baskets, item_orders, total) where baskets is a list of
+    menu-item-id sets (one per multi-item paid order), item_orders counts
+    how many baskets each item appears in, and total is the basket count.
+    """
+    rows = (
+        OrderItem.objects.filter(
+            order__status='paid', order__is_comp=False,
+            order__created_at__date__gte=start,
+            order__created_at__date__lte=end,
+        )
+        .values('order_id', 'menu_item_id')
+    )
+    by_order = defaultdict(set)
+    for r in rows:
+        by_order[r['order_id']].add(r['menu_item_id'])
+
+    baskets = [items for items in by_order.values() if len(items) >= 2]
+    item_orders = Counter()
+    for items in baskets:
+        for it in items:
+            item_orders[it] += 1
+    return baskets, item_orders, len(baskets)
+
+
+@manager_required
+def promotional_pairings(request):
+    """
+    Suggest promo pairings that move slow-selling dishes alongside fast ones.
+
+    Slow/fast are classified by units sold in the period. For each slow dish
+    we prefer a fast partner it already sells WITH (market-basket affinity,
+    ranked by lift); when a slow dish has no such history we fall back to the
+    top sellers as an "exposure" pairing. Each suggestion is labelled so the
+    manager knows whether it is a natural bundle or a fresh exposure play.
+    """
+    start, end, preset = parse_date_range(request)
+
+    def _int(name, default):
+        try:
+            return max(1, int(request.GET.get(name, default)))
+        except (TypeError, ValueError):
+            return default
+
+    fast_n = _int('fast_n', 10)        # how many top sellers count as "fast"
+    per_slow = _int('per_slow', 3)     # suggestions per slow dish
+    limit = _int('limit', 25)          # cap on slow dishes listed
+    try:
+        slow_max = max(0, int(request.GET.get('slow_max', 5)))
+    except (TypeError, ValueError):
+        slow_max = 5
+
+    qty_by_item = _menu_sales_qty(start, end)
+
+    items = list(
+        MenuItem.objects.filter(is_available=True)
+        .select_related('category', 'inventory_item')
+        .prefetch_related('recipe_items__inventory_item')
+    )
+    for mi in items:
+        mi.units = qty_by_item.get(mi.id, 0)
+
+    # Fast movers: top sellers that actually sold something.
+    fast_items = sorted(
+        [mi for mi in items if mi.units > 0],
+        key=lambda m: m.units, reverse=True,
+    )[:fast_n]
+    fast_ids = {mi.id for mi in fast_items}
+
+    # Slow dishes: at or below the slow threshold, excluding the fast pool.
+    slow_all = sorted(
+        [mi for mi in items if mi.id not in fast_ids and mi.units <= slow_max],
+        key=lambda m: (m.units, m.title.lower()),
+    )
+    slow_qualifying = len(slow_all)
+    slow_items = slow_all[:limit]
+    slow_ids = {mi.id for mi in slow_items}
+
+    # Co-occurrence between slow dishes and fast movers, this period only.
+    baskets, item_orders, total_baskets = _period_baskets(start, end)
+    co = defaultdict(int)
+    for basket in baskets:
+        sl = basket & slow_ids
+        fa = basket & fast_ids
+        if sl and fa:
+            for s in sl:
+                for f in fa:
+                    co[(s, f)] += 1
+
+    fast_by_qty = sorted(fast_items, key=lambda m: m.units, reverse=True)
+
+    rows = []
+    with_affinity = 0
+    for mi in slow_items:
+        # Affinity partners: fast items this dish has co-occurred with.
+        affinity = []
+        for f in fast_items:
+            c = co.get((mi.id, f.id), 0)
+            if c <= 0:
+                continue
+            denom = item_orders.get(mi.id, 0) * item_orders.get(f.id, 0)
+            lift = (c * total_baskets / denom) if denom else 0
+            affinity.append({'item': f, 'count': c, 'lift': lift})
+        affinity.sort(key=lambda x: (-x['lift'], -x['count'], -x['item'].units))
+
+        suggestions = [{
+            'title': a['item'].title,
+            'units': a['item'].units,
+            'basis': 'affinity',
+            'count': a['count'],
+            'lift': a['lift'],
+        } for a in affinity[:per_slow]]
+
+        if affinity:
+            with_affinity += 1
+
+        # Fill the rest with exposure pairings (top sellers not already used).
+        if len(suggestions) < per_slow:
+            used = {a['item'].id for a in affinity[:per_slow]}
+            for f in fast_by_qty:
+                if len(suggestions) >= per_slow:
+                    break
+                if f.id in used:
+                    continue
+                suggestions.append({
+                    'title': f.title, 'units': f.units,
+                    'basis': 'exposure', 'count': 0, 'lift': 0,
+                })
+
+        price = mi.price or Decimal('0')
+        cost = mi.current_unit_cost()
+        margin_pct = ((price - cost) / price * 100) if price > 0 else None
+
+        rows.append({
+            'title': mi.title,
+            'category': mi.category.name if mi.category_id else '—',
+            'units': mi.units,
+            'margin_pct': margin_pct,
+            'suggestions': suggestions,
+        })
+
+    exposure_only = len(slow_items) - with_affinity
+
+    if request.GET.get('format') == 'csv':
+        header = ['slow_dish', 'category', 'units_sold', 'margin_pct',
+                  'suggested_pairing', 'pairing_units', 'basis', 'co_orders', 'lift']
+        csv_rows = []
+        for r in rows:
+            mp = f"{r['margin_pct']:.1f}" if r['margin_pct'] is not None else ''
+            if not r['suggestions']:
+                csv_rows.append([r['title'], r['category'], r['units'], mp, '', '', '', '', ''])
+            for s in r['suggestions']:
+                csv_rows.append([
+                    r['title'], r['category'], r['units'], mp,
+                    s['title'], s['units'], s['basis'],
+                    s['count'] or '', f"{s['lift']:.2f}" if s['lift'] else '',
+                ])
+        return csv_response(
+            f'promotional_pairings_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    return render(request, 'reports/promotional_pairings.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'fast_items': fast_by_qty,
+        'fast_count': len(fast_items),
+        'slow_count': len(slow_items),
+        'slow_qualifying': slow_qualifying,
+        'with_affinity': with_affinity,
+        'exposure_only': exposure_only,
+        'total_baskets': total_baskets,
+        'fast_n': fast_n,
+        'slow_max': slow_max,
+        'per_slow': per_slow,
+        'limit': limit,
         'currency_symbol': get_restaurant_settings().currency_symbol,
     })

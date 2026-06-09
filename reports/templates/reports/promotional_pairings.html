@@ -1,0 +1,106 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Promotional Pairings{% endblock %}
+{% block report_breadcrumb %}Promotional Pairings{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&fast_n={{ fast_n }}&slow_max={{ slow_max }}&per_slow={{ per_slow }}&limit={{ limit }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block extra_filters %}
+<div>
+    <label class="adm-form-label">Fast pool</label>
+    <input type="number" name="fast_n" value="{{ fast_n }}" min="1" style="padding:6px 10px;width:80px;" title="How many top sellers count as fast movers">
+</div>
+<div>
+    <label class="adm-form-label">Slow ≤ (units)</label>
+    <input type="number" name="slow_max" value="{{ slow_max }}" min="0" style="padding:6px 10px;width:80px;" title="A dish is slow if it sold this many units or fewer">
+</div>
+{% endblock %}
+
+{% block report_body %}
+<!-- Summary -->
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Slow Dishes</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-warning);">{{ slow_count|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">With Affinity Pairing</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-success);">{{ with_affinity|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Exposure Only</div>
+            <div style="font-size:20px;font-weight:600;">{{ exposure_only|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Fast Pool</div>
+            <div style="font-size:20px;font-weight:600;">{{ fast_count|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Baskets Analysed</div>
+            <div style="font-size:20px;font-weight:600;">{{ total_baskets|intcomma }}</div>
+        </div>
+    </div>
+    <p style="margin:12px 0 0;color:var(--adm-muted);font-size:12px;">
+        <i class="fa-solid fa-circle-info"></i>
+        <strong>Affinity</strong> = the slow dish already sells together with that fast mover (lift &gt; 1 means more often than chance) — a natural bundle.
+        <strong>Exposure</strong> = no shared-order history yet; pairing it with a bestseller puts it in front of more customers.
+        {% if slow_qualifying > slow_count %}
+        <br>Showing the {{ slow_count }} slowest of {{ slow_qualifying }} qualifying dishes — raise the <em>limit</em> query param to see more.
+        {% endif %}
+    </p>
+</div>
+
+{% if rows %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Slow Dish</th>
+                <th>Category</th>
+                <th style="text-align:right;">Units Sold</th>
+                <th style="text-align:right;">Margin</th>
+                <th>Suggested Pairings (fast movers)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td style="font-weight:600;">{{ r.title }}</td>
+                <td style="color:var(--adm-muted);">{{ r.category }}</td>
+                <td style="text-align:right;">{{ r.units|intcomma }}</td>
+                <td style="text-align:right;">{% if r.margin_pct is not None %}{{ r.margin_pct|floatformat:1 }}%{% else %}—{% endif %}</td>
+                <td>
+                    {% for s in r.suggestions %}
+                    <div style="display:flex;align-items:center;gap:8px;padding:2px 0;">
+                        <span style="font-weight:500;">{{ s.title }}</span>
+                        <span style="color:var(--adm-muted);font-size:12px;">({{ s.units|intcomma }} sold)</span>
+                        {% if s.basis == 'affinity' %}
+                        <span class="adm-badge" style="background:rgba(40,167,69,.12);color:var(--adm-success);">
+                            Affinity · {{ s.count }} co-order{{ s.count|pluralize }}{% if s.lift %} · lift {{ s.lift|floatformat:1 }}{% endif %}
+                        </span>
+                        {% else %}
+                        <span class="adm-badge adm-badge-muted">Exposure</span>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <span style="color:var(--adm-muted);">No fast movers available to pair.</span>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-handshake-angle" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No slow-selling dishes for the selected period and threshold{% if not fast_count %}, or no fast movers to pair with{% endif %}.</p>
+</div>
+{% endif %}
+{% endblock %}
