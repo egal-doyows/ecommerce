@@ -1,0 +1,123 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ log.meal_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>{{ log.meal_number }}</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'staff-meal-list' %}" style="color:var(--adm-accent);text-decoration:none;">Staff Meals</a> / {{ log.meal_number }}
+        </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'staff-meal-list' %}" class="adm-btn adm-btn-outline">
+            <i class="fa-solid fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);">
+            <i class="fa-solid fa-mug-hot"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ log.meal_number }}</div>
+            <div class="adm-stat-label">Reference</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);">
+            <i class="fa-solid fa-utensils"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ log.get_meal_type_display }}</div>
+            <div class="adm-stat-label">Meal Type</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(124,131,255,.1);color:var(--adm-accent);">
+            <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ log.item_count }}</div>
+            <div class="adm-stat-label">Items</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);">
+            <i class="fa-solid fa-money-bill"></i>
+        </div>
+        <div>
+            <div class="adm-stat-value" style="font-size:17px;">{{ currency_symbol }} {{ log.total_cost|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Total Cost</div>
+        </div>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="adm-card" style="margin-bottom:24px;">
+    <div style="display:flex;flex-wrap:wrap;gap:24px;font-size:13px;">
+        <div><span style="color:var(--adm-muted);font-weight:600;">Logged by:</span> {{ log.logged_by.username|default:"—" }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Date:</span> {{ log.date|date:"d M Y" }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Recorded at:</span> {{ log.created_at|date:"d M Y, H:i:s" }}</div>
+        <div><span style="color:var(--adm-muted);font-weight:600;">Meal:</span>
+            <span class="adm-badge adm-badge-muted">{{ log.get_meal_type_display }}</span>
+        </div>
+        {% if log.notes %}
+        <div style="width:100%;"><span style="color:var(--adm-muted);font-weight:600;">Notes:</span> {{ log.notes }}</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Items -->
+<h3 style="font-size:15px;font-weight:700;margin:0 0 14px;display:flex;align-items:center;gap:8px;">
+    <i class="fa-solid fa-list" style="color:var(--adm-success);"></i>
+    Items Consumed ({{ items|length }})
+</h3>
+
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Type</th>
+                <th>Unit</th>
+                <th style="text-align:right;">Quantity</th>
+                <th style="text-align:right;">Unit Cost</th>
+                <th style="text-align:right;">Total Cost</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td style="font-weight:600;">{{ item.item_name }}</td>
+                <td>
+                    {% if item.is_menu_item %}
+                    <span class="adm-badge adm-badge-muted">Menu</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">Raw</span>
+                    {% endif %}
+                </td>
+                <td style="color:var(--adm-muted);">{{ item.unit_label }}</td>
+                <td style="text-align:right;font-weight:700;color:var(--adm-success);">{{ item.quantity|floatformat:2 }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ item.unit_cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ item.cost|floatformat:2|intcomma }}</td>
+                <td style="color:var(--adm-muted);font-size:12px;">{{ item.notes|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-border);">
+                <td colspan="5" style="text-align:right;font-weight:700;">Total Cost</td>
+                <td style="text-align:right;font-weight:800;font-size:15px;color:var(--adm-success);">{{ currency_symbol }} {{ log.total_cost|floatformat:2|intcomma }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}
