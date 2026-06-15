@@ -1,0 +1,41 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+{% block title %}Correct {{ receipt.grn_number }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div><h1>Correct Goods Receipt</h1></div>
+</div>
+
+<div style="max-width:560px;">
+    <div class="adm-card" style="text-align:center;padding:36px 32px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:rgba(124,131,255,.1);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+            <i class="fa-solid fa-pen-to-square" style="font-size:22px;color:var(--adm-accent);"></i>
+        </div>
+        <h3 style="font-size:18px;font-weight:700;margin:0 0 8px;">Correct {{ receipt.grn_number }}?</h3>
+        <p style="color:var(--adm-muted);font-size:14px;margin:0 0 8px;">
+            This will <strong>undo this receipt</strong> — rolling back the stock it added,
+            the received quantities on <strong>{{ receipt.purchase_order.po_number }}</strong>,
+            {% if invoice %}and the supplier invoice
+            ({{ restaurant.currency_symbol }} {{ invoice.amount|floatformat:2|intcomma }}){% else %}and its status{% endif %} —
+            then take you straight back to the receive form to <strong>re-enter the correct quantities</strong>.
+        </p>
+        <p style="color:var(--adm-muted);font-size:12px;margin:0 0 8px;">
+            Correction window closes <strong>{{ edit_deadline|date:'d M Y, H:i' }}</strong>
+            ({{ edit_window_hours }}h after receiving). After that, only a manager can reverse it.
+        </p>
+        <p style="color:var(--adm-muted);font-size:12px;margin:0 0 28px;">
+            Note: the item buying price is not auto-restored to its pre-receipt value.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <div style="display:flex;justify-content:center;gap:10px;">
+                <button type="submit" class="adm-btn adm-btn-primary">
+                    <i class="fa-solid fa-pen-to-square"></i> Undo &amp; Re-enter
+                </button>
+                <a href="{% url 'receipt-detail' receipt.pk %}" class="adm-btn adm-btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

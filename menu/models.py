@@ -22,6 +22,17 @@ class RestaurantSettings(models.Model):
         help_text='Default markup applied to cost when suggesting menu prices',
     )
 
+    # ── Goods-receiving correction window ──
+    receipt_edit_window_hours = models.PositiveSmallIntegerField(
+        default=24,
+        help_text=(
+            'How many hours after a goods receipt is recorded that it can still '
+            'be corrected (cleanly undone and re-received) by the person who '
+            'received it or a manager. After this window only a manager can '
+            'reverse it.'
+        ),
+    )
+
     # ── Delivery-platform commission rates (used by Channel Margin report) ──
     ubereats_commission_pct = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal('27'),

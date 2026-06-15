@@ -280,7 +280,7 @@ class RestaurantSettingsForm(forms.ModelForm):
     # as the model grows. Add new fields here AND in Meta.fields.
     FIELDSETS = [
         ('Branding', ['name', 'tagline', 'logo']),
-        ('Operational', ['currency', 'default_markup_percent']),
+        ('Operational', ['currency', 'default_markup_percent', 'receipt_edit_window_hours']),
         ('Contact', [
             'phone', 'whatsapp_number', 'email', 'website', 'address',
             'map_embed_url', 'directions_url',
@@ -299,7 +299,7 @@ class RestaurantSettingsForm(forms.ModelForm):
         model = RestaurantSettings
         fields = [
             'name', 'tagline', 'logo',
-            'currency', 'default_markup_percent',
+            'currency', 'default_markup_percent', 'receipt_edit_window_hours',
             'phone', 'whatsapp_number', 'email', 'website', 'address',
             'map_embed_url', 'directions_url',
             'facebook_url', 'instagram_url', 'twitter_url',
@@ -314,6 +314,7 @@ class RestaurantSettingsForm(forms.ModelForm):
             'logo': forms.ClearableFileInput(attrs=_file),
             'currency': forms.Select(attrs=_select),
             'default_markup_percent': forms.NumberInput(attrs={**_input, 'step': '0.01', 'min': '0'}),
+            'receipt_edit_window_hours': forms.NumberInput(attrs={**_input, 'step': '1', 'min': '0'}),
             'phone': forms.TextInput(attrs=_input),
             'whatsapp_number': forms.TextInput(attrs=_input),
             'email': forms.EmailInput(attrs=_input),

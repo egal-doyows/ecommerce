@@ -21,11 +21,28 @@
         <a href="{% url 'po-receiving-summary' receipt.purchase_order.pk %}" class="adm-btn adm-btn-outline">
             <i class="fa-solid fa-list-check"></i> All Receipts for PO
         </a>
+        {% if can_correct %}
+        <a href="{% url 'receipt-correct' receipt.pk %}" class="adm-btn adm-btn-outline" style="color:var(--adm-accent);border-color:var(--adm-accent);"
+           title="Undo this receipt and re-enter the correct quantities. Available until {{ edit_deadline|date:'d M Y, H:i' }}.">
+            <i class="fa-solid fa-pen-to-square"></i> Correct
+        </a>
+        {% endif %}
+        {% if can_reverse %}
         <a href="{% url 'receipt-reverse' receipt.pk %}" class="adm-btn adm-btn-outline" style="color:var(--adm-danger);border-color:var(--adm-danger);">
             <i class="fa-solid fa-rotate-left"></i> Reverse
         </a>
+        {% endif %}
     </div>
 </div>
+
+{% if can_correct %}
+<div class="adm-card" style="margin-bottom:24px;padding:12px 16px;background:rgba(124,131,255,.05);border:1px solid rgba(124,131,255,.15);font-size:12px;color:var(--adm-muted);">
+    <i class="fa-solid fa-circle-info" style="color:var(--adm-accent);margin-right:6px;"></i>
+    Spotted an error? <strong>Correct</strong> undoes this receipt (rolls back stock and the supplier invoice) and reopens
+    {{ receipt.purchase_order.po_number }} so you can re-enter the right quantities. Available until
+    <strong>{{ edit_deadline|date:'d M Y, H:i' }}</strong> ({{ edit_window_hours }}h after receiving).
+</div>
+{% endif %}
 
 <!-- Summary cards -->
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
