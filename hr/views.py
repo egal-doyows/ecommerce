@@ -843,6 +843,117 @@ def leave_reject(request, pk):
     return redirect('hr-leave-detail', pk=pk)
 
 
+# ---------------------------------------------------------------------------
+# Advance management (manager): approve / reject / pay
+# ---------------------------------------------------------------------------
+
+@manager_only
+def advance_list(request):
+    from django.db.models import DecimalField, ExpressionWrapper, F
+
+    status_filter = request.GET.get('status', '')
+    qs = AdvanceRequest.objects.select_related('employee__user', 'reviewed_by', 'paid_by')
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+
+    paginator = Paginator(qs.order_by('-created_at'), 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    outstanding = AdvanceRequest.objects.filter(status='paid').aggregate(
+        t=Sum(ExpressionWrapper(
+            F('amount') - F('amount_recovered'),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        ))
+    )['t'] or Decimal('0')
+
+    return render(request, 'hr/advance_list.html', {
+        'page_obj': page_obj,
+        'advances': page_obj.object_list,
+        'status_filter': status_filter,
+        'status_choices': AdvanceRequest.STATUS_CHOICES,
+        'pending_count': AdvanceRequest.objects.filter(status='pending').count(),
+        'outstanding_total': outstanding,
+    })
+
+
+@manager_only
+def advance_detail(request, pk):
+    adv = get_object_or_404(
+        AdvanceRequest.objects.select_related('employee__user', 'reviewed_by', 'paid_by'),
+        pk=pk,
+    )
+    return render(request, 'hr/advance_detail.html', {
+        'adv': adv,
+        'method_choices': AdvanceRequest.DISBURSEMENT_METHOD_CHOICES,
+        'is_own': adv.employee.user_id == request.user.id,
+    })
+
+
+@manager_only
+def advance_approve(request, pk):
+    adv = get_object_or_404(AdvanceRequest, pk=pk)
+    if request.method == 'POST' and adv.status == 'pending':
+        if adv.employee.user_id == request.user.id:
+            messages.error(request, 'You cannot approve your own advance request.')
+            return redirect('hr-advance-detail', pk=pk)
+        adv.status = 'approved'
+        adv.reviewed_by = request.user
+        adv.reviewed_at = timezone.now()
+        adv.review_note = request.POST.get('note', '').strip()
+        adv.save()
+        messages.success(request, f'Advance approved for {adv.employee.full_name}.')
+    return redirect('hr-advance-detail', pk=pk)
+
+
+@manager_only
+def advance_reject(request, pk):
+    adv = get_object_or_404(AdvanceRequest, pk=pk)
+    if request.method == 'POST' and adv.status == 'pending':
+        if adv.employee.user_id == request.user.id:
+            messages.error(request, 'You cannot reject your own advance request.')
+            return redirect('hr-advance-detail', pk=pk)
+        adv.status = 'rejected'
+        adv.reviewed_by = request.user
+        adv.reviewed_at = timezone.now()
+        adv.review_note = request.POST.get('note', '').strip()
+        adv.save()
+        messages.success(request, f'Advance rejected for {adv.employee.full_name}.')
+    return redirect('hr-advance-detail', pk=pk)
+
+
+@manager_only
+def advance_pay(request, pk):
+    """Disburse an approved advance: record the cash-out and mark it paid. The
+    amount is later recovered from the employee's wages in the pay-staff flow."""
+    from django.db import transaction
+    from administration.models import record_advance_disbursement
+
+    adv = get_object_or_404(AdvanceRequest.objects.select_related('employee__user'), pk=pk)
+    if request.method == 'POST' and adv.status == 'approved':
+        method = request.POST.get('disbursement_method', 'cash')
+        if method not in dict(AdvanceRequest.DISBURSEMENT_METHOD_CHOICES):
+            method = 'cash'
+
+        with transaction.atomic():
+            adv.status = 'paid'
+            adv.paid_by = request.user
+            adv.paid_at = timezone.now()
+            adv.disbursement_method = method
+            if method == 'mpesa':
+                adv.mpesa_transaction_code = request.POST.get('mpesa_transaction_code', '').strip()
+            adv.save()
+            # Cash leaves now (account derived from the disbursement method).
+            record_advance_disbursement(adv, created_by=request.user)
+
+        symbol = RestaurantSettings.load().currency_symbol
+        messages.success(
+            request,
+            f'{symbol} {adv.amount:,.2f} advance paid to {adv.employee.full_name} — '
+            'will be recovered from wages.',
+        )
+    return redirect('hr-advance-detail', pk=pk)
+
+
 @hr_staff_required
 def leave_cancel(request, pk):
     lr = get_object_or_404(LeaveRequest, pk=pk)

@@ -309,6 +309,12 @@
             <div class="sc-stat-value green">{{ restaurant.currency_symbol }} {{ compensation.salary_amount|floatformat:2|intcomma }}</div>
         </div>
         {% endif %}
+        {% if advance_outstanding > 0 %}
+        <div class="sc-stat-card" style="border-color:#6366f1;">
+            <div class="sc-stat-label">Advance to Recover</div>
+            <div class="sc-stat-value" style="color:#4f46e5;">{{ restaurant.currency_symbol }} {{ advance_outstanding|floatformat:2|intcomma }}</div>
+        </div>
+        {% endif %}
     </div>
 
     {% else %}

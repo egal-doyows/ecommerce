@@ -1,0 +1,117 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Salary Advances{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Salary Advances</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> / Advances
+        </div>
+    </div>
+</div>
+
+<!-- Stat banners -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:20px;">
+    <div class="adm-card" style="padding:14px 20px;border-left:3px solid #d97706;">
+        <div style="font-weight:800;font-size:22px;">{{ pending_count }}</div>
+        <div style="font-size:12px;color:var(--adm-muted);">Pending request{{ pending_count|pluralize }}</div>
+    </div>
+    <div class="adm-card" style="padding:14px 20px;border-left:3px solid var(--adm-accent);">
+        <div style="font-weight:800;font-size:22px;">{{ restaurant.currency_symbol }} {{ outstanding_total|floatformat:2|intcomma }}</div>
+        <div style="font-size:12px;color:var(--adm-muted);">Outstanding to recover from wages</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;">
+    <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <select name="status" class="adm-input" style="width:auto;padding:5px 10px;font-size:12px;">
+            <option value="">All Statuses</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="adm-btn adm-btn-outline adm-btn-sm"><i class="fa-solid fa-filter"></i> Filter</button>
+        {% if status_filter %}
+        <a href="{% url 'hr-advance-list' %}" class="adm-btn adm-btn-sm" style="color:var(--adm-danger);font-size:12px;text-decoration:none;">
+            <i class="fa-solid fa-xmark"></i> Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if advances %}
+<div class="adm-card" style="padding:0;">
+    <table class="adm-table">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th style="text-align:right;">Amount</th>
+                <th>Status</th>
+                <th style="text-align:right;">Outstanding</th>
+                <th>Reviewed By</th>
+                <th>Requested</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for adv in advances %}
+            <tr{% if adv.status == 'rejected' or adv.status == 'cancelled' %} style="opacity:0.6;"{% endif %}>
+                <td>
+                    <a href="{% url 'hr-advance-detail' adv.pk %}" style="color:var(--adm-accent);text-decoration:none;font-weight:700;">
+                        {{ adv.employee.full_name }}
+                    </a>
+                </td>
+                <td style="text-align:right;font-weight:700;">{{ restaurant.currency_symbol }} {{ adv.amount|floatformat:2|intcomma }}</td>
+                <td>
+                    {% if adv.status == 'pending' %}
+                    <span class="adm-badge" style="background:rgba(245,158,11,.1);color:#d97706;">Pending</span>
+                    {% elif adv.status == 'approved' %}
+                    <span class="adm-badge adm-badge-info">Approved</span>
+                    {% elif adv.status == 'paid' %}
+                    <span class="adm-badge" style="background:rgba(99,102,241,.1);color:var(--adm-accent);">Paid</span>
+                    {% elif adv.status == 'settled' %}
+                    <span class="adm-badge adm-badge-success">Settled</span>
+                    {% elif adv.status == 'rejected' %}
+                    <span class="adm-badge adm-badge-danger">Rejected</span>
+                    {% else %}
+                    <span class="adm-badge adm-badge-muted">Cancelled</span>
+                    {% endif %}
+                </td>
+                <td style="text-align:right;font-size:13px;">
+                    {% if adv.status == 'paid' %}{{ restaurant.currency_symbol }} {{ adv.outstanding_recovery|floatformat:2|intcomma }}{% else %}—{% endif %}
+                </td>
+                <td style="font-size:12px;color:var(--adm-muted);">{{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username|default:"—" }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ adv.created_at|date:"d M Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;">
+    <div style="font-size:12px;color:var(--adm-muted);">
+        Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="adm-btn-icon"><i class="fa-solid fa-chevron-left" style="font-size:11px;"></i></a>
+        {% endif %}
+        <span style="font-size:12px;padding:0 8px;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="adm-btn-icon"><i class="fa-solid fa-chevron-right" style="font-size:11px;"></i></a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="adm-card adm-empty">
+    <i class="fa-solid fa-money-bill-wave"></i>
+    <p>No advance requests{% if status_filter %} with status “{{ status_filter }}”{% endif %}.</p>
+</div>
+{% endif %}
+{% endblock %}

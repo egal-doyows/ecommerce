@@ -283,6 +283,24 @@
                     {% endif %}
                 </div>
 
+                {% if form.advance_recovery %}
+                <!-- Advance recovery -->
+                <div class="pay-section-title">Recover Advance
+                    <span style="font-weight:400;color:var(--adm-muted);font-size:12px;">
+                        (outstanding {{ restaurant.currency_symbol }} {{ advance_outstanding|floatformat:2|intcomma }})
+                    </span>
+                </div>
+                <div class="pay-amount-field">
+                    {{ form.advance_recovery }}
+                    <div style="font-size:11px;color:var(--adm-muted);margin-top:6px;">
+                        {{ form.advance_recovery.help_text }} Only the remainder leaves the cash account.
+                    </div>
+                    {% if form.advance_recovery.errors %}
+                    <div class="pay-error" style="margin-top:8px;">{{ form.advance_recovery.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <!-- Notes -->
                 <div class="pay-notes-field">
                     <label>{{ form.notes.label }}</label>

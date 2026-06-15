@@ -238,6 +238,15 @@ class AdvanceRequest(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
+        ('paid', 'Paid'),
+        ('settled', 'Settled'),
+    ]
+
+    # Mirror staff_compensation.PaymentRecord disbursement options.
+    DISBURSEMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank', 'Bank Transfer'),
+        ('mpesa', 'M-Pesa'),
     ]
 
     employee = models.ForeignKey(
@@ -254,11 +263,36 @@ class AdvanceRequest(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ── Disbursement (set when a manager pays the advance) ──
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='paid_advances',
+    )
+    paid_at = models.DateTimeField(null=True, blank=True)
+    disbursement_method = models.CharField(
+        max_length=10, choices=DISBURSEMENT_METHOD_CHOICES, blank=True,
+    )
+    mpesa_transaction_code = models.CharField(max_length=20, blank=True)
+    # ── Recovery (deducted from the employee's wages over time) ──
+    amount_recovered = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text='How much of this advance has been recovered from wages.',
+    )
+
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
         return f'{self.employee.full_name} — advance {self.amount} ({self.get_status_display()})'
+
+    @property
+    def outstanding_recovery(self):
+        """Amount still to be recovered from the employee's wages."""
+        return self.amount - self.amount_recovered
+
+    @property
+    def is_fully_recovered(self):
+        return self.amount_recovered >= self.amount
 
 
 # ---------------------------------------------------------------------------

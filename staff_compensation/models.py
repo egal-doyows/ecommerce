@@ -474,3 +474,62 @@ def generate_current_month_record(user):
             payment_type='commission',
             status='pending',
         )
+
+
+def generate_salary_records(user):
+    """
+    Create monthly pending PaymentRecords for SALARIED staff, one per month from
+    the join month through the current month, so they can be paid (and have
+    advances recovered against them). Mirrors generate_past_month_records;
+    idempotent via the per-month existence check.
+
+    The configured salary is "per payment period", so it is normalised to a
+    monthly figure by frequency. (Out of scope for now: prorating a mid-month
+    joiner's first month.)
+    """
+    try:
+        comp = user.compensation
+    except StaffCompensation.DoesNotExist:
+        return
+
+    if comp.compensation_type != 'salary' or comp.salary_amount <= 0:
+        return
+
+    freq = comp.payment_frequency
+    if freq == 'weekly':
+        monthly = comp.salary_amount * Decimal('52') / Decimal('12')
+    elif freq == 'biweekly':
+        monthly = comp.salary_amount * Decimal('26') / Decimal('12')
+    else:
+        monthly = comp.salary_amount
+    monthly = monthly.quantize(Decimal('0.01'))
+
+    now = timezone.now()
+    cursor = user.date_joined.replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0,
+    )
+    current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    while cursor <= current_month_start:
+        year, month = cursor.year, cursor.month
+        period_start = cursor.date().replace(day=1)
+        last_day = calendar.monthrange(year, month)[1]
+        period_end = cursor.date().replace(day=last_day)
+
+        if not PaymentRecord.objects.filter(
+            staff=user, period_start=period_start, period_end=period_end,
+        ).exists():
+            PaymentRecord.objects.create(
+                staff=user,
+                amount=monthly,
+                period_start=period_start,
+                period_end=period_end,
+                month_label=cursor.strftime('%B %Y'),
+                payment_type='salary',
+                status='pending',
+            )
+
+        if month == 12:
+            cursor = cursor.replace(year=year + 1, month=1)
+        else:
+            cursor = cursor.replace(month=month + 1)

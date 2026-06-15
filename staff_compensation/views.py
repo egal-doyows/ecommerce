@@ -4,7 +4,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
 
-from .models import StaffCompensation, StaffBankDetails, PaymentRecord, generate_past_month_records, generate_current_month_record
+from .models import (
+    StaffCompensation, StaffBankDetails, PaymentRecord,
+    generate_past_month_records, generate_current_month_record,
+    generate_salary_records,
+)
 from .forms import CompensationForm, StaffBankDetailsForm, PaymentDisbursementForm
 
 
@@ -78,6 +82,7 @@ def staff_detail(request, user_id):
     # Auto-generate payment records for past and current months
     generate_past_month_records(staff_user)
     generate_current_month_record(staff_user)
+    generate_salary_records(staff_user)
 
     now = timezone.now()
 
@@ -111,6 +116,17 @@ def staff_detail(request, user_id):
     )['total'] or 0
     context['outstanding_commission'] = outstanding
     context['total_paid'] = total_paid
+
+    # Outstanding salary advance balance (recovered from wages at pay time).
+    from decimal import Decimal
+    emp = getattr(staff_user, 'hr_profile', None)
+    advance_outstanding = Decimal('0')
+    if emp is not None:
+        advance_outstanding = sum(
+            (a.outstanding_recovery for a in emp.advance_requests.filter(status='paid')),
+            Decimal('0'),
+        )
+    context['advance_outstanding'] = advance_outstanding
 
     return render(request, 'staff_compensation/detail.html', context)
 
@@ -185,36 +201,83 @@ def pay_staff(request, pk):
 
     remaining = payment.remaining
 
+    # Outstanding salary advances for this staff member (recovered from wages).
+    from decimal import Decimal
+    emp = getattr(payment.staff, 'hr_profile', None)
+    paid_advances = []
+    advance_outstanding = Decimal('0')
+    if emp is not None:
+        paid_advances = list(
+            emp.advance_requests.filter(status='paid').order_by('created_at')
+        )
+        advance_outstanding = sum(
+            (a.outstanding_recovery for a in paid_advances), Decimal('0')
+        )
+
     if request.method == 'POST':
-        form = PaymentDisbursementForm(request.POST, remaining_amount=remaining)
+        form = PaymentDisbursementForm(
+            request.POST, remaining_amount=remaining,
+            advance_outstanding=advance_outstanding,
+        )
         if form.is_valid():
+            from django.db import transaction
             account = form.cleaned_data['account']
             pay_amount = form.cleaned_data['amount']
+            recovery = form.cleaned_data.get('advance_recovery') or Decimal('0')
             notes = form.cleaned_data.get('notes', '')
-            if notes:
-                payment.notes = notes
-            payment.mark_paid(method='cash', pay_amount=pay_amount)
+            cash_out = pay_amount - recovery
 
-            # Record debit in accounts
-            from administration.models import record_staff_payment
-            record_staff_payment(payment, account=account, created_by=request.user, amount=pay_amount)
+            with transaction.atomic():
+                if notes:
+                    payment.notes = notes
+                # The staffer is credited the full pay_amount: the recovered
+                # portion settles their advance debt (value to them); only the
+                # cash portion leaves the account.
+                payment.mark_paid(method='cash', pay_amount=pay_amount)
+
+                if cash_out > 0:
+                    from administration.models import record_staff_payment
+                    record_staff_payment(
+                        payment, account=account,
+                        created_by=request.user, amount=cash_out,
+                    )
+
+                # Apply the recovery across outstanding advances, oldest first.
+                left = recovery
+                for adv in paid_advances:
+                    if left <= 0:
+                        break
+                    take = min(left, adv.outstanding_recovery)
+                    if take <= 0:
+                        continue
+                    adv.amount_recovered += take
+                    if adv.is_fully_recovered:
+                        adv.status = 'settled'
+                    adv.save(update_fields=['amount_recovered', 'status'])
+                    left -= take
 
             from menu.cache import get_restaurant_settings
             symbol = get_restaurant_settings().currency_symbol
+            recovery_msg = (
+                f' ({symbol} {recovery:,.2f} recovered from advance)' if recovery else ''
+            )
             if payment.status == 'paid':
                 messages.success(
                     request,
-                    f'{symbol} {pay_amount:,.2f} paid to {payment.staff.username} — fully paid.',
+                    f'{symbol} {pay_amount:,.2f} settled for {payment.staff.username}'
+                    f'{recovery_msg} — fully paid.',
                 )
             else:
                 messages.success(
                     request,
-                    f'{symbol} {pay_amount:,.2f} paid to {payment.staff.username} — '
-                    f'{symbol} {payment.remaining:,.2f} remaining.',
+                    f'{symbol} {pay_amount:,.2f} settled for {payment.staff.username}'
+                    f'{recovery_msg} — {symbol} {payment.remaining:,.2f} remaining.',
                 )
             return redirect('compensation-detail', payment.staff.pk)
     else:
-        form = PaymentDisbursementForm(remaining_amount=remaining)
+        form = PaymentDisbursementForm(
+            remaining_amount=remaining, advance_outstanding=advance_outstanding,
+        )
 
     # Build account data with balances for the template
     from administration.models import Account
@@ -234,6 +297,7 @@ def pay_staff(request, pk):
         'form': form,
         'payment': payment,
         'account_list': account_list,
+        'advance_outstanding': advance_outstanding,
     }
     return render(request, 'staff_compensation/pay.html', context)
 
