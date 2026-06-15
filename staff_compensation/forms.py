@@ -115,6 +115,17 @@ class PaymentDisbursementForm(forms.Form):
         }),
         label='Amount to Pay',
     )
+    advance_recovery = forms.DecimalField(
+        max_digits=10, decimal_places=2, min_value=0, required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0.00',
+        }),
+        label='Recover from advance',
+        help_text='Withheld from this payment to repay an outstanding salary advance.',
+    )
     notes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -127,11 +138,16 @@ class PaymentDisbursementForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.remaining_amount = kwargs.pop('remaining_amount', 0)
+        self.advance_outstanding = kwargs.pop('advance_outstanding', 0)
         super().__init__(*args, **kwargs)
         from administration.models import Account
         self.fields['account'].queryset = Account.objects.filter(is_active=True, account_type='cash')
         self.fields['amount'].widget.attrs['max'] = str(self.remaining_amount)
         self.fields['amount'].initial = self.remaining_amount
+        self.fields['advance_recovery'].widget.attrs['max'] = str(self.advance_outstanding)
+        if not self.advance_outstanding:
+            # No outstanding advance — hide the recovery field entirely.
+            self.fields.pop('advance_recovery')
 
     def _currency_symbol(self):
         from menu.models import RestaurantSettings
@@ -147,14 +163,33 @@ class PaymentDisbursementForm(forms.Form):
         return amount
 
     def clean(self):
+        from decimal import Decimal
         cleaned_data = super().clean()
         account = cleaned_data.get('account')
         amount = cleaned_data.get('amount')
-        if account and amount and account.balance < amount:
-            s = self._currency_symbol()
-            self.add_error(
-                'account',
-                f'Insufficient balance. {account.name} has {s} {account.balance:,.2f} '
-                f'but payment is {s} {amount:,.2f}.',
-            )
+        recovery = cleaned_data.get('advance_recovery') or Decimal('0')
+        s = self._currency_symbol()
+
+        if recovery:
+            if recovery > self.advance_outstanding:
+                self.add_error(
+                    'advance_recovery',
+                    f'Cannot exceed the outstanding advance of {s} {self.advance_outstanding:,.2f}.',
+                )
+            if amount and recovery > amount:
+                self.add_error(
+                    'advance_recovery',
+                    'Recovery cannot exceed the amount being paid.',
+                )
+
+        # The cash that actually leaves the account is amount minus the recovery
+        # (the advance cash already left when it was disbursed).
+        if account and amount:
+            cash_out = amount - recovery
+            if account.balance < cash_out:
+                self.add_error(
+                    'account',
+                    f'Insufficient balance. {account.name} has {s} {account.balance:,.2f} '
+                    f'but the cash to pay is {s} {cash_out:,.2f}.',
+                )
         return cleaned_data

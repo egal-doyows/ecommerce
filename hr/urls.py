@@ -41,6 +41,13 @@ urlpatterns = [
     path('leave/<int:pk>/reject/', views.leave_reject, name='hr-leave-reject'),
     path('leave/<int:pk>/cancel/', views.leave_cancel, name='hr-leave-cancel'),
 
+    # Advance management (manager)
+    path('advances/', views.advance_list, name='hr-advance-list'),
+    path('advances/<int:pk>/', views.advance_detail, name='hr-advance-detail'),
+    path('advances/<int:pk>/approve/', views.advance_approve, name='hr-advance-approve'),
+    path('advances/<int:pk>/reject/', views.advance_reject, name='hr-advance-reject'),
+    path('advances/<int:pk>/pay/', views.advance_pay, name='hr-advance-pay'),
+
     # Leave types (manager)
     path('leave-types/', views.leave_type_list, name='hr-leave-type-list'),
     path('leave-types/add/', views.leave_type_create, name='hr-leave-type-create'),

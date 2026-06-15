@@ -227,3 +227,30 @@ def record_staff_payment(payment_record, account=None, created_by=None, amount=N
         reference_id=payment_record.id,
         created_by=created_by,
     )
+
+
+def record_advance_disbursement(advance, account=None, created_by=None, amount=None):
+    """
+    Create a debit transaction when a salary advance is paid out to an employee.
+    Called from hr.views.advance_pay. Mirrors record_staff_payment: the cash
+    leaves the chosen account now; the advance is later recovered from wages,
+    where only the non-recovered portion of the wage hits the ledger — so the
+    money is never counted twice.
+    """
+    if account is None:
+        account_type = STAFF_PAYMENT_TO_ACCOUNT.get(advance.disbursement_method)
+        if not account_type:
+            return None
+        account = Account.get_by_type(account_type)
+
+    pay_amount = amount if amount is not None else advance.amount
+
+    return Transaction.objects.create(
+        account=account,
+        transaction_type='debit',
+        amount=pay_amount,
+        description=f'Salary advance — {advance.employee.full_name}',
+        reference_type='advance',
+        reference_id=advance.id,
+        created_by=created_by,
+    )

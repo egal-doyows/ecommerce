@@ -1,0 +1,158 @@
+{% extends "administration/base.html" %}
+{% load humanize %}
+
+{% block title %}Advance — {{ adv.employee.full_name }}{% endblock %}
+
+{% block content %}
+<div class="adm-page-header">
+    <div>
+        <h1>Salary Advance</h1>
+        <div class="breadcrumb-text">
+            <a href="{% url 'hr-dashboard' %}" style="color:var(--adm-accent);text-decoration:none;">HR</a> /
+            <a href="{% url 'hr-advance-list' %}" style="color:var(--adm-accent);text-decoration:none;">Advances</a> /
+            {{ adv.employee.full_name }}
+        </div>
+    </div>
+</div>
+
+<!-- Status banner + actions -->
+{% if adv.status == 'pending' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid #d97706;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+        <div style="font-weight:700;font-size:14px;color:#d97706;">Pending Approval</div>
+        <div style="font-size:11px;color:var(--adm-muted);">Awaiting manager review</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+        {% if is_own %}
+        <span style="font-size:12px;color:var(--adm-muted);align-self:center;">You can't action your own request.</span>
+        {% else %}
+        <form method="POST" action="{% url 'hr-advance-approve' adv.pk %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="adm-btn adm-btn-sm" style="background:var(--adm-success);color:#fff;padding:6px 16px;">
+                <i class="fa-solid fa-check" style="font-size:10px;"></i> Approve
+            </button>
+        </form>
+        <button type="button" onclick="document.getElementById('rejectModal').style.display='flex'" class="adm-btn adm-btn-sm" style="background:var(--adm-danger);color:#fff;padding:6px 16px;">
+            <i class="fa-solid fa-xmark" style="font-size:10px;"></i> Reject
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% elif adv.status == 'approved' %}
+<div class="adm-card" style="margin-bottom:20px;padding:16px 20px;border-left:3px solid var(--adm-accent);">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+            <div style="font-weight:700;font-size:14px;color:var(--adm-accent);">Approved — ready to pay</div>
+            <div style="font-size:12px;color:var(--adm-muted);">
+                Approved by {{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username|default:"—" }}
+                {% if adv.reviewed_at %} on {{ adv.reviewed_at|date:"d M Y, H:i" }}{% endif %}
+            </div>
+        </div>
+    </div>
+    <form method="POST" action="{% url 'hr-advance-pay' adv.pk %}" style="margin-top:14px;display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;"
+          onsubmit="return confirm('Pay this advance now? Cash leaves the chosen account and it will be recovered from wages.');">
+        {% csrf_token %}
+        <div class="adm-form-group" style="margin:0;">
+            <label class="adm-form-label" style="font-size:11px;">Disbursement method</label>
+            <select name="disbursement_method" class="adm-input" style="width:auto;padding:6px 10px;font-size:13px;"
+                    onchange="document.getElementById('mpesaWrap').style.display = this.value==='mpesa' ? 'block':'none';">
+                {% for code, label in method_choices %}
+                <option value="{{ code }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="adm-form-group" id="mpesaWrap" style="margin:0;display:none;">
+            <label class="adm-form-label" style="font-size:11px;">M-Pesa code</label>
+            <input type="text" name="mpesa_transaction_code" class="adm-input" style="width:150px;padding:6px 10px;font-size:13px;" placeholder="e.g. SLJ7X...">
+        </div>
+        <button type="submit" class="adm-btn adm-btn-primary" style="background:var(--adm-success);">
+            <i class="fa-solid fa-money-bill-wave"></i> Pay {{ restaurant.currency_symbol }} {{ adv.amount|floatformat:2|intcomma }}
+        </button>
+    </form>
+</div>
+{% elif adv.status == 'paid' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-accent);">
+    <div style="font-weight:700;font-size:14px;color:var(--adm-accent);">Paid — recovering from wages</div>
+    <div style="font-size:12px;color:var(--adm-muted);">
+        Paid by {{ adv.paid_by.get_full_name|default:adv.paid_by.username|default:"—" }}
+        {% if adv.paid_at %} on {{ adv.paid_at|date:"d M Y, H:i" }}{% endif %}
+        via {{ adv.get_disbursement_method_display }}{% if adv.mpesa_transaction_code %} ({{ adv.mpesa_transaction_code }}){% endif %}.
+        Recovered {{ restaurant.currency_symbol }} {{ adv.amount_recovered|floatformat:2|intcomma }} of {{ restaurant.currency_symbol }} {{ adv.amount|floatformat:2|intcomma }}.
+    </div>
+</div>
+{% elif adv.status == 'settled' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-success);">
+    <div style="font-weight:700;font-size:14px;color:var(--adm-success);">Settled — fully recovered</div>
+    <div style="font-size:12px;color:var(--adm-muted);">
+        Paid {{ adv.paid_at|date:"d M Y" }} and recovered in full from wages.
+    </div>
+</div>
+{% elif adv.status == 'rejected' %}
+<div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-danger);">
+    <div style="font-weight:700;font-size:14px;color:var(--adm-danger);">Rejected</div>
+    <div style="font-size:12px;color:var(--adm-muted);">
+        Rejected by {{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username|default:"—" }}
+        {% if adv.reviewed_at %} on {{ adv.reviewed_at|date:"d M Y, H:i" }}{% endif %}
+        {% if adv.review_note %} — {{ adv.review_note }}{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Summary -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(99,102,241,.1);color:var(--adm-accent);"><i class="fa-solid fa-user"></i></div>
+        <div>
+            <div class="adm-stat-value" style="font-size:16px;">
+                <a href="{% url 'hr-employee-detail' adv.employee.pk %}" style="color:inherit;text-decoration:none;">{{ adv.employee.full_name }}</a>
+            </div>
+            <div class="adm-stat-label">Employee</div>
+        </div>
+    </div>
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(40,167,69,.1);color:var(--adm-success);"><i class="fa-solid fa-money-bill"></i></div>
+        <div>
+            <div class="adm-stat-value" style="font-size:18px;">{{ restaurant.currency_symbol }} {{ adv.amount|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Amount</div>
+        </div>
+    </div>
+    {% if adv.status == 'paid' %}
+    <div class="adm-stat">
+        <div class="adm-stat-icon" style="background:rgba(245,158,11,.1);color:#d97706;"><i class="fa-solid fa-rotate-left"></i></div>
+        <div>
+            <div class="adm-stat-value" style="font-size:18px;">{{ restaurant.currency_symbol }} {{ adv.outstanding_recovery|floatformat:2|intcomma }}</div>
+            <div class="adm-stat-label">Outstanding to recover</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if adv.reason %}
+<div class="adm-card" style="margin-bottom:24px;">
+    <h3 style="font-size:14px;font-weight:700;margin:0 0 10px;"><i class="fa-solid fa-message" style="color:var(--adm-accent);font-size:12px;"></i> Reason</h3>
+    <p style="font-size:13px;margin:0;color:var(--adm-muted);">{{ adv.reason }}</p>
+</div>
+{% endif %}
+
+<div style="font-size:11px;color:var(--adm-muted);">Requested on {{ adv.created_at|date:"d M Y, H:i" }}</div>
+
+<!-- Reject Modal -->
+{% if adv.status == 'pending' and not is_own %}
+<div id="rejectModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div class="adm-card" style="max-width:450px;width:90%;margin:0;">
+        <h3 style="font-size:16px;font-weight:700;margin:0 0 16px;"><i class="fa-solid fa-ban" style="color:var(--adm-danger);"></i> Reject Advance</h3>
+        <form method="POST" action="{% url 'hr-advance-reject' adv.pk %}">
+            {% csrf_token %}
+            <div class="adm-form-group" style="margin-bottom:16px;">
+                <label class="adm-form-label">Reason for rejection</label>
+                <textarea name="note" class="adm-input" rows="3" placeholder="Explain why this advance is being rejected..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="button" onclick="document.getElementById('rejectModal').style.display='none'" class="adm-btn adm-btn-outline adm-btn-sm">Cancel</button>
+                <button type="submit" class="adm-btn adm-btn-sm" style="background:var(--adm-danger);color:#fff;"><i class="fa-solid fa-ban"></i> Reject</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
