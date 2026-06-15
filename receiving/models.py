@@ -22,6 +22,14 @@ class GoodsReceipt(models.Model):
     received_date = models.DateField(default=timezone.now)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Per-form-load token that makes receiving idempotent: a replayed or
+    # double-submitted POST carries the same key, so the second one returns the
+    # already-created receipt instead of recording duplicate stock/invoice.
+    # Nullable (multiple NULLs allowed on both SQLite and Postgres) so receipts
+    # created without a token — e.g. older forms — are unaffected.
+    idempotency_key = models.CharField(
+        max_length=64, null=True, blank=True, unique=True, editable=False,
+    )
 
     class Meta:
         ordering = ['-created_at']

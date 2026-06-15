@@ -1,4 +1,5 @@
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -27,6 +28,59 @@ def _is_supervisor(user):
 def _can_receive_po(user, po):
     """Managers/superusers receive any PO; supervisors receive their own."""
     return _is_manager(user) or (_is_supervisor(user) and po.created_by_id == user.id)
+
+
+# ── Goods-receipt correction window ──────────────────────────────────
+#
+# A fresh receipt can be cleanly corrected (undone + re-received) for a bounded
+# window after it was recorded — long enough to catch a same-shift data-entry
+# error, short enough that the stock ledger and supplier invoices settle. The
+# window length is configurable in Restaurant Settings. Once it lapses, only a
+# manager can still Reverse the receipt (unbounded escape hatch).
+
+def _edit_window_hours():
+    from menu.cache import get_restaurant_settings
+    return int(getattr(get_restaurant_settings(), 'receipt_edit_window_hours', 24) or 0)
+
+
+def _edit_deadline(receipt):
+    return receipt.created_at + timedelta(hours=_edit_window_hours())
+
+
+def _within_edit_window(receipt):
+    return tz.now() <= _edit_deadline(receipt)
+
+
+def _can_correct_receipt(user, receipt):
+    """Who may correct a receipt: a manager, or the supervisor who recorded it.
+    Time-bounding is checked separately via `_within_edit_window`."""
+    return _is_manager(user) or (
+        _is_supervisor(user) and receipt.received_by_id == user.id
+    )
+
+
+def _reverse_receipt(receipt, invoice, po):
+    """Undo a goods receipt in one atomic block: decrement the stock it added,
+    roll the PO back to draft, and delete the auto-generated supplier invoice
+    and the GRN itself. Shared by Reverse (manager, unbounded) and Correct
+    (bounded). The caller owns permission checks, the invoice-payment guard,
+    and audit logging."""
+    from django.db.models import F
+    from menu.models import InventoryItem
+    with transaction.atomic():
+        for gi in receipt.items.select_related('po_item'):
+            InventoryItem.objects.filter(pk=gi.po_item.inventory_item_id).update(
+                stock_quantity=F('stock_quantity') - gi.received_quantity,
+            )
+            # PurchaseOrderItem.received_quantity is derived from the GRN rows,
+            # so deleting this receipt below rolls it back automatically.
+        if po.status == 'received':
+            po.status = 'draft'
+            po.received_date = None
+            po.save(update_fields=['status', 'received_date'])
+        if invoice:
+            invoice.delete()
+        receipt.delete()
 
 
 def manager_required(view_func):
@@ -181,11 +235,28 @@ def receipt_create(request, po_pk):
                 .get(pk=po.pk)
             )
 
+            # Idempotency: this token is minted once per form load (GET) and
+            # travels with the POST. A double-submit, browser retry, or replayed
+            # request carries the same token — under the PO lock above we check
+            # for an existing receipt and return it instead of recording stock
+            # and an invoice twice. The unique constraint on the column is the
+            # hard backstop if this check is ever bypassed.
+            idem_key = request.POST.get('idempotency_key', '').strip() or None
+            if idem_key:
+                existing = GoodsReceipt.objects.filter(idempotency_key=idem_key).first()
+                if existing:
+                    messages.info(
+                        request,
+                        f'{existing.grn_number} was already recorded for {po.po_number}.',
+                    )
+                    return redirect('receipt-detail', pk=existing.pk)
+
             receipt = GoodsReceipt.objects.create(
                 purchase_order=po,
                 received_by=request.user,
                 received_date=tz.now().date(),
                 notes=notes,
+                idempotency_key=idem_key,
             )
 
             total_received_value = Decimal('0')
@@ -306,6 +377,7 @@ def receipt_create(request, po_pk):
         'po': po,
         'items_data': items_data,
         'currency_symbol': symbol,
+        'idempotency_key': secrets.token_hex(16),
     })
 
 
@@ -327,10 +399,19 @@ def receipt_detail(request, pk):
     from menu.cache import get_restaurant_settings
     symbol = get_restaurant_settings().currency_symbol
 
+    can_correct = (
+        _can_correct_receipt(request.user, receipt)
+        and _within_edit_window(receipt)
+    )
+
     return render(request, 'receiving/receipt_detail.html', {
         'receipt': receipt,
         'items': items,
         'currency_symbol': symbol,
+        'can_reverse': _is_manager(request.user),
+        'can_correct': can_correct,
+        'edit_deadline': _edit_deadline(receipt),
+        'edit_window_hours': _edit_window_hours(),
     })
 
 
@@ -732,25 +813,9 @@ def receipt_reverse(request, pk):
             'receipt': receipt, 'invoice': invoice,
         })
 
-    from django.db.models import F
-    from menu.models import InventoryItem
-
     grn = receipt.grn_number
     po = receipt.purchase_order
-    with transaction.atomic():
-        for gi in receipt.items.select_related('po_item'):
-            InventoryItem.objects.filter(pk=gi.po_item.inventory_item_id).update(
-                stock_quantity=F('stock_quantity') - gi.received_quantity,
-            )
-            # PurchaseOrderItem.received_quantity is derived from the GRN rows,
-            # so deleting this receipt below rolls it back automatically.
-        if po.status == 'received':
-            po.status = 'draft'
-            po.received_date = None
-            po.save(update_fields=['status', 'received_date'])
-        if invoice:
-            invoice.delete()
-        receipt.delete()
+    _reverse_receipt(receipt, invoice, po)
 
     import logging
     logging.getLogger('audit').info(
@@ -759,3 +824,67 @@ def receipt_reverse(request, pk):
     )
     messages.success(request, f'{grn} reversed — stock and the {po.po_number} invoice were rolled back.')
     return redirect('receipt-list')
+
+
+@staff_required
+def receipt_correct(request, pk):
+    """Cleanly correct a fresh goods receipt that was entered with an error.
+
+    Within the configurable edit window, the person who received the goods (or a
+    manager) can undo the receipt — reversing its stock and supplier invoice and
+    reopening the PO — and is taken straight back to the receive form to re-enter
+    the correct quantities. This is the bounded, supervisor-accessible sibling of
+    the manager-only, unbounded Reverse.
+    """
+    receipt = get_object_or_404(
+        GoodsReceipt.objects.select_related('purchase_order'), pk=pk,
+    )
+
+    if not _can_correct_receipt(request.user, receipt):
+        messages.error(request, 'You can only correct goods receipts you recorded.')
+        return redirect('receipt-detail', pk=receipt.pk)
+
+    if not _within_edit_window(receipt):
+        hrs = _edit_window_hours()
+        messages.error(
+            request,
+            f'The {hrs}-hour correction window for {receipt.grn_number} has '
+            'passed. Ask a manager to reverse it instead.',
+        )
+        return redirect('receipt-detail', pk=receipt.pk)
+
+    invoice = SupplierTransaction.objects.filter(
+        reference=receipt.grn_number, transaction_type='debit',
+    ).first()
+
+    if invoice and invoice.amount_paid and invoice.amount_paid > 0:
+        messages.error(
+            request,
+            f'{receipt.grn_number} has a supplier payment recorded against it. '
+            'Unwind that in the supplier ledger before correcting this receipt.',
+        )
+        return redirect('receipt-detail', pk=receipt.pk)
+
+    if request.method != 'POST':
+        return render(request, 'receiving/receipt_correct_confirm.html', {
+            'receipt': receipt,
+            'invoice': invoice,
+            'edit_deadline': _edit_deadline(receipt),
+            'edit_window_hours': _edit_window_hours(),
+        })
+
+    grn = receipt.grn_number
+    po = receipt.purchase_order
+    _reverse_receipt(receipt, invoice, po)
+
+    import logging
+    logging.getLogger('audit').info(
+        "Goods receipt corrected (reversed for re-entry): grn=%s po=%s by=%s",
+        grn, po.po_number, request.user.username,
+    )
+    messages.info(
+        request,
+        f'{grn} was undone for correction — re-enter the correct quantities '
+        f'for {po.po_number} below.',
+    )
+    return redirect('receipt-create', po_pk=po.pk)

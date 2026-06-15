@@ -4,6 +4,7 @@ from decimal import Decimal
 from functools import wraps
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -259,10 +260,17 @@ def po_add_item(request, pk):
 
 @staff_required
 def po_update_item(request, pk, item_pk):
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def _fail(msg):
+        if is_ajax:
+            return JsonResponse({'ok': False, 'error': msg}, status=400)
+        messages.error(request, msg)
+        return redirect('po-detail', pk=po.pk)
+
     po = get_object_or_404(PurchaseOrder, pk=pk)
     if not _can_edit_po(request.user, po):
-        messages.error(request, 'You do not have permission to edit this order.')
-        return redirect('po-detail', pk=po.pk)
+        return _fail('You do not have permission to edit this order.')
 
     item = get_object_or_404(PurchaseOrderItem, pk=item_pk, purchase_order=po)
 
@@ -271,16 +279,21 @@ def po_update_item(request, pk, item_pk):
             quantity = Decimal(request.POST.get('quantity', '1')).quantize(Decimal('0.01'))
             unit_price = Decimal(request.POST.get('unit_price', '0')).quantize(Decimal('0.01'))
         except Exception:
-            messages.error(request, 'Invalid values.')
-            return redirect('po-detail', pk=po.pk)
+            return _fail('Invalid values.')
 
         if quantity <= 0:
-            messages.error(request, 'Quantity must be greater than zero.')
-            return redirect('po-detail', pk=po.pk)
+            return _fail('Quantity must be greater than zero.')
 
         item.quantity = quantity
         item.unit_price = unit_price
         item.save()
+
+        if is_ajax:
+            return JsonResponse({
+                'ok': True,
+                'line_total': str(item.line_total),
+                'po_total': str(po.total),
+            })
         messages.success(request, f'{item.inventory_item.name} updated.')
 
     return redirect('po-detail', pk=po.pk)

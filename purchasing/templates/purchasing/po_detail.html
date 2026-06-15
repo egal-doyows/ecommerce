@@ -155,13 +155,9 @@
                         <td style="font-weight:600;">{{ item.inventory_item.name }}</td>
                         <td style="color:var(--adm-muted);font-size:12px;">{{ item.inventory_item.get_unit_display }}</td>
                         <td style="text-align:right;">
-                            <form method="POST" action="{% url 'po-update-item' po.pk item.pk %}" id="updateForm{{ item.pk }}" style="display:none;">
-                                {% csrf_token %}
-                                <input type="hidden" name="quantity" id="hQty{{ item.pk }}">
-                                <input type="hidden" name="unit_price" id="hPrice{{ item.pk }}">
-                            </form>
                             <input type="number" value="{{ item.quantity }}" step="0.01" min="0.01"
                                    class="adm-input row-qty" data-pk="{{ item.pk }}"
+                                   data-url="{% url 'po-update-item' po.pk item.pk %}"
                                    style="width:75px;height:30px;text-align:center;font-size:12px;padding:4px;">
                         </td>
                         <td style="text-align:right;">
@@ -334,6 +330,8 @@ function recalcGrandTotal() {
     document.getElementById('poTotal').textContent = fmt(total);
 }
 
+const csrfToken = document.querySelector('#addItemForm [name=csrfmiddlewaretoken]').value;
+
 function scheduleAutoSave(pk) {
     recalcRow(pk);
     clearTimeout(saveTimers[pk]);
@@ -342,9 +340,29 @@ function scheduleAutoSave(pk) {
         const priceEl = document.querySelector('.row-price[data-pk="' + pk + '"]');
         const qty = parseFloat(qtyEl.value);
         if (!qty || qty <= 0) return;
-        document.getElementById('hQty' + pk).value = qtyEl.value;
-        document.getElementById('hPrice' + pk).value = priceEl.value;
-        document.getElementById('updateForm' + pk).submit();
+
+        const body = new URLSearchParams();
+        body.set('quantity', qtyEl.value);
+        body.set('unit_price', priceEl.value);
+
+        fetch(qtyEl.dataset.url, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            if (data && data.ok) {
+                const totalEl = document.querySelector('.row-total[data-pk="' + pk + '"]');
+                totalEl.textContent = fmt(parseFloat(data.line_total));
+                recalcGrandTotal();
+            }
+        })
+        .catch(function() { /* network error: leave inline values, no page disruption */ });
     }, 800);
 }
 

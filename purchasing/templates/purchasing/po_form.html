@@ -15,7 +15,7 @@
 </div>
 
 <div class="adm-card" style="max-width:600px;">
-    <form method="POST">
+    <form method="POST" id="poForm">
         {% csrf_token %}
         {% for field in form %}
         <div class="adm-form-group">
@@ -34,4 +34,29 @@
         </div>
     </form>
 </div>
+
+<script>
+    // ── Guard against double-submit (e.g. double-click) ──
+    // Stops a fast second click from creating a duplicate purchase order.
+    (function () {
+        const form = document.getElementById('poForm');
+        form.addEventListener('submit', function (e) {
+            if (form.dataset.submitting === '1') {
+                e.preventDefault();
+                return;
+            }
+            form.dataset.submitting = '1';
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                // Defer disabling so the in-flight submission isn't cancelled.
+                setTimeout(function () {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                    btn.style.cursor = 'not-allowed';
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+                }, 0);
+            }
+        });
+    })();
+</script>
 {% endblock %}
