@@ -38,8 +38,9 @@
     </div>
 </div>
 
-<form method="POST">
+<form method="POST" id="receiptForm">
     {% csrf_token %}
+    <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
 
     <div class="adm-card" style="padding:0;margin-bottom:24px;">
         <table class="adm-table">
@@ -155,5 +156,30 @@
         input.addEventListener('input', updateTotals);
     });
     updateTotals();
+
+    // ── Guard against double-submit (e.g. double-click) ──
+    // Receiving updates stock and creates a supplier invoice, so a second
+    // submission must never go through. Block repeat submits and show a
+    // processing state on the button.
+    (function () {
+        const form = document.getElementById('receiptForm');
+        form.addEventListener('submit', function (e) {
+            if (form.dataset.submitting === '1') {
+                e.preventDefault();
+                return;
+            }
+            form.dataset.submitting = '1';
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) {
+                // Defer disabling so the in-flight submission isn't cancelled.
+                setTimeout(function () {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                    btn.style.cursor = 'not-allowed';
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing…';
+                }, 0);
+            }
+        });
+    })();
 </script>
 {% endblock %}

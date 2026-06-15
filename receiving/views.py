@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime
 from decimal import Decimal
 
@@ -181,11 +182,28 @@ def receipt_create(request, po_pk):
                 .get(pk=po.pk)
             )
 
+            # Idempotency: this token is minted once per form load (GET) and
+            # travels with the POST. A double-submit, browser retry, or replayed
+            # request carries the same token — under the PO lock above we check
+            # for an existing receipt and return it instead of recording stock
+            # and an invoice twice. The unique constraint on the column is the
+            # hard backstop if this check is ever bypassed.
+            idem_key = request.POST.get('idempotency_key', '').strip() or None
+            if idem_key:
+                existing = GoodsReceipt.objects.filter(idempotency_key=idem_key).first()
+                if existing:
+                    messages.info(
+                        request,
+                        f'{existing.grn_number} was already recorded for {po.po_number}.',
+                    )
+                    return redirect('receipt-detail', pk=existing.pk)
+
             receipt = GoodsReceipt.objects.create(
                 purchase_order=po,
                 received_by=request.user,
                 received_date=tz.now().date(),
                 notes=notes,
+                idempotency_key=idem_key,
             )
 
             total_received_value = Decimal('0')
@@ -306,6 +324,7 @@ def receipt_create(request, po_pk):
         'po': po,
         'items_data': items_data,
         'currency_symbol': symbol,
+        'idempotency_key': secrets.token_hex(16),
     })
 
 
