@@ -445,10 +445,73 @@
             cursor: pointer;
         }
         @media (max-width: 768px) {
-            .adm-sidebar { display: none; }
-            .adm-sidebar.open { display: block; width: 100%; z-index: 95; }
-            .adm-main { margin-left: 0; padding: 20px 16px; }
-            .adm-menu-toggle { display: block; }
+            /* WhatsApp-style: the sidebar becomes a horizontally-scrollable
+               bottom tab bar. Reuses the existing links (and their role
+               conditions) — no duplicate markup. */
+            .adm-sidebar {
+                top: auto;
+                bottom: 0;
+                left: 0; right: 0;
+                width: 100%;
+                height: auto;
+                padding: 0;
+                padding-bottom: env(safe-area-inset-bottom);
+                border-right: none;
+                border-top: 1px solid var(--adm-border);
+                display: flex;
+                flex-direction: row;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                z-index: 95;
+            }
+            .adm-sidebar::-webkit-scrollbar { display: none; }
+
+            /* Flatten the grouped sections into one continuous row. */
+            .adm-nav-group { display: contents; }
+            .adm-nav-label { display: none; }
+
+            /* Each link: compact icon-over-label tab. */
+            .adm-nav-link {
+                position: relative;
+                flex: 0 0 auto;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                min-width: 66px;
+                padding: 8px 12px;
+                font-size: 10px;
+                font-weight: 500;
+                text-align: center;
+                white-space: nowrap;
+                line-height: 1.2;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+            }
+            .adm-nav-link i { width: auto; font-size: 17px; opacity: .8; }
+            .adm-nav-link.active {
+                border-left-color: transparent;
+                border-bottom-color: var(--adm-accent);
+                background: rgba(184, 62, 30,.06);
+            }
+            /* Badges (the only <span> children) pin to the tab's top-right. */
+            .adm-nav-link > span {
+                position: absolute;
+                top: 3px;
+                right: 8px;
+                margin: 0 !important;
+            }
+
+            /* Content clears the fixed bottom bar. */
+            .adm-main { margin-left: 0; padding: 20px 16px calc(78px + env(safe-area-inset-bottom)); }
+
+            /* Hamburger no longer needed — the bar is always visible. */
+            .adm-menu-toggle { display: none; }
+
+            /* Keep the PWA status pill above the bottom bar. */
+            #pwa-status { bottom: calc(66px + env(safe-area-inset-bottom)) !important; }
         }
 
         select.adm-input { appearance: auto; }
