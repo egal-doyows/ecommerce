@@ -894,7 +894,7 @@
                             {% else %}
                             <div class="pos-item-noimg"><i class="fa fa-cutlery"></i></div>
                             {% endif %}
-                            <span class="pos-item-badge"><i class="fa fa-clock-o"></i> {{ product.preparation_time }}m</span>
+                            <span class="pos-item-badge"><i class="fa fa-clock"></i> {{ product.preparation_time }}m</span>
                         </div>
                         <div class="pos-item-info">
                             <div class="pos-item-name">{{ product.title|capfirst }}</div>
@@ -922,7 +922,7 @@
     <!-- Order Panel -->
     <div class="pos-order-panel">
         <div class="pos-order-header">
-            <h3><i class="fa fa-file-text-o"></i> Current Order</h3>
+            <h3><i class="fa fa-file-lines"></i> Current Order</h3>
             <span class="pos-order-count" id="order-count">{{ cart|length }} item{{ cart|length|pluralize }}</span>
         </div>
 
