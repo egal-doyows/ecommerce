@@ -116,6 +116,54 @@
         }
         .adm-topbar-user span { color: rgba(255,255,255,.8); font-size: 13px; font-weight: 500; }
 
+        /* ── User dropdown ───────────────────────────────────── */
+        .adm-user-menu { position: relative; }
+        .adm-user-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: background .15s;
+        }
+        .adm-user-btn:hover { background: rgba(255,255,255,.08); }
+        .adm-user-caret { color: rgba(255,255,255,.5); font-size: 10px; }
+        .adm-user-dropdown {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            width: 224px;
+            background: #fff;
+            border: 1px solid var(--adm-border);
+            border-radius: 12px;
+            box-shadow: 0 8px 28px rgba(0,0,0,.18);
+            overflow: hidden;
+            display: none;
+            z-index: 200;
+        }
+        .adm-user-dropdown.open { display: block; }
+        .adm-user-head { padding: 12px 16px; border-bottom: 1px solid var(--adm-border); }
+        .adm-user-name { margin: 0; font-size: 13px; font-weight: 700; color: var(--adm-text); }
+        .adm-user-role { margin: 2px 0 0; font-size: 11px; color: var(--adm-muted); }
+        .adm-user-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--adm-text);
+            text-decoration: none;
+            transition: background .15s;
+        }
+        .adm-user-item i { width: 16px; text-align: center; color: var(--adm-muted); font-size: 13px; }
+        .adm-user-item:hover { background: var(--adm-bg); }
+        .adm-user-item-danger { color: var(--adm-danger); border-top: 1px solid var(--adm-border); }
+        .adm-user-item-danger i { color: var(--adm-danger); }
+        .adm-user-item-danger:hover { background: rgba(231,76,60,.06); }
+
         /* ── Sidebar ─────────────────────────────────────────── */
         .adm-sidebar {
             position: fixed;
@@ -544,11 +592,22 @@
         </a>
         {% endif %}
         <a href="{% url 'pos' %}"><i class="fa-solid fa-arrow-left"></i> Back to POS</a>
-        <div class="adm-topbar-user">
-            <div class="avatar">{{ user.username|first|upper }}</div>
-            <span>{{ user.username|capfirst }}</span>
+        <div class="adm-user-menu" id="admUserMenu">
+            <button type="button" class="adm-topbar-user adm-user-btn"
+                    onclick="document.getElementById('admUserDropdown').classList.toggle('open')">
+                <div class="avatar">{{ user.username|first|upper }}</div>
+                <span>{{ user.username|capfirst }}</span>
+                <i class="fa-solid fa-chevron-down adm-user-caret"></i>
+            </button>
+            <div class="adm-user-dropdown" id="admUserDropdown">
+                <div class="adm-user-head">
+                    <p class="adm-user-name">{{ user.username|capfirst }}</p>
+                    <p class="adm-user-role">{% if user.is_superuser %}Admin{% elif is_manager %}Manager{% elif is_supervisor %}Supervisor{% else %}Staff{% endif %}</p>
+                </div>
+                <a href="{% url 'dashboard' %}" class="adm-user-item"><i class="fa-solid fa-user"></i> My Profile</a>
+                <a href="{% url 'user-logout' %}" class="adm-user-item adm-user-item-danger"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out</a>
+            </div>
         </div>
-        <a href="{% url 'user-logout' %}"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
     </div>
 </div>
 
@@ -698,6 +757,14 @@
     {% block content %}{% endblock %}
 </main>
 
+<script>
+    // Close the user dropdown when clicking outside it.
+    document.addEventListener('click', function (e) {
+        var menu = document.getElementById('admUserMenu');
+        var dd = document.getElementById('admUserDropdown');
+        if (menu && dd && !menu.contains(e.target)) dd.classList.remove('open');
+    });
+</script>
 <script src="/static/js/pwa.js"></script>
 </body>
 </html>
