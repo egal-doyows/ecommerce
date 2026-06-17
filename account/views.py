@@ -170,8 +170,14 @@ def waiter_login(request):
                     error = 'This account is not active.'
                 else:
                     user = waiter_code.user
-                    auth.login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-                    return _get_post_login_redirect(request)
+                    # Block commission-only staff here too, mirroring my_login —
+                    # otherwise the 6-digit code is a bypass for a disabled login.
+                    comp = getattr(user, 'compensation', None)
+                    if comp and comp.is_commission_only:
+                        error = 'This account is commission-only and cannot log in. Please contact your manager.'
+                    else:
+                        auth.login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                        return _get_post_login_redirect(request)
             except WaiterCode.DoesNotExist:
                 auth_logger.warning('Failed waiter login attempt with invalid code from IP=%s', request.META.get('REMOTE_ADDR'))
                 error = 'Invalid code. Please try again.'
