@@ -254,3 +254,41 @@ def record_advance_disbursement(advance, account=None, created_by=None, amount=N
         reference_id=advance.id,
         created_by=created_by,
     )
+
+
+class IdempotencyKey(models.Model):
+    """One row per consumed form-submission token.
+
+    Makes money/stock-mutating POST handlers safe against double-submit
+    (double-click, network retry, back-button re-POST). Centralized — unlike
+    the per-model `idempotency_key` on GoodsReceipt — for handlers that don't
+    own a single keyable record (a payment) or that span several models
+    (a waste log + its items). Claim the token INSIDE the handler's
+    transaction so a rolled-back submit doesn't burn it.
+    """
+    key = models.CharField(max_length=64, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.key
+
+
+def claim_idempotency_key(token):
+    """Atomically claim a submission token.
+
+    Returns True if the token is fresh (the caller should proceed) or False if
+    it was already used (duplicate submit — skip the side effects). A blank
+    token returns True (nothing to dedup on). Call this INSIDE the handler's
+    `transaction.atomic()` block so the claim rolls back together with the work
+    if anything fails, leaving a genuine retry free to proceed.
+    """
+    token = (token or '').strip()
+    if not token:
+        return True
+    from django.db import IntegrityError, transaction
+    try:
+        with transaction.atomic():
+            IdempotencyKey.objects.create(key=token)
+        return True
+    except IntegrityError:
+        return False

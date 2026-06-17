@@ -1,16 +1,17 @@
 import io
+import secrets
 from datetime import datetime
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import models
+from django.db import models, transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone as tz
 
-from administration.models import Account, Transaction
+from administration.models import Account, Transaction, claim_idempotency_key
 from menu.cache import get_restaurant_settings
 
 from .models import Expense, ExpenseCategory
@@ -217,23 +218,33 @@ def expense_create(request):
             status = 'pending'
             approved_by = None
 
-        expense = Expense.objects.create(
-            category=category,
-            description=description,
-            amount=amount,
-            date=expense_date,
-            payment_method=payment_method,
-            receipt_number=receipt_number,
-            vendor=vendor,
-            recurring=recurring,
-            notes=notes,
-            status=status,
-            recorded_by=request.user,
-            approved_by=approved_by,
-        )
+        # Create the expense (and, for auto-approved ones, post the ledger
+        # debit) atomically, guarding against a double-submit that would
+        # otherwise create two expenses and two ledger entries.
+        with transaction.atomic():
+            if not claim_idempotency_key(request.POST.get('idempotency_key', '')):
+                messages.info(request, 'This expense was already submitted.')
+                return redirect('expense-list')
+
+            expense = Expense.objects.create(
+                category=category,
+                description=description,
+                amount=amount,
+                date=expense_date,
+                payment_method=payment_method,
+                receipt_number=receipt_number,
+                vendor=vendor,
+                recurring=recurring,
+                notes=notes,
+                status=status,
+                recorded_by=request.user,
+                approved_by=approved_by,
+            )
+
+            if status == 'approved':
+                _record_expense_transaction(expense, user=request.user)
 
         if status == 'approved':
-            _record_expense_transaction(expense, user=request.user)
             messages.success(request, f'Expense {expense.expense_number} approved automatically.')
         else:
             messages.success(request, f'Expense request {expense.expense_number} submitted for approval.')
@@ -256,6 +267,7 @@ def expense_create(request):
         'user_is_manager': user_is_manager,
         'auto_approve_limit': MANAGER_AUTO_APPROVE_LIMIT,
         'account_balances_json': account_balances,
+        'idempotency_key': secrets.token_hex(16),
     })
 
 
