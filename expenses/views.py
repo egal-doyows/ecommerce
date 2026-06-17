@@ -1,4 +1,5 @@
 import io
+import logging
 import secrets
 from datetime import datetime
 from decimal import Decimal
@@ -210,17 +211,11 @@ def expense_create(request):
             except ExpenseCategory.DoesNotExist:
                 pass
 
-        # Managers auto-approve under threshold; otherwise pending
-        if user_is_manager and amount < MANAGER_AUTO_APPROVE_LIMIT:
-            status = 'approved'
-            approved_by = request.user
-        else:
-            status = 'pending'
-            approved_by = None
-
-        # Create the expense (and, for auto-approved ones, post the ledger
-        # debit) atomically, guarding against a double-submit that would
-        # otherwise create two expenses and two ledger entries.
+        # No self-approval: every expense starts pending and needs a different
+        # approver — even a manager's own small one. Auto-approving your own
+        # sub-threshold expense contradicted expense_approve's "cannot approve
+        # your own" rule and posted the ledger with no second person. The ledger
+        # debit is now only ever posted by expense_approve.
         with transaction.atomic():
             if not claim_idempotency_key(request.POST.get('idempotency_key', '')):
                 messages.info(request, 'This expense was already submitted.')
@@ -236,19 +231,12 @@ def expense_create(request):
                 vendor=vendor,
                 recurring=recurring,
                 notes=notes,
-                status=status,
+                status='pending',
                 recorded_by=request.user,
-                approved_by=approved_by,
+                approved_by=None,
             )
 
-            if status == 'approved':
-                _record_expense_transaction(expense, user=request.user)
-
-        if status == 'approved':
-            messages.success(request, f'Expense {expense.expense_number} approved automatically.')
-        else:
-            messages.success(request, f'Expense request {expense.expense_number} submitted for approval.')
-
+        messages.success(request, f'Expense request {expense.expense_number} submitted for approval.')
         return redirect('expense-detail', pk=expense.pk)
 
     # Account balances for JS validation
@@ -355,10 +343,26 @@ def expense_edit(request, pk):
 
         expense.save()
 
-        # Update financial transaction if approved and amount/payment changed
+        # Changing an approved expense's amount/payment can't silently re-post
+        # the ledger: reverse the original entry and send it back for a fresh
+        # approval by someone else (the ledger is re-posted only on re-approval).
         if was_approved and (expense.amount != old_amount or expense.payment_method != old_payment):
-            _reverse_expense_transaction(expense)
-            _record_expense_transaction(expense, user=request.user)
+            with transaction.atomic():
+                _reverse_expense_transaction(expense)
+                expense.status = 'pending'
+                expense.approved_by = None
+                expense.save(update_fields=['status', 'approved_by'])
+            logging.getLogger('audit').info(
+                "Approved expense edited, returned to pending: expense=%s "
+                "old_amount=%s new_amount=%s by=%s",
+                expense.expense_number, old_amount, expense.amount, request.user.username,
+            )
+            messages.success(
+                request,
+                f'Expense {expense.expense_number} changed after approval — the '
+                'posted amount was reversed and it now needs re-approval.',
+            )
+            return redirect('expense-detail', pk=expense.pk)
 
         messages.success(request, f'Expense {expense.expense_number} updated.')
         return redirect('expense-detail', pk=expense.pk)

@@ -81,9 +81,9 @@
     </div>
 
     {% if user_is_manager %}
-    <div style="padding:12px 16px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
-        <i class="fa-solid fa-info-circle" style="color:var(--adm-accent);margin-right:6px;"></i>
-        Expenses under <strong>{{ currency_symbol }} {{ auto_approve_limit|floatformat:0|intcomma }}</strong> will be approved automatically. Amounts of {{ currency_symbol }} {{ auto_approve_limit|floatformat:0|intcomma }} and above require approval from another manager.
+    <div style="padding:12px 16px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
+        <i class="fa-solid fa-clock" style="color:#d97706;margin-right:6px;"></i>
+        This expense will be submitted for approval by <strong>another manager</strong>. No funds are deducted until it's approved.
     </div>
     {% else %}
     <div style="padding:12px 16px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:8px;margin-bottom:20px;font-size:12px;color:var(--adm-muted);">
