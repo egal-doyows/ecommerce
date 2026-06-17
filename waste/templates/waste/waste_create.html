@@ -15,6 +15,7 @@
 
 <form method="POST" id="wasteForm">
     {% csrf_token %}
+    <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
 
     <!-- Reason & date -->
     <div class="adm-card" style="margin-bottom:20px;">

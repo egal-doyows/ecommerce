@@ -1,19 +1,25 @@
 import io
+import secrets
 from datetime import datetime
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import models
+from django.db import models, transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone as tz
 
+from administration.models import claim_idempotency_key
 from menu.cache import get_restaurant_settings
 from menu.models import InventoryItem
 
 from .models import WasteLog, WasteItem
+
+
+class _WasteStockError(Exception):
+    """Raised mid-create when an item can't be deducted, to roll the log back."""
 
 
 # ---------------------------------------------------------------------------
@@ -150,24 +156,42 @@ def waste_create(request):
             messages.error(request, 'Please add at least one item with a valid quantity.')
             return redirect('waste-create')
 
-        # Create the waste log
-        log = WasteLog.objects.create(
-            reason=reason,
-            date=waste_date,
-            notes=notes,
-            logged_by=request.user,
-        )
+        # Create the log + deduct stock atomically, guarding against a
+        # double-submit re-recording the same waste and a deduct() that fails
+        # on insufficient stock (which previously logged waste without removing
+        # any stock).
+        short_item = None
+        try:
+            with transaction.atomic():
+                if not claim_idempotency_key(request.POST.get('idempotency_key', '')):
+                    messages.info(request, 'This waste log was already recorded.')
+                    return redirect('waste-list')
 
-        for wi in waste_items:
-            WasteItem.objects.create(
-                waste_log=log,
-                inventory_item=wi['inventory_item'],
-                quantity=wi['quantity'],
-                unit_cost=wi['unit_cost'],
-                notes=wi['notes'],
+                log = WasteLog.objects.create(
+                    reason=reason,
+                    date=waste_date,
+                    notes=notes,
+                    logged_by=request.user,
+                )
+
+                for wi in waste_items:
+                    WasteItem.objects.create(
+                        waste_log=log,
+                        inventory_item=wi['inventory_item'],
+                        quantity=wi['quantity'],
+                        unit_cost=wi['unit_cost'],
+                        notes=wi['notes'],
+                    )
+                    # Only record the waste if the stock was actually removed.
+                    if not wi['inventory_item'].deduct(wi['quantity']):
+                        short_item = wi['inventory_item'].name
+                        raise _WasteStockError()
+        except _WasteStockError:
+            messages.error(
+                request,
+                f'Not enough stock of {short_item} to record that waste — nothing was saved.',
             )
-            # Deduct stock
-            wi['inventory_item'].deduct(wi['quantity'])
+            return redirect('waste-create')
 
         messages.success(request, f'Waste log {log.waste_number} recorded successfully.')
         return redirect('waste-detail', pk=log.pk)
@@ -179,6 +203,7 @@ def waste_create(request):
         'today': tz.now().date().isoformat(),
         'restaurant': restaurant,
         'currency_symbol': restaurant.currency_symbol,
+        'idempotency_key': secrets.token_hex(16),
     })
 
 

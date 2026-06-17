@@ -245,6 +245,7 @@
         <div class="pay-body">
             <form method="POST" id="payForm">
                 {% csrf_token %}
+                <input type="hidden" name="idempotency_key" value="{{ idempotency_key }}">
 
                 {% if form.non_field_errors %}
                 <div class="pay-error">

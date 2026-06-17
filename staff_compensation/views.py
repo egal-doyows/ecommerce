@@ -1,3 +1,5 @@
+import secrets
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect, get_object_or_404
@@ -228,6 +230,13 @@ def pay_staff(request, pk):
             cash_out = pay_amount - recovery
 
             with transaction.atomic():
+                # Block a double-submit (double-click / retry) from posting the
+                # same disbursement twice — critical for partial payments, where
+                # the record stays 'pending' so the status guard alone wouldn't.
+                from administration.models import claim_idempotency_key
+                if not claim_idempotency_key(request.POST.get('idempotency_key', '')):
+                    messages.info(request, 'This payment was already submitted.')
+                    return redirect('compensation-detail', payment.staff_id)
                 # Lock the payment row and re-check inside the tx so two
                 # concurrent disbursements can't both post the cash-out, and a
                 # stale form can't over-pay past the remaining balance.
@@ -315,6 +324,7 @@ def pay_staff(request, pk):
         'payment': payment,
         'account_list': account_list,
         'advance_outstanding': advance_outstanding,
+        'idempotency_key': secrets.token_hex(16),
     }
     return render(request, 'staff_compensation/pay.html', context)
 
