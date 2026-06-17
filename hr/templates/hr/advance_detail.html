@@ -44,7 +44,7 @@
         <div>
             <div style="font-weight:700;font-size:14px;color:var(--adm-accent);">Approved — ready to pay</div>
             <div style="font-size:12px;color:var(--adm-muted);">
-                Approved by {{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username|default:"—" }}
+                Approved by {% if adv.reviewed_by %}{{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username }}{% else %}—{% endif %}
                 {% if adv.reviewed_at %} on {{ adv.reviewed_at|date:"d M Y, H:i" }}{% endif %}
             </div>
         </div>
@@ -74,7 +74,7 @@
 <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-accent);">
     <div style="font-weight:700;font-size:14px;color:var(--adm-accent);">Paid — recovering from wages</div>
     <div style="font-size:12px;color:var(--adm-muted);">
-        Paid by {{ adv.paid_by.get_full_name|default:adv.paid_by.username|default:"—" }}
+        Paid by {% if adv.paid_by %}{{ adv.paid_by.get_full_name|default:adv.paid_by.username }}{% else %}—{% endif %}
         {% if adv.paid_at %} on {{ adv.paid_at|date:"d M Y, H:i" }}{% endif %}
         via {{ adv.get_disbursement_method_display }}{% if adv.mpesa_transaction_code %} ({{ adv.mpesa_transaction_code }}){% endif %}.
         Recovered {{ restaurant.currency_symbol }} {{ adv.amount_recovered|floatformat:2|intcomma }} of {{ restaurant.currency_symbol }} {{ adv.amount|floatformat:2|intcomma }}.
@@ -91,7 +91,7 @@
 <div class="adm-card" style="margin-bottom:20px;padding:14px 20px;border-left:3px solid var(--adm-danger);">
     <div style="font-weight:700;font-size:14px;color:var(--adm-danger);">Rejected</div>
     <div style="font-size:12px;color:var(--adm-muted);">
-        Rejected by {{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username|default:"—" }}
+        Rejected by {% if adv.reviewed_by %}{{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username }}{% else %}—{% endif %}
         {% if adv.reviewed_at %} on {{ adv.reviewed_at|date:"d M Y, H:i" }}{% endif %}
         {% if adv.review_note %} — {{ adv.review_note }}{% endif %}
     </div>

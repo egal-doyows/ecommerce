@@ -104,7 +104,7 @@
                     <span class="adm-badge adm-badge-muted">Cancelled</span>
                     {% endif %}
                 </td>
-                <td style="font-size:12px;color:var(--adm-muted);">{{ lr.reviewed_by.get_full_name|default:lr.reviewed_by.username|default:"—" }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{% if lr.reviewed_by %}{{ lr.reviewed_by.get_full_name|default:lr.reviewed_by.username }}{% else %}—{% endif %}</td>
                 <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ lr.created_at|date:"d M Y" }}</td>
             </tr>
             {% endfor %}
