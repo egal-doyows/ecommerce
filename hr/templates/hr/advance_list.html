@@ -83,7 +83,7 @@
                 <td style="text-align:right;font-size:13px;">
                     {% if adv.status == 'paid' %}{{ restaurant.currency_symbol }} {{ adv.outstanding_recovery|floatformat:2|intcomma }}{% else %}—{% endif %}
                 </td>
-                <td style="font-size:12px;color:var(--adm-muted);">{{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username|default:"—" }}</td>
+                <td style="font-size:12px;color:var(--adm-muted);">{% if adv.reviewed_by %}{{ adv.reviewed_by.get_full_name|default:adv.reviewed_by.username }}{% else %}—{% endif %}</td>
                 <td style="font-size:12px;color:var(--adm-muted);white-space:nowrap;">{{ adv.created_at|date:"d M Y" }}</td>
             </tr>
             {% endfor %}
