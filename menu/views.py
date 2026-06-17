@@ -220,9 +220,14 @@ def _is_auto_shift_user(user):
 
 
 def _ensure_shift(user):
-    """Auto-create a shift if the user doesn't have one."""
-    if not Shift.objects.filter(waiter=user, is_active=True).exists():
-        Shift.objects.create(waiter=user, starting_cash=0)
+    """Auto-create a shift if the user doesn't have an active one.
+
+    get_or_create + the one-active-shift-per-waiter constraint make this safe
+    against two concurrent requests both trying to open a shift.
+    """
+    Shift.objects.get_or_create(
+        waiter=user, is_active=True, defaults={'starting_cash': 0},
+    )
 
 
 def shift_required(view_func):
@@ -986,14 +991,17 @@ def shift_view(request):
 @login_required(login_url='waiter-login')
 def shift_clock_in(request):
     if request.method == 'POST':
-        existing = Shift.objects.filter(waiter=request.user, is_active=True).first()
-        if not existing:
-            starting_cash = request.POST.get('starting_cash', '0')
-            try:
-                starting_cash = round(float(starting_cash), 2)
-            except (ValueError, TypeError):
-                starting_cash = 0
-            Shift.objects.create(waiter=request.user, starting_cash=starting_cash)
+        starting_cash = request.POST.get('starting_cash', '0')
+        try:
+            starting_cash = round(float(starting_cash), 2)
+        except (ValueError, TypeError):
+            starting_cash = 0
+        # get_or_create + the one-active-shift constraint stop a double clock-in
+        # (double-click / concurrent) from opening two active shifts.
+        Shift.objects.get_or_create(
+            waiter=request.user, is_active=True,
+            defaults={'starting_cash': starting_cash},
+        )
     return redirect('shift')
 
 

@@ -585,6 +585,16 @@ class Shift(models.Model):
 
     class Meta:
         ordering = ['-started_at']
+        constraints = [
+            # A waiter may have at most one active shift at a time. The whole app
+            # assumes this (Shift.objects.filter(waiter=…, is_active=True).first());
+            # this makes it a hard DB guarantee instead of a check-then-create race.
+            models.UniqueConstraint(
+                fields=['waiter'],
+                condition=models.Q(is_active=True),
+                name='one_active_shift_per_waiter',
+            ),
+        ]
 
     def __str__(self):
         return f"Shift #{self.id} — {self.waiter.username} ({self.started_at.strftime('%d %b %H:%M')})"
