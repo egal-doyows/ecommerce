@@ -525,7 +525,7 @@
             {% if order.created_by %}
             <div><i class="fa fa-bullhorn"></i> &nbsp; <strong>{{ order.created_by.username|capfirst }}</strong> <span style="font-size:11px; color:var(--pos-muted);">(Marketing)</span></div>
             {% endif %}
-            <div><i class="fa fa-clock-o"></i> &nbsp; {{ order.created_at|date:"H:i" }}</div>
+            <div><i class="fa fa-clock"></i> &nbsp; {{ order.created_at|date:"H:i" }}</div>
             <div><i class="fa fa-shopping-basket"></i> &nbsp; {{ order.get_item_count }} items</div>
         </div>
 

@@ -331,7 +331,7 @@
 
 <div class="shift-page">
     <div class="shift-header">
-        <h2><i class="fa fa-clock-o"></i> &nbsp; My Shift</h2>
+        <h2><i class="fa fa-clock"></i> &nbsp; My Shift</h2>
     </div>
 
     {% if active_shift %}
@@ -396,7 +396,7 @@
     {% else %}
     <!-- No active shift -->
     <div class="shift-inactive-card">
-        <i class="fa fa-clock-o"></i>
+        <i class="fa fa-clock"></i>
         <h3>You're not clocked in</h3>
         <p>Start a shift to begin taking orders. Enter your starting cash amount.</p>
         <form method="POST" action="{% url 'shift-clock-in' %}" class="shift-clockin-form">
@@ -424,7 +424,7 @@
                 <div class="shift-history-date-time">{{ shift.started_at|date:"h:i A" }} — {{ shift.ended_at|date:"h:i A" }}</div>
             </div>
             <div class="shift-history-info">
-                <span><i class="fa fa-clock-o"></i> {{ shift.get_duration }}</span>
+                <span><i class="fa fa-clock"></i> {{ shift.get_duration }}</span>
                 <span><i class="fa fa-list-alt"></i> {{ shift.get_order_count }} orders</span>
                 <span><i class="fa fa-shopping-basket"></i> {{ shift.get_total_items }} items</span>
             </div>
