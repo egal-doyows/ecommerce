@@ -68,6 +68,11 @@ def _reverse_receipt(receipt, invoice, po):
     from django.db.models import F
     from menu.models import InventoryItem
     with transaction.atomic():
+        # Lock the GRN row and bail if a concurrent reverse/correct already
+        # removed it, so the stock decrement can't run twice.
+        locked = GoodsReceipt.objects.select_for_update().filter(pk=receipt.pk).first()
+        if locked is None:
+            return False
         for gi in receipt.items.select_related('po_item'):
             InventoryItem.objects.filter(pk=gi.po_item.inventory_item_id).update(
                 stock_quantity=F('stock_quantity') - gi.received_quantity,
@@ -81,6 +86,7 @@ def _reverse_receipt(receipt, invoice, po):
         if invoice:
             invoice.delete()
         receipt.delete()
+    return True
 
 
 def manager_required(view_func):
@@ -815,7 +821,9 @@ def receipt_reverse(request, pk):
 
     grn = receipt.grn_number
     po = receipt.purchase_order
-    _reverse_receipt(receipt, invoice, po)
+    if not _reverse_receipt(receipt, invoice, po):
+        messages.info(request, f'{grn} was already reversed.')
+        return redirect('receipt-list')
 
     import logging
     logging.getLogger('audit').info(
@@ -875,7 +883,9 @@ def receipt_correct(request, pk):
 
     grn = receipt.grn_number
     po = receipt.purchase_order
-    _reverse_receipt(receipt, invoice, po)
+    if not _reverse_receipt(receipt, invoice, po):
+        messages.info(request, f'{grn} was already undone — re-enter quantities for {po.po_number}.')
+        return redirect('receipt-create', po_pk=po.pk)
 
     import logging
     logging.getLogger('audit').info(

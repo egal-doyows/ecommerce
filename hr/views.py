@@ -935,6 +935,15 @@ def advance_pay(request, pk):
             method = 'cash'
 
         with transaction.atomic():
+            # Lock the row and re-check status inside the tx so two concurrent
+            # POSTs can't both pass the 'approved' guard and double cash-out.
+            adv = (
+                AdvanceRequest.objects.select_for_update()
+                .select_related('employee__user').get(pk=pk)
+            )
+            if adv.status != 'approved':
+                messages.info(request, 'This advance has already been processed.')
+                return redirect('hr-advance-detail', pk=pk)
             adv.status = 'paid'
             adv.paid_by = request.user
             adv.paid_at = timezone.now()

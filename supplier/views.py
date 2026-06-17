@@ -192,19 +192,22 @@ def make_payment(request, pk):
             messages.error(request, 'Please choose a valid account to pay from.')
             return redirect('supplier-make-payment', pk=supplier.pk)
 
-        # Don't allow paying more than the account holds.
-        if pay_account.balance < payment_amount:
-            from menu.cache import get_restaurant_settings
-            symbol = get_restaurant_settings().currency_symbol
-            messages.error(
-                request,
-                f'Insufficient balance in {pay_account.name} — available '
-                f'{symbol} {pay_account.balance:,.2f}, payment '
-                f'{symbol} {payment_amount:,.2f}.',
-            )
-            return redirect('supplier-make-payment', pk=supplier.pk)
-
         with transaction.atomic():
+            # Lock the account row and re-check balance inside the tx so two
+            # concurrent payments can't both pass the check and overdraw it.
+            from administration.models import Account, Transaction as AcctTransaction
+            pay_account = Account.objects.select_for_update().get(pk=pay_account.pk)
+            if pay_account.balance < payment_amount:
+                from menu.cache import get_restaurant_settings
+                symbol = get_restaurant_settings().currency_symbol
+                messages.error(
+                    request,
+                    f'Insufficient balance in {pay_account.name} — available '
+                    f'{symbol} {pay_account.balance:,.2f}, payment '
+                    f'{symbol} {payment_amount:,.2f}.',
+                )
+                return redirect('supplier-make-payment', pk=supplier.pk)
+
             # Create the payment (credit) transaction
             payment_txn = SupplierTransaction.objects.create(
                 supplier=supplier,
@@ -214,12 +217,21 @@ def make_payment(request, pk):
                 created_by=request.user,
             )
 
-            # Allocate payment against invoices (oldest first)
+            # Allocate payment against invoices (oldest first). Re-fetch under a
+            # row lock and recompute `remaining` inside the tx so two concurrent
+            # payments can't over-allocate the same invoice balance.
+            locked_invoices = list(
+                SupplierTransaction.objects.select_for_update()
+                .filter(supplier=supplier, transaction_type='debit')
+                .order_by('date', 'id')
+            )
             remaining_payment = payment_amount
-            for inv in sorted(unpaid_invoices, key=lambda x: x.date):
+            for inv in locked_invoices:
                 if remaining_payment <= 0:
                     break
                 inv_remaining = inv.remaining
+                if inv_remaining <= 0:
+                    continue
                 allocated = min(remaining_payment, inv_remaining)
                 SupplierPaymentAllocation.objects.create(
                     payment=payment_txn,
@@ -227,11 +239,10 @@ def make_payment(request, pk):
                     amount=allocated,
                 )
                 inv.amount_paid += allocated
-                inv.save()
+                inv.save(update_fields=['amount_paid'])
                 remaining_payment -= allocated
 
             # Debit the chosen account
-            from administration.models import Transaction as AcctTransaction
             AcctTransaction.objects.create(
                 account=pay_account,
                 transaction_type='debit',
