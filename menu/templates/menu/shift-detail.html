@@ -143,6 +143,12 @@
 
     @media (max-width: 600px) {
         .sd-stats { grid-template-columns: repeat(2, 1fr); }
+        /* Let the order row wrap instead of overflowing: ID + info on the
+           first line, total drops below and aligns left. */
+        .sd-order-body { flex-wrap: wrap; gap: 8px 16px; }
+        .sd-order-id { min-width: 0; }
+        .sd-order-info { flex: 1 1 70%; }
+        .sd-order-total { min-width: 0; text-align: left; }
     }
 </style>
 

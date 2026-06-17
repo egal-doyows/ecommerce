@@ -419,6 +419,18 @@
         background: var(--pos-blue);
         color: #fff;
     }
+
+    /* Phones/tablets: drop the fixed 320px sidebar to a stacked single
+       column, and tighten the line-item columns/padding so they fit. */
+    @media (max-width: 700px) {
+        .rp-layout { grid-template-columns: 1fr; }
+        .rp-table-head,
+        .rp-item {
+            grid-template-columns: 1fr 44px 68px 64px;
+            padding-left: 14px;
+            padding-right: 14px;
+        }
+    }
 </style>
 
 <div class="rp-page">

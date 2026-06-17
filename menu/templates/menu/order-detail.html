@@ -379,8 +379,11 @@
         align-items: center;
     }
 
-    .od-add-item select {
-        flex: 1;
+    /* Searchable item combobox */
+    .od-combo { flex: 1; position: relative; }
+
+    .od-combo-input {
+        width: 100%;
         padding: 8px 12px;
         border: 1.5px solid var(--pos-border);
         border-radius: 8px;
@@ -390,7 +393,41 @@
         background: #fff;
     }
 
-    .od-add-item select:focus { border-color: #8E2C12; }
+    .od-combo-input:focus { border-color: #8E2C12; }
+
+    .od-combo-list {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        max-height: 260px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1.5px solid var(--pos-border);
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+        padding: 4px;
+        z-index: 60;
+    }
+
+    .od-combo-opt {
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    .od-combo-opt:hover,
+    .od-combo-opt.active { background: var(--pos-light); }
+
+    .od-combo-opt.is-hidden { display: none; }
+
+    .od-combo-empty {
+        padding: 10px;
+        font-size: 13px;
+        color: var(--pos-muted);
+        text-align: center;
+    }
 
     .od-add-btn {
         padding: 8px 14px;
@@ -509,12 +546,19 @@
         {% if order.status == 'active' %}
         <form method="POST" action="{% url 'order-edit-item' order.id %}" class="od-add-item" id="od-add-form">
             {% csrf_token %}
-            <select name="menu_item_id" id="od-add-select" required>
-                <option value="">Add an item...</option>
-                {% for mi in menu_items %}
-                <option value="{{ mi.id }}" data-name="{{ mi.title|capfirst }}" data-price="{{ mi.price }}">{{ mi.title|capfirst }} — {{ restaurant.currency_symbol }}{{ mi.price|floatformat:2|intcomma }}</option>
-                {% endfor %}
-            </select>
+            <div class="od-combo" id="od-combo">
+                <input type="hidden" name="menu_item_id" id="od-add-value">
+                <input type="text" class="od-combo-input" id="od-combo-input"
+                       placeholder="Search to add an item…" autocomplete="off"
+                       role="combobox" aria-autocomplete="list" aria-expanded="false"
+                       aria-controls="od-combo-list">
+                <div class="od-combo-list" id="od-combo-list" role="listbox" hidden>
+                    {% for mi in menu_items %}
+                    <div class="od-combo-opt" role="option" data-value="{{ mi.id }}" data-name="{{ mi.title|capfirst }}" data-price="{{ mi.price }}">{{ mi.title|capfirst }} — {{ restaurant.currency_symbol }}{{ mi.price|floatformat:2|intcomma }}</div>
+                    {% endfor %}
+                    <div class="od-combo-empty" id="od-combo-empty" hidden>No matching items</div>
+                </div>
+            </div>
             <button type="submit" class="od-add-btn">
                 <i class="fa fa-plus"></i> Add
             </button>
@@ -887,8 +931,95 @@
     const ACC_DATA = JSON.parse(document.getElementById('od-accompaniments-data').textContent);
     const CURRENCY = '{{ restaurant.currency_symbol }}';
     const form = document.getElementById('od-add-form');
-    const select = document.getElementById('od-add-select');
     const optionHolder = document.getElementById('od-add-options');
+    const combo = document.getElementById('od-combo');
+    const comboInput = document.getElementById('od-combo-input');
+    const comboList = document.getElementById('od-combo-list');
+    const comboEmpty = document.getElementById('od-combo-empty');
+    const valueInput = document.getElementById('od-add-value');
+    const opts = Array.from(comboList.querySelectorAll('.od-combo-opt'));
+    let selectedOpt = null;
+    let activeIdx = -1;
+
+    function visibleOpts() { return opts.filter(o => !o.classList.contains('is-hidden')); }
+
+    function setActive(i) {
+        const vis = visibleOpts();
+        activeIdx = i;
+        opts.forEach(o => o.classList.remove('active'));
+        if (i >= 0 && i < vis.length) {
+            vis[i].classList.add('active');
+            vis[i].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function filterList(q) {
+        q = (q || '').trim().toLowerCase();
+        let visible = 0;
+        opts.forEach(o => {
+            const match = o.dataset.name.toLowerCase().includes(q);
+            o.classList.toggle('is-hidden', !match);
+            if (match) visible++;
+        });
+        comboEmpty.hidden = visible > 0;
+        setActive(-1);
+    }
+
+    function openList() {
+        filterList(comboInput.value);
+        comboList.hidden = false;
+        comboInput.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeList() {
+        comboList.hidden = true;
+        comboInput.setAttribute('aria-expanded', 'false');
+        setActive(-1);
+    }
+
+    function selectOpt(o) {
+        selectedOpt = o;
+        valueInput.value = o.dataset.value;
+        comboInput.value = o.dataset.name;
+        closeList();
+    }
+
+    comboInput.addEventListener('focus', openList);
+
+    comboInput.addEventListener('input', function () {
+        // Typing invalidates a prior concrete pick until one is chosen again.
+        valueInput.value = '';
+        selectedOpt = null;
+        openList();
+    });
+
+    comboInput.addEventListener('keydown', function (e) {
+        const vis = visibleOpts();
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (comboList.hidden) openList();
+            setActive(Math.min(activeIdx + 1, vis.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActive(Math.max(activeIdx - 1, 0));
+        } else if (e.key === 'Enter') {
+            if (!comboList.hidden) {
+                const pick = activeIdx >= 0 ? vis[activeIdx] : (vis.length === 1 ? vis[0] : null);
+                if (pick) { e.preventDefault(); selectOpt(pick); }
+            }
+        } else if (e.key === 'Escape') {
+            closeList();
+        }
+    });
+
+    opts.forEach(o => {
+        // mousedown (not click) so we act before the input blurs.
+        o.addEventListener('mousedown', function (e) { e.preventDefault(); selectOpt(o); });
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!combo.contains(e.target)) closeList();
+    });
     const modal = document.getElementById('od-acc-modal');
     const body = document.getElementById('od-acc-body');
     let basePrice = 0;
@@ -961,13 +1092,17 @@
     function closeModal() { modal.hidden = true; }
 
     form.addEventListener('submit', function (e) {
-        const opt = select.options[select.selectedIndex];
-        if (!opt || !opt.value) return;  // browser handles required
-        const groups = ACC_DATA[opt.value];
+        if (!valueInput.value || !selectedOpt) {
+            e.preventDefault();
+            comboInput.focus();
+            openList();
+            return;
+        }
+        const groups = ACC_DATA[valueInput.value];
         if (groups && groups.length) {
             e.preventDefault();
             optionHolder.innerHTML = '';
-            openModal(groups, opt.dataset.name, parseFloat(opt.dataset.price));
+            openModal(groups, selectedOpt.dataset.name, parseFloat(selectedOpt.dataset.price));
         }
     });
 

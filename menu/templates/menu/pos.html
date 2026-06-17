@@ -811,8 +811,23 @@
 
     /* ---- Responsive ---- */
     @media (max-width: 900px) {
-        .pos-container { flex-direction: column; }
-        .pos-order-panel { width: 100%; height: 50vh; border-left: none; border-top: none; }
+        /* Let the page scroll instead of clipping: a fixed-height container
+           with overflow:hidden was cutting off the order footer (and the
+           Place Order button) on phones. */
+        .pos-container {
+            flex-direction: column;
+            height: auto;
+            min-height: calc(100vh - 56px);
+            overflow: visible;
+        }
+        /* Bound the menu so the order panel is visible below it; its inner
+           .pos-sections still scrolls. */
+        .pos-menu { height: 55vh; }
+        /* Size the order panel to its content so the footer is never clipped. */
+        .pos-order-panel { width: 100%; height: auto; border-left: none; border-top: none; }
+        /* Keep the cart list scrollable but bounded so it can't push the
+           footer off-screen. */
+        .pos-order-items { max-height: 35vh; }
         .pos-items-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
     }
 </style>
