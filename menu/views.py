@@ -599,7 +599,11 @@ def order_list(request):
     unsettled_ids = [oid for oid, inv in invoices_by_order.items() if inv.remaining > 0]
 
     credit_qs = base_qs.filter(id__in=unsettled_ids)
+    # "Paid" reflects only the current shift's takings, not the viewer's whole
+    # history. With no active shift there's nothing to show for this shift.
+    current_shift = Shift.objects.filter(waiter=request.user, is_active=True).first()
     paid_qs = base_qs.filter(status='paid').exclude(id__in=unsettled_ids)
+    paid_qs = paid_qs.filter(shift=current_shift) if current_shift else paid_qs.none()
 
     counts = {
         'unpaid': unpaid_qs.count(),
