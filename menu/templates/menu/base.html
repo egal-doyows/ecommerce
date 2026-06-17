@@ -43,6 +43,11 @@
            POS Place Order button) is never hidden behind it. */
         @media (max-width: 767px) {
             body.has-bottom-nav { padding-bottom: calc(3.75rem + env(safe-area-inset-bottom)); }
+            /* Lift the PWA online/offline indicator above the bottom tab bar
+               so it doesn't overlap the first tab (the JS pins it bottom:16px). */
+            body.has-bottom-nav #pwa-status {
+                bottom: calc(3.75rem + env(safe-area-inset-bottom) + 12px) !important;
+            }
         }
     </style>
 
