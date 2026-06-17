@@ -228,6 +228,16 @@ def pay_staff(request, pk):
             cash_out = pay_amount - recovery
 
             with transaction.atomic():
+                # Lock the payment row and re-check inside the tx so two
+                # concurrent disbursements can't both post the cash-out, and a
+                # stale form can't over-pay past the remaining balance.
+                payment = PaymentRecord.objects.select_for_update().get(pk=payment.pk)
+                if payment.status != 'pending':
+                    messages.info(request, 'This payment has already been settled.')
+                    return redirect('compensation-detail', payment.staff_id)
+                if pay_amount > payment.remaining:
+                    messages.error(request, 'Payment exceeds the remaining balance.')
+                    return redirect('compensation-detail', payment.staff_id)
                 if notes:
                     payment.notes = notes
                 # The staffer is credited the full pay_amount: the recovered
@@ -242,9 +252,16 @@ def pay_staff(request, pk):
                         created_by=request.user, amount=cash_out,
                     )
 
-                # Apply the recovery across outstanding advances, oldest first.
+                # Apply the recovery across outstanding advances, oldest first —
+                # re-fetched under a row lock so a concurrent recovery can't
+                # double-decrement the same advance.
+                locked_advances = (
+                    list(emp.advance_requests.select_for_update()
+                         .filter(status='paid').order_by('created_at'))
+                    if emp is not None else []
+                )
                 left = recovery
-                for adv in paid_advances:
+                for adv in locked_advances:
                     if left <= 0:
                         break
                     take = min(left, adv.outstanding_recovery)

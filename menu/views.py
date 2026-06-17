@@ -680,12 +680,13 @@ def order_void(request, order_id):
         messages.error(request, 'A reason is required to void an order.')
         return redirect('order-detail', order_id=order_id)
 
-    order = get_object_or_404(Order, id=order_id)
-    if order.status != 'active':
-        messages.error(request, 'Only unpaid orders can be voided.')
-        return redirect('order-detail', order_id=order.id)
-
     with transaction.atomic():
+        # Lock the order row and re-check status inside the transaction so two
+        # concurrent voids can't both pass the guard and restore stock twice.
+        order = get_object_or_404(Order.objects.select_for_update(), id=order_id)
+        if order.status != 'active':
+            messages.error(request, 'Only unpaid orders can be voided.')
+            return redirect('order-detail', order_id=order.id)
         _restore_order_stock(order)
         order.status = 'cancelled'
         order.authorized_by = request.user
