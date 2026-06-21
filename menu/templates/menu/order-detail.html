@@ -95,6 +95,32 @@
 
     .od-print-btn i { font-size: 17px; }
 
+    .od-print-group { margin-top: 10px; }
+
+    .od-paper-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-muted, #6b7280);
+        margin-bottom: 8px;
+    }
+
+    .od-paper-toggle select {
+        margin-left: auto;
+        padding: 6px 10px;
+        border: 2px solid var(--pos-border);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--pos-text);
+        background: #fff;
+        cursor: pointer;
+    }
+
+    .od-print-group .od-print-btn { margin-top: 0; }
+
     .od-print-btn:hover {
         transform: translateY(-1px);
         border-color: #8E2C12;
@@ -108,20 +134,36 @@
     }
 
     @media print {
+        /* Default page = 80mm roll. JS rewrites #rcpt-page-style for narrow rolls. */
+        @page { size: 80mm auto; margin: 0; }
+
         /* Hide everything except the receipt */
         body * { visibility: hidden !important; }
         .receipt, .receipt * { visibility: visible !important; }
 
+        /*
+         * Receipt sizing is driven by CSS variables so a single layout serves
+         * both roll widths. The .is-58mm class (toggled per-device by JS) only
+         * overrides --rcpt-* below — every font size is calc()'d off --rcpt-scale,
+         * so the whole receipt shrinks proportionally to fit the narrow paper
+         * at 1:1 instead of being shrink-to-fit scaled by the printer driver.
+         */
         .receipt {
+            --rcpt-w: 80mm;
+            --rcpt-pad-v: 5mm;
+            --rcpt-pad-h: 4mm;
+            --rcpt-scale: 1;
+
             display: block !important;
             position: fixed;
             top: 0; left: 0;
-            width: 80mm;
-            padding: 5mm 4mm;
+            width: var(--rcpt-w);
+            padding: var(--rcpt-pad-v) var(--rcpt-pad-h);
             margin: 0;
+            box-sizing: border-box;
             background: #fff;
             font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
-            font-size: 15px;
+            font-size: calc(15px * var(--rcpt-scale));
             font-weight: 700;
             line-height: 1.55;
             color: #000 !important;
@@ -130,10 +172,22 @@
             print-color-adjust: exact;
         }
 
+        /* 58mm roll (~48mm printable): narrow the page + shrink everything ~28%. */
+        .receipt.is-58mm {
+            --rcpt-w: 58mm;
+            --rcpt-pad-v: 3mm;
+            --rcpt-pad-h: 2mm;
+            --rcpt-scale: 0.72;
+        }
+        .receipt.is-58mm .receipt-logo img {
+            max-width: 100% !important;
+            max-height: 90px !important;
+        }
+
         .receipt-center { text-align: center; }
         .receipt-bold { font-weight: 900; color: #000 !important; }
-        .receipt-lg { font-size: 20px; font-weight: 900; color: #000 !important; }
-        .receipt-sm { font-size: 13px; font-weight: 700; color: #000 !important; }
+        .receipt-lg { font-size: calc(20px * var(--rcpt-scale)); font-weight: 900; color: #000 !important; }
+        .receipt-sm { font-size: calc(13px * var(--rcpt-scale)); font-weight: 700; color: #000 !important; }
 
         .receipt-logo {
             text-align: center;
@@ -141,23 +195,23 @@
         }
 
         .receipt-logo i {
-            font-size: 36px;
+            font-size: calc(36px * var(--rcpt-scale));
             color: #000 !important;
         }
 
         .receipt-brand {
-            font-size: 26px;
+            font-size: calc(26px * var(--rcpt-scale));
             font-weight: 900;
-            letter-spacing: 2px;
+            letter-spacing: calc(2px * var(--rcpt-scale));
             text-transform: uppercase;
             color: #000 !important;
             margin: 2px 0;
         }
 
         .receipt-tagline {
-            font-size: 12px;
+            font-size: calc(12px * var(--rcpt-scale));
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: calc(1px * var(--rcpt-scale));
             text-transform: uppercase;
             color: #000 !important;
             margin-bottom: 2px;
@@ -178,7 +232,7 @@
         .receipt-row {
             display: flex;
             justify-content: space-between;
-            font-size: 15px;
+            font-size: calc(15px * var(--rcpt-scale));
             font-weight: 800;
             color: #000 !important;
         }
@@ -190,13 +244,13 @@
         .receipt-item-name {
             display: flex;
             justify-content: space-between;
-            font-size: 15px;
+            font-size: calc(15px * var(--rcpt-scale));
             font-weight: 800;
             color: #000 !important;
         }
 
         .receipt-item-detail {
-            font-size: 13px;
+            font-size: calc(13px * var(--rcpt-scale));
             color: #000 !important;
             font-weight: 700;
             padding-left: 2mm;
@@ -206,7 +260,7 @@
         .receipt-total-row {
             display: flex;
             justify-content: space-between;
-            font-size: 19px;
+            font-size: calc(19px * var(--rcpt-scale));
             font-weight: 900;
             padding: 8px 0;
             color: #000 !important;
@@ -224,23 +278,23 @@
         }
 
         .receipt-till-label {
-            font-size: 14px;
+            font-size: calc(14px * var(--rcpt-scale));
             font-weight: 900;
-            letter-spacing: 2px;
+            letter-spacing: calc(2px * var(--rcpt-scale));
             color: #000 !important;
         }
 
         .receipt-till-number {
-            font-size: 40px;
+            font-size: calc(40px * var(--rcpt-scale));
             font-weight: 900;
-            letter-spacing: 3px;
+            letter-spacing: calc(3px * var(--rcpt-scale));
             line-height: 1.1;
             color: #000 !important;
         }
 
         .receipt-footer {
             text-align: center;
-            font-size: 13px;
+            font-size: calc(13px * var(--rcpt-scale));
             margin-top: 8px;
             color: #000 !important;
             font-weight: 700;
@@ -774,9 +828,19 @@
             </script>
             {% endif %}
 
-            <button class="od-print-btn" onclick="window.print()">
-                <i class="fa-solid fa-print"></i> Print Receipt
-            </button>
+            <div class="od-print-group">
+                <label class="od-paper-toggle" title="Match this to the paper roll in THIS device's printer. Saved on this device only.">
+                    <i class="fa-solid fa-receipt"></i>
+                    Paper:
+                    <select id="rcptPaperWidth">
+                        <option value="80">80mm (standard)</option>
+                        <option value="58">58mm (small)</option>
+                    </select>
+                </label>
+                <button class="od-print-btn" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Print Receipt
+                </button>
+            </div>
 
             {% if can_void and order.status == 'active' %}
             <form method="POST" action="{% url 'order-void' order.id %}" class="od-void-form" onsubmit="return confirm('Void this order? Stock will be restored. This cannot be undone.');">
@@ -879,6 +943,37 @@
         {% if restaurant.website %}<p style="margin:2px 0;">{{ restaurant.website }}</p>{% endif %}
     </div>
 </div>
+
+<!-- Per-device @page size, rewritten by JS to match the selected roll width -->
+<style id="rcpt-page-style" media="print">@page { size: 80mm auto; margin: 0; }</style>
+<script>
+    (function () {
+        var KEY = 'receiptPaperWidth';
+        var receipt = document.querySelector('.receipt');
+        var pageStyle = document.getElementById('rcpt-page-style');
+        var select = document.getElementById('rcptPaperWidth');
+
+        // Apply a width ('80' | '58') to both the receipt layout and the @page rule.
+        function apply(width) {
+            var w = width === '58' ? '58' : '80';
+            if (receipt) receipt.classList.toggle('is-58mm', w === '58');
+            if (pageStyle) pageStyle.textContent =
+                '@page { size: ' + w + 'mm auto; margin: 0; }';
+            if (select) select.value = w;
+        }
+
+        var saved;
+        try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+        apply(saved || '80');
+
+        if (select) {
+            select.addEventListener('change', function () {
+                apply(this.value);
+                try { localStorage.setItem(KEY, this.value); } catch (e) {}
+            });
+        }
+    })();
+</script>
 
 {% if order.status == 'active' %}
 <!-- Accompaniment chooser modal (add-to-order) -->
