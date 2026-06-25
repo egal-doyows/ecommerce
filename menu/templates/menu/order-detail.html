@@ -134,8 +134,13 @@
     }
 
     @media print {
-        /* Default page = 80mm roll. JS rewrites #rcpt-page-style for narrow rolls. */
-        @page { size: 80mm auto; margin: 0; }
+        /*
+         * The @page size lives solely in the JS-managed #rcpt-page-style block
+         * (below) so there is a single source of truth — it defaults to 80mm
+         * and JS rewrites it per-device for narrow rolls. Declaring it here too
+         * would leave a stale 80mm rule that only loses the cascade by document
+         * order.
+         */
 
         /* Hide everything except the receipt */
         body * { visibility: hidden !important; }
@@ -302,6 +307,26 @@
 
         .receipt-footer p {
             color: #000 !important;
+        }
+
+        /* Status banner for unpaid (proforma) / voided receipts. */
+        .receipt-status-banner {
+            text-align: center;
+            border: 2.5px solid #000;
+            padding: 5px 4px;
+            margin: 8px 0;
+            font-size: calc(16px * var(--rcpt-scale));
+            font-weight: 900;
+            letter-spacing: calc(1px * var(--rcpt-scale));
+            text-transform: uppercase;
+            color: #000 !important;
+        }
+
+        .receipt-status-sub {
+            display: block;
+            font-size: calc(11px * var(--rcpt-scale));
+            font-weight: 700;
+            letter-spacing: 0;
         }
     }
 
@@ -859,7 +884,7 @@
 <div class="receipt">
     <div class="receipt-logo">
         {% if restaurant.logo %}
-        <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:auto;max-width:280px;height:auto;max-height:160px;object-fit:contain;margin:0 auto;display:block;">
+        <img src="{{ restaurant.logo.url }}" alt="{{ restaurant.name }}" style="width:auto;max-width:100%;height:auto;max-height:160px;object-fit:contain;margin:0 auto;display:block;">
         {% else %}
         <i class="fa-solid fa-utensils"></i>
         {% endif %}
@@ -869,6 +894,17 @@
     {% if restaurant.address %}<div class="receipt-center receipt-sm" style="white-space:pre-line;">{{ restaurant.address }}</div>{% endif %}
     {% if restaurant.phone %}<div class="receipt-center receipt-sm">Tel: {{ restaurant.phone }}</div>{% endif %}
     {% if restaurant.tax_number %}<div class="receipt-center receipt-sm">PIN: {{ restaurant.tax_number }}</div>{% endif %}
+
+    {% if order.status == 'active' %}
+    <div class="receipt-status-banner">Not Paid &middot; Proforma
+        <span class="receipt-status-sub">Payment not yet received</span>
+    </div>
+    {% elif order.status == 'cancelled' %}
+    <div class="receipt-status-banner">Void &middot; Not a Valid Receipt
+        <span class="receipt-status-sub">This order was cancelled</span>
+    </div>
+    {% endif %}
+
     <hr class="receipt-divider">
 
     <div class="receipt-row">
@@ -912,8 +948,26 @@
 
     <hr class="receipt-divider">
 
+    {% if order.is_comp or order.discount_amount > 0 %}
+    <div class="receipt-row receipt-sm">
+        <span>Subtotal</span>
+        <span>{{ restaurant.currency_symbol }}{{ order.get_subtotal|floatformat:2|intcomma }}</span>
+    </div>
+    {% if order.is_comp %}
+    <div class="receipt-row receipt-sm">
+        <span>Complimentary</span>
+        <span>-{{ restaurant.currency_symbol }}{{ order.get_subtotal|floatformat:2|intcomma }}</span>
+    </div>
+    {% elif order.discount_amount > 0 %}
+    <div class="receipt-row receipt-sm">
+        <span>Discount</span>
+        <span>-{{ restaurant.currency_symbol }}{{ order.discount_amount|floatformat:2|intcomma }}</span>
+    </div>
+    {% endif %}
+    {% endif %}
+
     <div class="receipt-total-row">
-        <span>TOTAL</span>
+        <span>{% if order.is_comp %}TOTAL (COMP){% else %}TOTAL{% endif %}</span>
         <span>{{ restaurant.currency_symbol }}{{ order.get_total|floatformat:2|intcomma }}</span>
     </div>
 
