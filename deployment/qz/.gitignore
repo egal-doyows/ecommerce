@@ -1,0 +1,7 @@
+# QZ Tray signing material — NEVER commit the private key.
+# The certificate is public but environment-specific; keep it out of git too
+# and provision both files on the server out-of-band (see README.md).
+private-key.pem
+digital-certificate.txt
+*.pem
+*.key
