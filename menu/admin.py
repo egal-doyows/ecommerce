@@ -1,4 +1,8 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.urls import path, reverse
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 
 from .models import (
@@ -38,7 +42,16 @@ class RestaurantSettingsAdmin(ModelAdmin):
             ),
             'fields': ('latitude', 'longitude'),
         }),
+        ('Thermal printing (QZ Tray)', {
+            'description': (
+                'Certificate that lets the Windows registers print receipts '
+                'silently (no "Allow" popup per print).'
+            ),
+            'fields': ('qz_certificate_download',),
+        }),
     )
+
+    readonly_fields = ('qz_certificate_download',)
 
     def has_add_permission(self, request):
         # Only allow one instance
@@ -46,6 +59,56 @@ class RestaurantSettingsAdmin(ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    # ── QZ Tray certificate download ────────────────────────────────────────
+    def get_urls(self):
+        custom = [
+            path(
+                'qz-certificate/download/',
+                self.admin_site.admin_view(self.download_qz_certificate),
+                name='menu_restaurantsettings_qz_cert',
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def download_qz_certificate(self, request):
+        """Stream the public QZ Tray certificate as a file download."""
+        from . import qz_signing
+        cert = qz_signing.get_certificate()
+        if not cert:
+            self.message_user(
+                request,
+                'QZ Tray certificate is not provisioned on this server yet. '
+                'Generate the key pair first (see deployment/qz/README.md).',
+                level=messages.WARNING,
+            )
+            return redirect('admin:menu_restaurantsettings_changelist')
+        resp = HttpResponse(cert, content_type='text/plain')
+        resp['Content-Disposition'] = 'attachment; filename="digital-certificate.txt"'
+        return resp
+
+    @admin.display(description='Digital certificate')
+    def qz_certificate_download(self, obj=None):
+        from . import qz_signing
+        url = reverse('admin:menu_restaurantsettings_qz_cert')
+        if qz_signing.signing_available():
+            return format_html(
+                '<a class="button" href="{}" download>Download digital-certificate.txt</a>'
+                '<p style="margin-top:8px;color:#15803d;font-weight:600;">'
+                '✓ Signing is active on the server.</p>'
+                '<p style="color:#6b7280;font-size:12px;margin-top:4px;">'
+                'On each Windows register, paste this file’s contents into '
+                '<code>C:\\Program Files\\QZ Tray\\demo\\ssl\\override.crt</code>, '
+                'then restart QZ Tray. After that the print popup is gone.</p>',
+                url,
+            )
+        return format_html(
+            '<p style="color:#b91c1c;font-weight:600;">Not provisioned yet.</p>'
+            '<p style="color:#6b7280;font-size:12px;margin-top:4px;">'
+            'Generate the key pair on the server (see '
+            '<code>deployment/qz/README.md</code>); this becomes a download link '
+            'once the certificate and private key are in place.</p>'
+        )
 
 
 @admin.register(Category)
