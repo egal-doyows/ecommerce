@@ -473,6 +473,77 @@ def order_detail(request, order_id):
     })
 
 
+def _order_for_user_or_404(request, order_id):
+    """Fetch an order the requesting user is allowed to see.
+
+    Mirrors order_detail's access rule exactly: supervisors/superusers reach
+    any order; everyone else only their own (waiter) or marketing-created
+    orders. Used by both the receipt page and the raw-ESC/POS endpoint so a
+    cashier can never print another register's order.
+    """
+    order_qs = Order.objects.prefetch_related(
+        'items__menu_item', 'items__options', 'payments',
+    )
+    if request.user.is_superuser or _is_supervisor(request.user):
+        return get_object_or_404(order_qs, id=order_id)
+    from django.db.models import Q
+    return get_object_or_404(
+        order_qs, Q(waiter=request.user) | Q(created_by=request.user), id=order_id,
+    )
+
+
+@login_required(login_url='waiter-login')
+@shift_required
+@never_cache
+def order_receipt_escpos(request, order_id):
+    """Serve the order's receipt as a raw ESC/POS byte stream, base64-encoded.
+
+    The POS page fetches this and relays the bytes to QZ Tray, which prints
+    them to the register's thermal queue in RAW datatype. Returns the queue
+    name too so the front-end knows where to send them (overridable per
+    register on the device).
+    """
+    import base64
+    from .printing import build_receipt
+
+    order = _order_for_user_or_404(request, order_id)
+    width = getattr(django_settings, 'POS_RECEIPT_WIDTH', 48)
+    data = build_receipt(order, width=width)
+    return JsonResponse({
+        'data': base64.b64encode(data).decode('ascii'),
+        'printer': getattr(django_settings, 'POS_RECEIPT_PRINTER', 'POS-80'),
+    })
+
+
+@login_required(login_url='waiter-login')
+def qz_certificate(request):
+    """Serve the public QZ Tray digital certificate for this site.
+
+    Returns 204 when no certificate is provisioned, signalling the page to let
+    QZ Tray fall back to its unsigned (prompt-per-print) mode.
+    """
+    from . import qz_signing
+    cert = qz_signing.get_certificate()
+    if not cert:
+        return HttpResponse(status=204)
+    return HttpResponse(cert, content_type='text/plain')
+
+
+@login_required(login_url='waiter-login')
+def qz_sign(request):
+    """Sign a QZ Tray request payload with the site private key (base64).
+
+    QZ sends the payload to sign as the ``request`` query parameter. Returns
+    204 when signing isn't configured so the page degrades gracefully.
+    """
+    from . import qz_signing
+    message = request.GET.get('request', '')
+    signature = qz_signing.sign_request(message)
+    if signature is None:
+        return HttpResponse(status=204)
+    return HttpResponse(signature, content_type='text/plain')
+
+
 @login_required(login_url='waiter-login')
 @shift_required
 def order_edit_item(request, order_id):

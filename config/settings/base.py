@@ -236,6 +236,26 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+# ── POS thermal receipt printing (QZ Tray) ────────────────────────────────
+# Each Windows register runs QZ Tray and exposes the thermal printer as a
+# Windows print queue. POS_RECEIPT_PRINTER is the *default* queue name the
+# POS page prints to; a register may override it per-device from the POS UI.
+POS_RECEIPT_PRINTER = os.environ.get('POS_RECEIPT_PRINTER', 'POS-80')
+# Characters per line for the receipt (48 for an 80 mm POS-80 at Font A).
+POS_RECEIPT_WIDTH = int(os.environ.get('POS_RECEIPT_WIDTH', '48'))
+
+# QZ Tray request signing — lets cashiers print silently (no per-print
+# security popup). Point these at the cert/key generated for the rollout
+# (see deployment/qz/README.md). When the files are absent the POS still
+# works; QZ just falls back to its unsigned mode (one allow-prompt per print).
+QZ_CERT_PATH = os.environ.get(
+    'QZ_CERT_PATH', str(BASE_DIR / 'deployment' / 'qz' / 'digital-certificate.txt'),
+)
+QZ_PRIVATE_KEY_PATH = os.environ.get(
+    'QZ_PRIVATE_KEY_PATH', str(BASE_DIR / 'deployment' / 'qz' / 'private-key.pem'),
+)
+
+
 # ── Email ─────────────────────────────────────────────────────────────────
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

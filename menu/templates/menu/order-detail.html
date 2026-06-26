@@ -121,6 +121,16 @@
 
     .od-print-group .od-print-btn { margin-top: 0; }
 
+    .od-print-status {
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        min-height: 18px;
+        color: #555;
+    }
+    .od-print-status:empty { display: none; }
+    @media print { .od-print-status { display: none !important; } }
+
     .od-print-btn:hover {
         transform: translateY(-1px);
         border-color: #8E2C12;
@@ -862,10 +872,11 @@
                         <option value="58">58mm (small)</option>
                     </select>
                 </label>
-                <button class="od-print-btn" onclick="window.print()">
+                <button class="od-print-btn" onclick="printThermalReceipt(this)">
                     <i class="fa-solid fa-print"></i> Print Receipt
                 </button>
             </div>
+            <div id="od-print-status" class="od-print-status" role="status" aria-live="polite"></div>
 
             {% if can_void and order.status == 'active' %}
             <form method="POST" action="{% url 'order-void' order.id %}" class="od-void-form" onsubmit="return confirm('Void this order? Stock will be restored. This cannot be undone.');">
@@ -1027,6 +1038,103 @@
             });
         }
     })();
+</script>
+
+<!-- ── Thermal receipt printing via QZ Tray (raw ESC/POS → POS-80 queue) ── -->
+<script src="{% static 'vendor/js/qz-tray.js' %}"></script>
+<script>
+(function () {
+    var ESCPOS_URL = "{% url 'order-receipt-escpos' order.id %}";
+    var CERT_URL   = "{% url 'qz-cert' %}";
+    var SIGN_URL   = "{% url 'qz-sign' %}";
+    // Per-device printer override (set in localStorage on a register whose
+    // queue isn't the server default). Falls back to the server's name.
+    var PRINTER_KEY = 'posPrinterName';
+
+    var securityWired = false;
+
+    // One-time QZ security handshake so cashiers print silently when the site
+    // certificate is provisioned. If it isn't, QZ falls back to a single
+    // allow-prompt per print (the endpoints return 204 → unsigned mode).
+    function wireSecurity() {
+        if (securityWired || typeof qz === 'undefined') return;
+        securityWired = true;
+
+        qz.security.setCertificatePromise(function (resolve, reject) {
+            fetch(CERT_URL, { credentials: 'same-origin' })
+                .then(function (r) { return r.status === 200 ? r.text() : ''; })
+                .then(function (cert) { cert ? resolve(cert) : reject(); })
+                .catch(function () { reject(); });
+        });
+
+        // Server signs as RSA / SHA-512 / PKCS#1 v1.5 — must match here.
+        qz.security.setSignatureAlgorithm('SHA512');
+
+        qz.security.setSignaturePromise(function (toSign) {
+            return function (resolve) {
+                fetch(SIGN_URL + '?request=' + encodeURIComponent(toSign),
+                      { credentials: 'same-origin' })
+                    .then(function (r) { return r.status === 200 ? r.text() : ''; })
+                    // Empty signature → QZ uses unsigned mode (prompts once).
+                    .then(function (sig) { resolve(sig); })
+                    .catch(function () { resolve(''); });
+            };
+        });
+    }
+
+    function setStatus(msg, isError) {
+        var el = document.getElementById('od-print-status');
+        if (el) {
+            el.textContent = msg || '';
+            el.style.color = isError ? '#c0392b' : '#555';
+        } else if (msg) {
+            (isError ? console.error : console.log)('[print] ' + msg);
+        }
+    }
+
+    window.printThermalReceipt = function (btn) {
+        if (typeof qz === 'undefined') {
+            setStatus('Printer bridge unavailable (qz-tray.js failed to load). Use Ctrl+P to print.', true);
+            return;
+        }
+        wireSecurity();
+        if (btn) btn.disabled = true;
+        setStatus('Printing…');
+
+        var printerName;
+        // Reuse an open socket for fast back-to-back prints; the ESC/POS stream
+        // re-inits itself so a second receipt never loses formatting.
+        var connected = qz.websocket.isActive()
+            ? Promise.resolve()
+            : qz.websocket.connect();
+
+        connected
+            .then(function () { return fetch(ESCPOS_URL, { credentials: 'same-origin' }); })
+            .then(function (r) {
+                if (!r.ok) throw new Error('receipt fetch failed (HTTP ' + r.status + ')');
+                return r.json();
+            })
+            .then(function (payload) {
+                var override = null;
+                try { override = localStorage.getItem(PRINTER_KEY); } catch (e) {}
+                printerName = override || payload.printer;
+                var config = qz.configs.create(printerName);
+                return qz.print(config, [
+                    { type: 'raw', format: 'base64', data: payload.data }
+                ]);
+            })
+            .then(function () { setStatus('Sent to ' + printerName + '.'); })
+            .catch(function (err) {
+                var msg = (err && err.message) ? String(err.message) : String(err);
+                if (/connect|websocket|refused|unable to connect/i.test(msg)) {
+                    setStatus('Printer bridge not running — start QZ Tray, then try again. (Or Ctrl+P to print.)', true);
+                } else {
+                    setStatus('Print failed: ' + msg, true);
+                }
+            })
+            .then(function () { if (btn) btn.disabled = false; });
+    };
+})();
 </script>
 
 {% if order.status == 'active' %}
