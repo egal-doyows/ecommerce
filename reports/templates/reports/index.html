@@ -58,6 +58,14 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Revenue, COGS (frozen), waste, expenses, staff comp. Side-by-side previous period.</p>
     </a>
 
+    <a href="{% url 'reports-cogs-detail' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-sack-dollar" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Cost of Goods Sold Detail</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Drill-down of the P&amp;L COGS line into menu items grouped by category, with qty, unit cost and % of COGS.</p>
+    </a>
+
     <a href="{% url 'reports-sales-by-channel' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-store" style="font-size:20px;color:var(--adm-accent);"></i>

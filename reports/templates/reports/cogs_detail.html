@@ -1,0 +1,84 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Cost of Goods Sold — Detail{% endblock %}
+{% block report_breadcrumb %}COGS Detail{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block report_body %}
+{% if not categories %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-sack-dollar" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No cost of goods sold in this period.</p>
+</div>
+{% else %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Total COGS</div>
+            <div style="font-size:20px;font-weight:600;">{{ currency_symbol }} {{ total_cogs|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Items Sold</div>
+            <div style="font-size:20px;font-weight:600;">{{ total_qty|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Categories</div>
+            <div style="font-size:20px;font-weight:600;">{{ categories|length }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th style="text-align:right;">Qty Sold</th>
+                <th style="text-align:right;">Avg Unit Cost</th>
+                <th style="text-align:right;">Total Cost</th>
+                <th style="text-align:right;">% of COGS</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in categories %}
+            <tr style="background:var(--adm-bg);">
+                <td style="font-weight:600;">{{ c.name }}</td>
+                <td style="text-align:right;font-weight:600;">{{ c.qty|intcomma }}</td>
+                <td></td>
+                <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ c.cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:600;">{{ c.pct|floatformat:1 }}%</td>
+            </tr>
+            {% for it in c.items %}
+            <tr>
+                <td style="padding-left:24px;">{{ it.title }}</td>
+                <td style="text-align:right;">{{ it.qty|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ currency_symbol }} {{ it.avg_unit_cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ it.cost|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;color:var(--adm-muted);">{{ it.pct|floatformat:1 }}%</td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top:2px solid var(--adm-accent);background:var(--adm-bg);">
+                <td style="font-weight:700;">Total Cost of Goods Sold</td>
+                <td style="text-align:right;font-weight:700;">{{ total_qty|intcomma }}</td>
+                <td></td>
+                <td style="text-align:right;font-weight:700;">{{ currency_symbol }} {{ total_cogs|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;font-weight:700;">100.0%</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+<p style="color:var(--adm-muted);font-size:12px;margin-top:8px;">
+    <i class="fa-solid fa-circle-info"></i>
+    Cost is the frozen all-in unit cost captured at the time each item was sold (paid, non-comped orders only). The total reconciles to the <strong>Cost of Goods Sold</strong> line on the <a href="{% url 'reports-profit-loss' %}?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}" style="color:var(--adm-accent);">Profit &amp; Loss</a> report for the same period.
+</p>
+{% endif %}
+{% endblock %}
