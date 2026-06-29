@@ -1,0 +1,122 @@
+{% extends 'reports/_report_base.html' %}
+{% load humanize %}
+
+{% block report_title %}Cash Drawer Flow{% endblock %}
+{% block report_breadcrumb %}Cash Drawer Flow{% endblock %}
+
+{% block report_actions %}
+<a href="?preset={{ preset }}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&format=csv" class="adm-btn adm-btn-outline">
+    <i class="fa-solid fa-download"></i> CSV
+</a>
+{% endblock %}
+
+{% block report_body %}
+{% if not rows %}
+<div class="adm-card" style="text-align:center;padding:40px;color:var(--adm-muted);">
+    <i class="fa-solid fa-cash-register" style="font-size:32px;margin-bottom:12px;"></i>
+    <p>No cash drawer activity in this period.</p>
+</div>
+{% else %}
+<div class="adm-card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:16px;">
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Opening Drawer</div>
+            <div style="font-size:20px;font-weight:600;">{% if opening_balance is not None %}{{ currency_symbol }} {{ opening_balance|floatformat:2|intcomma }}{% else %}—{% endif %}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Cash In</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-success);">+{{ currency_symbol }} {{ total_in|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Cash Out</div>
+            <div style="font-size:20px;font-weight:600;color:var(--adm-danger);">−{{ currency_symbol }} {{ total_out|floatformat:2|intcomma }}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Closing Drawer</div>
+            <div style="font-size:20px;font-weight:600;">{% if closing_balance is not None %}{{ currency_symbol }} {{ closing_balance|floatformat:2|intcomma }}{% else %}—{% endif %}</div>
+        </div>
+        <div>
+            <div style="color:var(--adm-muted);font-size:12px;text-transform:uppercase;">Net Variance</div>
+            <div style="font-size:20px;font-weight:600;{% if net_variance < 0 %}color:var(--adm-danger);{% elif net_variance > 0 %}color:var(--adm-warning);{% endif %}">
+                {{ currency_symbol }} {{ net_variance|floatformat:2|intcomma }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="adm-card">
+    <table class="adm-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Event</th>
+                <th style="text-align:right;">In</th>
+                <th style="text-align:right;">Out</th>
+                <th style="text-align:right;">Running</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            {% if r.type == 'open' %}
+            <tr style="background:var(--adm-bg);border-top:2px solid var(--adm-border);">
+                <td style="white-space:nowrap;">{{ r.ts|date:"d M H:i" }}</td>
+                <td>
+                    <strong><i class="fa-solid fa-right-to-bracket" style="color:var(--adm-accent);"></i> Shift #{{ r.shift_id }} opened</strong>
+                    — {{ r.cashier }}, float entered {{ currency_symbol }} {{ r.entered|floatformat:2|intcomma }}
+                    {% if r.handover is not None and r.handover != 0 %}
+                        <span style="color:{% if r.handover < 0 %}var(--adm-danger){% else %}var(--adm-warning){% endif %};font-size:12px;">
+                            (handover Δ {{ currency_symbol }} {{ r.handover|floatformat:2|intcomma }} vs carried {{ currency_symbol }} {{ r.carried|floatformat:2|intcomma }})
+                        </span>
+                    {% endif %}
+                </td>
+                <td></td>
+                <td></td>
+                <td style="text-align:right;font-weight:600;">{{ currency_symbol }} {{ r.running|floatformat:2|intcomma }}</td>
+            </tr>
+            {% elif r.type == 'txn' %}
+            <tr>
+                <td style="white-space:nowrap;color:var(--adm-muted);">{{ r.ts|date:"d M H:i" }}</td>
+                <td>
+                    <span style="font-weight:500;">{{ r.label }}</span>
+                    {% if r.description %}<span style="color:var(--adm-muted);font-size:12px;"> — {{ r.description }}</span>{% endif %}
+                </td>
+                <td style="text-align:right;color:var(--adm-success);">{% if r.direction == 'in' %}+{{ currency_symbol }} {{ r.amount|floatformat:2|intcomma }}{% endif %}</td>
+                <td style="text-align:right;color:var(--adm-danger);">{% if r.direction == 'out' %}−{{ currency_symbol }} {{ r.amount|floatformat:2|intcomma }}{% endif %}</td>
+                <td style="text-align:right;">{{ currency_symbol }} {{ r.running|floatformat:2|intcomma }}</td>
+            </tr>
+            {% else %}{# count #}
+            <tr style="background:var(--adm-bg);">
+                <td style="white-space:nowrap;">{{ r.ts|date:"d M H:i" }}</td>
+                <td>
+                    <strong><i class="fa-solid fa-clipboard-check" style="color:var(--adm-accent);"></i> Shift #{{ r.shift_id }} counted</strong>
+                    — {{ r.cashier }}
+                    {% if r.variance is not None %}
+                        <span style="font-size:12px;color:var(--adm-muted);">
+                            expected {{ currency_symbol }} {{ r.expected|floatformat:2|intcomma }},
+                            counted {{ currency_symbol }} {{ r.counted|floatformat:2|intcomma }} →
+                        </span>
+                        <strong style="color:{% if r.variance < 0 %}var(--adm-danger){% elif r.variance > 0 %}var(--adm-warning){% else %}var(--adm-success){% endif %};">
+                            {% if r.variance < 0 %}SHORT{% elif r.variance > 0 %}OVER{% else %}EXACT{% endif %}
+                            {{ currency_symbol }} {{ r.variance|floatformat:2|intcomma }}
+                        </strong>
+                    {% else %}
+                        <span style="color:var(--adm-muted);font-size:12px;">awaiting count</span>
+                    {% endif %}
+                </td>
+                <td></td>
+                <td></td>
+                <td style="text-align:right;font-weight:600;">{% if r.counted is not None %}{{ currency_symbol }} {{ r.counted|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p style="color:var(--adm-muted);font-size:12px;margin-top:8px;">
+    <i class="fa-solid fa-circle-info"></i>
+    Running balance is the <strong>expected</strong> cash in the drawer, reconciled from the Cash Register ledger (sales in; expenses, transfers, payouts out).
+    At each count, <span style="color:var(--adm-danger);font-weight:600;">red = short</span> (counted less than expected),
+    <span style="color:var(--adm-warning);font-weight:600;">amber = over</span> (counted more). After a count the running balance resets to the counted amount.
+</p>
+{% endif %}
+{% endblock %}
