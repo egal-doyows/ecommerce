@@ -131,6 +131,80 @@ class ProfitLossTests(TestCase):
         self.assertEqual(ctx['gross_profit'], Decimal('200'))
 
 
+class CashDrawerFlowTests(TestCase):
+    """Running cash-drawer statement reconciles the Cash ledger against shift counts."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.manager_group, _ = Group.objects.get_or_create(name='Manager')
+        cls.manager = User.objects.create_user('manager', password='pw')
+        cls.manager.groups.add(cls.manager_group)
+        # Cash-handling cashier (Server group → not an auto-shift role).
+        cls.server_group, _ = Group.objects.get_or_create(name='Server')
+        cls.server = User.objects.create_user('mary', password='pw')
+        cls.server.groups.add(cls.server_group)
+
+    def _set_started(self, shift, when):
+        from menu.models import Shift
+        Shift.objects.filter(pk=shift.pk).update(started_at=when)
+        shift.refresh_from_db()
+
+    def test_running_statement_reconciles_and_flags_short(self):
+        from menu.models import Shift
+        from administration.models import Account, Transaction
+
+        now = timezone.now()
+        cash = Account.get_by_type('cash')
+
+        # Shift opens with 1000 float, counted later at 1250.
+        s1 = Shift.objects.create(
+            waiter=self.server, starting_cash=Decimal('1000'),
+            is_active=False, counted_cash=Decimal('1250'),
+            counted_at=now - timedelta(hours=2),
+        )
+        self._set_started(s1, now - timedelta(hours=6))
+
+        # Cash sale +500, cash expense −200 → expected close 1300.
+        Transaction.objects.create(
+            account=cash, transaction_type='credit', amount=Decimal('500'),
+            description='Order #1', reference_type='order',
+            created_at=now - timedelta(hours=5),
+        )
+        Transaction.objects.create(
+            account=cash, transaction_type='debit', amount=Decimal('200'),
+            description='Expense', reference_type='expense',
+            created_at=now - timedelta(hours=4),
+        )
+
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-cash-drawer-flow'), {'preset': 'year'})
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertEqual(resp.context['total_in'], Decimal('500'))
+        self.assertEqual(resp.context['total_out'], Decimal('200'))
+        # counted 1250 − expected 1300 = −50 (short).
+        self.assertEqual(resp.context['net_variance'], Decimal('-50'))
+
+        count_rows = [r for r in resp.context['rows'] if r['type'] == 'count']
+        self.assertEqual(len(count_rows), 1)
+        self.assertEqual(count_rows[0]['expected'], Decimal('1300'))
+        self.assertEqual(count_rows[0]['variance'], Decimal('-50'))
+        self.assertContains(resp, 'SHORT')
+
+    def test_csv_export(self):
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-cash-drawer-flow'), {'format': 'csv'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'text/csv')
+        self.assertIn('attachment', resp['Content-Disposition'])
+
+    def test_empty_period_renders(self):
+        self.client.force_login(self.manager)
+        resp = self.client.get(reverse('reports-cash-drawer-flow'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'No cash drawer activity')
+
+
 class StockOnHandTests(TestCase):
     @classmethod
     def setUpTestData(cls):

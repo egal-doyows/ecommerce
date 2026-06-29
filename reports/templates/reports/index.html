@@ -50,6 +50,14 @@
         <p style="margin:0;color:var(--adm-muted);font-size:13px;">Per-shift expected vs counted cash. Cashier trend table flags chronic shortages.</p>
     </a>
 
+    <a href="{% url 'reports-cash-drawer-flow' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+            <i class="fa-solid fa-money-bill-transfer" style="font-size:20px;color:var(--adm-accent);"></i>
+            <strong>Cash Drawer Flow</strong>
+        </div>
+        <p style="margin:0;color:var(--adm-muted);font-size:13px;">Running statement of the shared drawer between shifts: opening, every cash in/out, expected vs counted at each close (short in red, over in amber).</p>
+    </a>
+
     <a href="{% url 'reports-profit-loss' %}" class="adm-card" style="text-decoration:none;color:inherit;display:block;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
             <i class="fa-solid fa-chart-line" style="font-size:20px;color:var(--adm-accent);"></i>

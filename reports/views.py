@@ -1127,6 +1127,184 @@ def cash_drawer(request):
     })
 
 
+# ── Cash Drawer Flow (running statement) ───────────────────────────────
+
+# Friendly labels for cash-account transactions, keyed by reference_type.
+CASH_REF_LABELS = {
+    'order': 'Cash sale',
+    'expense': 'Expense',
+    'staff_payment': 'Staff payment',
+    'advance': 'Salary advance',
+    'supplier_payment': 'Supplier payment',
+    'debtor_payment': 'Debtor payment',
+    'transfer': 'Transfer',
+    'manual': 'Manual adjustment',
+}
+
+# Roles that hold the till. Manager/Supervisor/Promoter auto-shifts (and
+# superusers) don't count the drawer, so they don't mark open/close points —
+# but cash they move (e.g. a manager recording a cash expense) still posts to
+# the Cash Register account and shows as a movement line.
+_CASHIER_GROUPS = ['Server', 'Cashier']
+_AUTO_SHIFT_GROUPS = ['Owner', 'Manager', 'Supervisor', 'Promoter']
+
+
+@manager_required
+def cash_drawer_flow(request):
+    """Running statement of the shared cash drawer across cashier shifts.
+
+    One cashier holds the till at a time, so the physical cash reads as a
+    continuous bank statement. In time order this shows:
+
+      • each cashier shift OPEN — the float entered, vs. what was carried
+        over from the previous count (handover delta);
+      • every cash movement on the Cash Register account — sales in;
+        expenses, payouts, supplier/staff payments and transfers out — with
+        a running expected balance;
+      • each till COUNT — expected vs. counted, with the variance flagged
+        red when short and amber when over.
+
+    Expected cash is reconciled from the ledger, not re-derived: every cash
+    in/out already posts to the 'cash' account with a timestamp, so the
+    running balance is auditable.
+    """
+    from datetime import datetime, time
+    from django.db.models import Q
+    from administration.models import Account
+
+    start, end, preset = parse_date_range(request)
+
+    tz = timezone.get_current_timezone()
+    start_dt = timezone.make_aware(datetime.combine(start, time.min), tz)
+    end_dt = timezone.make_aware(datetime.combine(end, time.max), tz)
+
+    cash_account = Account.get_by_type('cash')
+
+    # Opening drawer = the last known physical count before the period.
+    prior = (
+        Shift.objects
+        .filter(counted_cash__isnull=False, counted_at__lt=start_dt)
+        .order_by('-counted_at')
+        .first()
+    )
+    opening_balance = prior.counted_cash if prior else None
+
+    # Cashier (till-holding) shifts with an open or count inside the window.
+    cashier_shifts = (
+        Shift.objects
+        .filter(waiter__groups__name__in=_CASHIER_GROUPS)
+        .exclude(waiter__groups__name__in=_AUTO_SHIFT_GROUPS)
+        .exclude(waiter__is_superuser=True)
+        .filter(
+            Q(started_at__gte=start_dt, started_at__lte=end_dt)
+            | Q(counted_at__gte=start_dt, counted_at__lte=end_dt)
+        )
+        .select_related('waiter')
+        .distinct()
+    )
+
+    # Assemble a single time-ordered event stream: shift opens, shift counts,
+    # and every cash-account transaction.
+    events = []
+    for s in cashier_shifts:
+        if start_dt <= s.started_at <= end_dt:
+            events.append((s.started_at, 0, 'open', s))
+        if s.counted_at and start_dt <= s.counted_at <= end_dt:
+            events.append((s.counted_at, 2, 'count', s))
+    for t in cash_account.transactions.filter(
+        created_at__gte=start_dt, created_at__lte=end_dt,
+    ).order_by('created_at'):
+        events.append((t.created_at, 1, 'txn', t))
+    # Sort by time; the secondary key keeps open < txn < count when timestamps
+    # tie (a count recorded at the same instant should come after its movements).
+    events.sort(key=lambda e: (e[0], e[1]))
+
+    running = opening_balance
+    rows = []
+    total_in = Decimal('0')
+    total_out = Decimal('0')
+    variances = []
+
+    for ts, _ord, kind, obj in events:
+        if kind == 'open':
+            entered = obj.starting_cash or Decimal('0')
+            carried = running
+            handover = (entered - carried) if carried is not None else None
+            running = entered
+            rows.append({
+                'type': 'open', 'ts': ts, 'shift_id': obj.id,
+                'cashier': obj.waiter.username if obj.waiter else '—',
+                'entered': entered, 'carried': carried, 'handover': handover,
+                'running': running,
+            })
+        elif kind == 'txn':
+            amt = obj.amount or Decimal('0')
+            is_in = obj.transaction_type == 'credit'
+            running = (running or Decimal('0')) + (amt if is_in else -amt)
+            if is_in:
+                total_in += amt
+            else:
+                total_out += amt
+            rows.append({
+                'type': 'txn', 'ts': ts,
+                'label': CASH_REF_LABELS.get(obj.reference_type, obj.reference_type or 'Cash'),
+                'description': obj.description,
+                'direction': 'in' if is_in else 'out',
+                'amount': amt, 'running': running,
+            })
+        else:  # count
+            counted = obj.counted_cash
+            expected = running
+            variance = (counted - expected) if (counted is not None and expected is not None) else None
+            rows.append({
+                'type': 'count', 'ts': ts, 'shift_id': obj.id,
+                'cashier': obj.waiter.username if obj.waiter else '—',
+                'expected': expected, 'counted': counted, 'variance': variance,
+            })
+            if variance is not None:
+                variances.append(variance)
+            if counted is not None:
+                running = counted  # the count is ground truth; carry it forward
+
+    closing_balance = running
+    net_variance = sum(variances, Decimal('0'))
+
+    if request.GET.get('format') == 'csv':
+        header = ['Time', 'Event', 'Cashier', 'In', 'Out', 'Running', 'Note']
+        csv_rows = []
+        for r in rows:
+            if r['type'] == 'open':
+                note = f"float entered; carried {r['carried']}" if r['carried'] is not None else 'float entered'
+                csv_rows.append([r['ts'].isoformat(), f"Shift #{r['shift_id']} open", r['cashier'],
+                                 r['entered'], '', r['running'], note])
+            elif r['type'] == 'txn':
+                csv_rows.append([
+                    r['ts'].isoformat(), r['label'], '',
+                    r['amount'] if r['direction'] == 'in' else '',
+                    r['amount'] if r['direction'] == 'out' else '',
+                    r['running'], r['description'],
+                ])
+            else:
+                note = '' if r['variance'] is None else f"expected {r['expected']}, variance {r['variance']}"
+                csv_rows.append([r['ts'].isoformat(), f"Shift #{r['shift_id']} COUNT", r['cashier'],
+                                 '', '', r['counted'] if r['counted'] is not None else '', note])
+        return csv_response(
+            f'cash_drawer_flow_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    return render(request, 'reports/cash_drawer_flow.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'rows': rows,
+        'opening_balance': opening_balance,
+        'closing_balance': closing_balance,
+        'total_in': total_in,
+        'total_out': total_out,
+        'net_variance': net_variance,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
+    })
+
+
 # ── #7 Stock Variance Report ───────────────────────────────────────────
 
 def _parse_count(raw):
