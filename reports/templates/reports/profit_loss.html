@@ -36,7 +36,7 @@
                 <td style="text-align:right;">{% if deltas.revenue is not None %}{{ deltas.revenue|floatformat:1 }}%{% else %}—{% endif %}</td>
             </tr>
             <tr>
-                <td style="padding-left:20px;color:var(--adm-muted);">Less: Cost of Goods Sold</td>
+                <td style="padding-left:20px;color:var(--adm-muted);">Less: <a href="{% url 'reports-cogs-detail' %}?{% if preset != 'today' %}preset={{ preset }}&{% endif %}{% if preset == 'custom' %}start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&{% endif %}" style="color:var(--adm-accent);text-decoration:none;">Cost of Goods Sold</a></td>
                 <td style="text-align:right;color:var(--adm-danger);">({{ currency_symbol }} {{ current.cogs|floatformat:2|intcomma }})</td>
                 <td style="text-align:right;color:var(--adm-muted);">({{ currency_symbol }} {{ previous.cogs|floatformat:2|intcomma }})</td>
                 <td style="text-align:right;">{% if deltas.cogs is not None %}{{ deltas.cogs|floatformat:1 }}%{% else %}—{% endif %}</td>

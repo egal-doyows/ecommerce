@@ -158,6 +158,92 @@ def profit_loss(request):
     })
 
 
+# ── Cost of Goods Sold Detail ──────────────────────────────────────────
+
+@manager_required
+def cogs_detail(request):
+    """
+    Drill-down of the single 'Cost of Goods Sold' line on the P&L.
+
+    Breaks the period's COGS into its constituent menu items, grouped by
+    category. The cost figure is the same frozen all-in OrderItem.unit_cost
+    (base + option costs) the P&L sums, filtered to paid, non-comped
+    orders — so the grand total here reconciles exactly to the P&L COGS
+    line for the same period.
+    """
+    start, end, preset = parse_date_range(request)
+
+    rows = (
+        OrderItem.objects
+        .filter(
+            order__status='paid', order__is_comp=False,
+            order__created_at__date__gte=start,
+            order__created_at__date__lte=end,
+        )
+        .values('menu_item_id', 'menu_item__title', 'menu_item__category__name')
+        .annotate(
+            qty=Coalesce(Sum('quantity'), 0),
+            cost=Coalesce(
+                Sum(F('unit_cost') * F('quantity'), output_field=DecimalField()),
+                Decimal('0'), output_field=DecimalField(),
+            ),
+        )
+    )
+
+    total_cogs = Decimal('0')
+    total_qty = 0
+    by_category = {}
+    for r in rows:
+        cost = r['cost'] or Decimal('0')
+        qty = r['qty'] or 0
+        total_cogs += cost
+        total_qty += qty
+        cat = r['menu_item__category__name'] or 'Uncategorised'
+        c = by_category.setdefault(cat, {'name': cat, 'items': [], 'cost': Decimal('0'), 'qty': 0})
+        c['items'].append({
+            'title': r['menu_item__title'] or '(deleted item)',
+            'qty': qty,
+            'avg_unit_cost': (cost / qty) if qty else Decimal('0'),
+            'cost': cost,
+        })
+        c['cost'] += cost
+        c['qty'] += qty
+
+    # % of total COGS per item and per category; sort items within each
+    # category, then categories, by cost descending (biggest cost driver first).
+    categories = []
+    for c in by_category.values():
+        c['pct'] = (c['cost'] / total_cogs * 100) if total_cogs else Decimal('0')
+        for it in c['items']:
+            it['pct'] = (it['cost'] / total_cogs * 100) if total_cogs else Decimal('0')
+        c['items'].sort(key=lambda x: x['cost'], reverse=True)
+        categories.append(c)
+    categories.sort(key=lambda x: x['cost'], reverse=True)
+
+    if request.GET.get('format') == 'csv':
+        header = ['Category', 'Item', 'Qty sold', 'Avg unit cost', 'Total cost', '% of COGS']
+        csv_rows = []
+        for c in categories:
+            for it in c['items']:
+                csv_rows.append([
+                    c['name'], it['title'], it['qty'],
+                    it['avg_unit_cost'], it['cost'], f"{it['pct']:.1f}",
+                ])
+        csv_rows.append(['TOTAL', '', total_qty, '', total_cogs, '100.0'])
+        return csv_response(
+            f'cogs_detail_{start.isoformat()}_to_{end.isoformat()}.csv',
+            header, csv_rows,
+        )
+
+    return render(request, 'reports/cogs_detail.html', {
+        'start': start, 'end': end, 'preset': preset,
+        'categories': categories,
+        'total_cogs': total_cogs,
+        'total_qty': total_qty,
+        'currency_symbol': get_restaurant_settings().currency_symbol,
+    })
+
+
 # ── #6 Stock On Hand & Valuation ───────────────────────────────────────
 
 @manager_required
