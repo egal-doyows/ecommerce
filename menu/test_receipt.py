@@ -10,8 +10,10 @@ The receipt block is always present in the response (it is merely display:none
 on screen and revealed by @media print), so we can assert on the rendered HTML.
 """
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -102,6 +104,24 @@ class ReceiptRenderTests(TestCase):
 
         self.assertIn('TOTAL', receipt)
         self.assertNotIn('VAT', receipt)
+
+    def test_thermal_receipt_includes_configured_logo_as_raster(self):
+        from PIL import Image
+        from menu.models import RestaurantSettings
+
+        image_data = BytesIO()
+        Image.new('RGB', (24, 12), 'black').save(image_data, format='PNG')
+        settings = RestaurantSettings.load()
+        settings.logo = SimpleUploadedFile(
+            'receipt-logo.png', image_data.getvalue(), content_type='image/png',
+        )
+        settings.save()
+
+        receipt = build_receipt(
+            self._order(status='paid', payment_method='cash'),
+        )
+
+        self.assertIn(b'\x1dv0', receipt)
 
     def test_discount_shows_subtotal_and_discount_lines(self):
         # 2 x 150 = 300 subtotal, 50 discount -> 250 total.

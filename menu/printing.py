@@ -7,7 +7,7 @@ proven to work on these printers — via the QZ Tray bridge on each register.
 
 Public entry point:
 
-    build_receipt(order, *, width=48, logo_bytes=None) -> bytes
+    build_receipt(order, *, width=48) -> bytes
 
 The stream always starts with an ``ESC @`` init, selects cp437, ends with a
 partial cut (``GS V 66 0``) and a trailing ``ESC @`` re-init. The trailing
@@ -16,9 +16,9 @@ connection loses its formatting (a known desync on these generic units).
 
 Nothing here is shared/global — every call builds a fresh ``bytearray``.
 
-A raster logo (``GS v 0``) will be prepended later; ``build_receipt`` already
-accepts ``logo_bytes`` and drops them in at the top, centered, so that work is
-a one-liner at the call site when the time comes.
+A configured restaurant logo is converted to a monochrome ``GS v 0`` raster
+image before it is prepended to the receipt. If the image cannot be read, the
+receipt still prints without it.
 """
 
 from __future__ import annotations
@@ -149,13 +149,67 @@ def _money(amount, symbol: str = "") -> str:
     return f"{symbol}{amount:,.2f}"
 
 
-def build_receipt(order, *, width: int = DEFAULT_WIDTH, logo_bytes: bytes | None = None) -> bytes:
+def _logo_raster(logo, *, max_width: int, max_height: int) -> bytes | None:
+    """Convert a Django image field into a centred ESC/POS ``GS v 0`` raster.
+
+    ESC/POS printers do not understand PNG/JPEG files sent as RAW data. They
+    require one bit per pixel, packed left-to-right in rows. Alpha is composed
+    onto white so transparent logos do not print as a black rectangle.
+    """
+    if not logo:
+        return None
+
+    try:
+        from PIL import Image, ImageOps
+
+        logo.open('rb')
+        with Image.open(logo) as source:
+            source.load()
+            if source.mode in ('RGBA', 'LA') or (
+                source.mode == 'P' and 'transparency' in source.info
+            ):
+                rgba = source.convert('RGBA')
+                image = Image.new('RGB', rgba.size, 'white')
+                image.paste(rgba, mask=rgba.getchannel('A'))
+            else:
+                image = source.convert('RGB')
+
+        image.thumbnail((max(1, max_width), max(1, max_height)), Image.Resampling.LANCZOS)
+        grayscale = ImageOps.grayscale(image)
+        # A threshold preserves crisp text/marks and avoids the muddy output
+        # that dithering often produces on low-cost thermal printers.
+        bitmap = grayscale.point(lambda value: 0 if value < 180 else 255, mode='1')
+        pixel_width, height = bitmap.size
+        bytes_per_row = (pixel_width + 7) // 8
+        data = bytearray(bytes_per_row * height)
+
+        for y in range(height):
+            row_start = y * bytes_per_row
+            for x in range(pixel_width):
+                if bitmap.getpixel((x, y)) == 0:
+                    data[row_start + (x // 8)] |= 0x80 >> (x % 8)
+
+        # GS v 0 m xL xH yL yH d1...dk — mode 0 is normal density.
+        return GS + b'v0' + bytes([
+            0,
+            bytes_per_row & 0xFF, (bytes_per_row >> 8) & 0xFF,
+            height & 0xFF, (height >> 8) & 0xFF,
+        ]) + bytes(data)
+    except Exception:
+        # A logo should never prevent an order receipt from being printed.
+        return None
+    finally:
+        try:
+            logo.close()
+        except Exception:
+            pass
+
+
+def build_receipt(order, *, width: int = DEFAULT_WIDTH) -> bytes:
     """Render ``order`` into a raw ESC/POS byte stream for a POS-80 printer.
 
     :param order: a ``menu.models.Order`` instance.
     :param width: characters per line (48 for POS-80 Font A).
-    :param logo_bytes: optional pre-built ``GS v 0`` raster block, prepended at
-        the top, centered. Not built here yet — the hook is in place for later.
     :returns: raw ``bytes`` ready to hand to the printer in RAW datatype.
     """
     from .models import RestaurantSettings
@@ -164,10 +218,17 @@ def build_receipt(order, *, width: int = DEFAULT_WIDTH, logo_bytes: bytes | None
     sym = shop.currency_symbol
     r = _Receipt(width)
 
+    from django.conf import settings
+    logo_bytes = _logo_raster(
+        shop.logo,
+        max_width=getattr(settings, 'POS_RECEIPT_LOGO_MAX_WIDTH', 384),
+        max_height=getattr(settings, 'POS_RECEIPT_LOGO_MAX_HEIGHT', 160),
+    )
+
     # Fresh init every time, then select cp437 so box/extended glyphs render.
     r.raw(INIT).raw(CODEPAGE_CP437)
 
-    # ── Logo (raster) — insertion point for the future GS v 0 block ──
+    # ── Logo (raster) ──
     if logo_bytes:
         r.raw(ALIGN_CENTER).raw(logo_bytes).raw(b"\n").raw(ALIGN_LEFT)
 

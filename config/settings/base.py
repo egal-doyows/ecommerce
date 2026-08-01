@@ -245,6 +245,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 POS_RECEIPT_PRINTER = os.environ.get('POS_RECEIPT_PRINTER', 'POS-80')
 # Characters per line for the receipt (48 for an 80 mm POS-80 at Font A).
 POS_RECEIPT_WIDTH = int(os.environ.get('POS_RECEIPT_WIDTH', '48'))
+# Raster-logo dimensions in printer dots. 384 px keeps the image legible on
+# 80 mm paper while leaving ample margin on common 203 dpi thermal printers.
+POS_RECEIPT_LOGO_MAX_WIDTH = int(os.environ.get('POS_RECEIPT_LOGO_MAX_WIDTH', '384'))
+POS_RECEIPT_LOGO_MAX_HEIGHT = int(os.environ.get('POS_RECEIPT_LOGO_MAX_HEIGHT', '160'))
 
 # QZ Tray request signing — lets cashiers print silently (no per-print
 # security popup). Point these at the cert/key generated for the rollout
