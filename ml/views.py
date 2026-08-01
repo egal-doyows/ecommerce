@@ -23,6 +23,7 @@ from ml.models import (
     ReorderSuggestion,
 )
 from reports.utils import manager_required, supervisor_or_manager_required
+from ml import operations
 
 
 def _settings_ctx():
@@ -44,6 +45,21 @@ def ml_index(request):
         for name in ['forecast', 'reorder', 'anomaly', 'basket', 'menu_class']
     }
     return render(request, 'ml/index.html', {'statuses': statuses})
+
+
+@manager_required
+def operations_dashboard(request):
+    """Actionable intelligence derived from existing operational records."""
+    return render(request, 'ml/operations.html', {
+        'prep': operations.prep_and_waste(),
+        'variance_rows': operations.recipe_variance(),
+        'suppliers': operations.supplier_intelligence(),
+        'upsells': operations.margin_upsells(),
+        'staffing': operations.staffing_signal(),
+        'channels': operations.channel_profitability(),
+        'readiness': operations.readiness(),
+        **_settings_ctx(),
+    })
 
 
 @supervisor_or_manager_required

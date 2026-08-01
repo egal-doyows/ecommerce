@@ -136,3 +136,13 @@ class WeekdayForecastViewTests(TestCase):
         peaks = {it['item'].title: it['peak_name'] for it in ctx['items']}
         self.assertEqual(peaks['Pizza'], 'Saturday')
         self.assertIn('Soup', peaks)
+
+    def test_operations_dashboard_is_manager_only(self):
+        self.client.force_login(self.server)
+        self.assertEqual(self.client.get(reverse('ml-operations')).status_code, 302)
+
+        self.client.force_login(self.manager)
+        response = self.client.get(reverse('ml-operations'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Decision Intelligence')
+        self.assertContains(response, 'Customer retention and offers')

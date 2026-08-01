@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path('', views.ml_index, name='ml-index'),
+    path('operations/', views.operations_dashboard, name='ml-operations'),
     path('insights/', views.insights_for_supervisors, name='ml-supervisor-insights'),
     path('prep-list/', views.prep_list, name='ml-prep-list'),
     path('weekday-forecast/', views.forecast_by_weekday, name='ml-weekday-forecast'),
