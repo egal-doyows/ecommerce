@@ -149,18 +149,6 @@ def _money(amount, symbol: str = "") -> str:
     return f"{symbol}{amount:,.2f}"
 
 
-# VAT is charged *inclusive* at the Kenyan standard rate. Pricing in this app
-# is gross (no separate VAT field), so the VAT contained in a gross total is
-# total * rate / (1 + rate) = total * 16 / 116.
-VAT_RATE = Decimal("0.16")
-
-
-def _vat_inclusive(total: Decimal) -> Decimal:
-    if total <= 0:
-        return Decimal("0")
-    return (total * VAT_RATE / (Decimal("1") + VAT_RATE)).quantize(Decimal("0.01"))
-
-
 def build_receipt(order, *, width: int = DEFAULT_WIDTH, logo_bytes: bytes | None = None) -> bytes:
     """Render ``order`` into a raw ESC/POS byte stream for a POS-80 printer.
 
@@ -256,9 +244,6 @@ def build_receipt(order, *, width: int = DEFAULT_WIDTH, logo_bytes: bytes | None
     r.raw(BOLD_ON)
     r.row("TOTAL (COMP)" if order.is_comp else "TOTAL", _money(total, sym))
     r.raw(BOLD_OFF)
-    if total > 0:
-        r.row(f"  incl. VAT @ {int(VAT_RATE * 100)}%", _money(_vat_inclusive(total), sym))
-
     # ── Payment ──
     if order.payment_method:
         r.text("\n").row("Payment", order.get_payment_method_display())

@@ -216,7 +216,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # ── i18n / tz ─────────────────────────────────────────────────────────────
 
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+# Store timestamps in UTC (USE_TZ=True), while interpreting business dates,
+# daily reports, and scheduled tasks in the restaurant's local timezone.
+TIME_ZONE = os.environ.get('DJANGO_TIME_ZONE', 'Africa/Nairobi')
 USE_I18N = True
 USE_TZ = True
 

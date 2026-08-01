@@ -22,6 +22,7 @@ from django.core.cache import cache
 from menu.models import (
     Category, MenuItem, InventoryItem, Order, OrderItem, Shift,
 )
+from menu.printing import build_receipt
 
 
 class ReceiptRenderTests(TestCase):
@@ -94,6 +95,13 @@ class ReceiptRenderTests(TestCase):
         self.assertNotIn('>Subtotal<', html)
         self.assertNotIn('>Discount<', html)
         self.assertNotIn('Complimentary', html)
+
+    def test_thermal_receipt_shows_only_the_inclusive_total(self):
+        order = self._order(status='paid', payment_method='cash')
+        receipt = build_receipt(order).decode('cp437')
+
+        self.assertIn('TOTAL', receipt)
+        self.assertNotIn('VAT', receipt)
 
     def test_discount_shows_subtotal_and_discount_lines(self):
         # 2 x 150 = 300 subtotal, 50 discount -> 250 total.

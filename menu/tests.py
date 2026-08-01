@@ -386,7 +386,6 @@ class SplitPaymentTests(ShiftCorrectionBase):
     the total. See menu.views._apply_split_payment / Order.payment_breakdown."""
 
     def setUp(self):
-        self.shift = Shift.objects.create(waiter=self.server, is_active=True)
         self.client.force_login(self.server)
 
     def _pay_split(self, order, methods, amounts, codes=None):
@@ -404,7 +403,8 @@ class SplitPaymentTests(ShiftCorrectionBase):
 
     def test_split_pays_in_full_and_posts_per_mode_ledger(self):
         from administration.models import Account
-        order = self._order(self.shift, status='active')  # total 300
+        shift = Shift.objects.create(waiter=self.server, is_active=True)
+        order = self._order(shift, status='active')  # total 300
         self._pay_split(order, ['cash', 'mpesa'], ['200', '100'], ['', 'AB12'])
 
         order.refresh_from_db()
@@ -428,7 +428,8 @@ class SplitPaymentTests(ShiftCorrectionBase):
 
     def test_split_must_sum_to_total(self):
         from administration.models import Account
-        order = self._order(self.shift, status='active')  # total 300
+        shift = Shift.objects.create(waiter=self.server, is_active=True)
+        order = self._order(shift, status='active')  # total 300
         resp = self._pay_split(order, ['cash', 'card'], ['200', '50'])  # = 250 ≠ 300
         self.assertEqual(resp.status_code, 302)
 
