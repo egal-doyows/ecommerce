@@ -8,4 +8,5 @@ urlpatterns = [
     path('<int:pk>/edit/', views.debtor_edit, name='debtor-edit'),
     path('<int:pk>/transaction/', views.transaction_create, name='debtor-transaction-create'),
     path('<int:pk>/receive-payment/', views.receive_payment, name='debtor-receive-payment'),
+    path('payments/<int:transaction_id>/reverse/', views.reverse_payment, name='debtor-payment-reverse'),
 ]

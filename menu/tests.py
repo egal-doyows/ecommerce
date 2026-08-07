@@ -380,6 +380,65 @@ class OfflineSyncIdempotencyTests(TestCase):
             cash.transactions.filter(reference_type='order', reference_id=order.id).count(), 1,
         )
 
+    def test_offline_credit_requires_debtor(self):
+        shift = Shift.objects.filter(waiter=self.server, is_active=True).first()
+        order = Order.objects.create(status='active', waiter=self.server, shift=shift)
+        OrderItem.objects.create(
+            order=order, menu_item=self.item, quantity=1,
+            unit_price=Decimal('100'), unit_cost=Decimal('5'),
+        )
+        response = self.client.post(
+            reverse('api-update-order-status', args=[order.id]),
+            data=json.dumps({'status': 'paid', 'payment_method': 'credit'}),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'active')
+
+
+class CreditOrderSettlementTests(ShiftCorrectionBase):
+    def setUp(self):
+        from debtor.models import Debtor, DebtorTransaction
+        self.shift = Shift.objects.create(waiter=self.server, is_active=True)
+        self.debtor = Debtor.objects.create(name='Credit Customer')
+        self.order = self._order(
+            self.shift, status='paid', payment_method='credit', debtor=self.debtor,
+        )
+        self.invoice = DebtorTransaction.objects.create(
+            debtor=self.debtor, order=self.order, transaction_type='debit',
+            amount=self.order.get_total(), description='Credit order',
+            reference=str(self.order.id),
+        )
+        self.client.force_login(self.server)
+
+    def _settle(self, amount, method, **extra):
+        return self.client.post(
+            reverse('order-settle-credit', args=[self.order.id]),
+            {'payment_amount': amount, 'payment_method': method, **extra},
+        )
+
+    def test_partial_mpesa_then_card_routes_to_correct_accounts(self):
+        from administration.models import Account
+        self._settle('100.00', 'mpesa', mpesa_code='AB12')
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.amount_paid, Decimal('100.00'))
+        self.assertEqual(self.invoice.remaining, Decimal('200.00'))
+        self.assertEqual(Account.get_by_type('mpesa').transactions.get().amount, Decimal('100.00'))
+        self.assertFalse(Account.get_by_type('cash').transactions.exists())
+
+        self._settle('50.00', 'card', card_reference='AUTH-9')
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.remaining, Decimal('150.00'))
+        self.assertEqual(Account.get_by_type('bank').transactions.get().amount, Decimal('50.00'))
+
+    def test_payment_cannot_exceed_order_balance(self):
+        from administration.models import Account
+        self._settle('301.00', 'cash')
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.amount_paid, Decimal('0'))
+        self.assertFalse(Account.get_by_type('cash').transactions.exists())
+
 
 class SplitPaymentTests(ShiftCorrectionBase):
     """Split tender: one order settled across several modes that must sum to

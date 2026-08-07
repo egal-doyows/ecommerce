@@ -5,9 +5,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
+from django.core.exceptions import ValidationError
 
 from .models import Debtor, DebtorTransaction, DebtorPaymentAllocation
 from .forms import DebtorForm, DebtorTransactionForm
+from .services import record_debtor_payment, reverse_debtor_payment
 
 audit_logger = logging.getLogger('audit')
 
@@ -182,6 +184,8 @@ def receive_payment(request, pk):
     if request.method == 'POST':
         payment_amount = request.POST.get('payment_amount', '0')
         payment_note = request.POST.get('payment_note', '').strip()
+        payment_method = request.POST.get('payment_method', '')
+        payment_reference = request.POST.get('payment_reference', '')
         try:
             payment_amount = Decimal(payment_amount).quantize(Decimal('0.01'))
         except Exception:
@@ -192,54 +196,18 @@ def receive_payment(request, pk):
             messages.error(request, 'Payment amount must be greater than zero.')
             return redirect('debtor-receive-payment', pk=debtor.pk)
 
-        with transaction.atomic():
-            # Create the payment (credit) transaction
-            payment_txn = DebtorTransaction.objects.create(
+        try:
+            record_debtor_payment(
                 debtor=debtor,
-                transaction_type='credit',
                 amount=payment_amount,
-                description=payment_note or f'Payment received from {debtor.name}',
+                method=payment_method,
+                reference=payment_reference,
+                note=payment_note,
                 created_by=request.user,
             )
-
-            # Allocate payment against invoices (oldest first). Re-fetch the
-            # invoices under a row lock and recompute `remaining` inside the
-            # transaction so two concurrent payments can't over-allocate the
-            # same balance / lose an amount_paid update.
-            locked_invoices = list(
-                DebtorTransaction.objects.select_for_update()
-                .filter(debtor=debtor, transaction_type='debit')
-                .order_by('date', 'id')
-            )
-            remaining_payment = payment_amount
-            for inv in locked_invoices:
-                if remaining_payment <= 0:
-                    break
-                inv_remaining = inv.remaining
-                if inv_remaining <= 0:
-                    continue
-                allocated = min(remaining_payment, inv_remaining)
-                DebtorPaymentAllocation.objects.create(
-                    payment=payment_txn,
-                    invoice=inv,
-                    amount=allocated,
-                )
-                inv.amount_paid += allocated
-                inv.save(update_fields=['amount_paid'])
-                remaining_payment -= allocated
-
-            # Credit the cash account
-            from administration.models import Account, Transaction as AcctTransaction
-            cash_account = Account.get_by_type('cash')
-            AcctTransaction.objects.create(
-                account=cash_account,
-                transaction_type='credit',
-                amount=payment_amount,
-                description=f'Debtor payment — {debtor.name}',
-                reference_type='debtor_payment',
-                reference_id=payment_txn.id,
-                created_by=request.user,
-            )
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+            return redirect('debtor-receive-payment', pk=debtor.pk)
 
         from menu.cache import get_restaurant_settings
         symbol = get_restaurant_settings().currency_symbol
@@ -256,3 +224,21 @@ def receive_payment(request, pk):
         'currency_symbol': symbol,
     }
     return render(request, 'debtor/receive_payment.html', context)
+
+
+@superuser_only
+def reverse_payment(request, transaction_id):
+    if request.method != 'POST':
+        return redirect('debtor-list')
+    payment = get_object_or_404(
+        DebtorTransaction, pk=transaction_id, transaction_type='credit',
+    )
+    debtor_id = payment.debtor_id
+    amount = payment.amount
+    reverse_debtor_payment(payment=payment, created_by=request.user)
+    audit_logger.info(
+        'Debtor payment reversed: transaction_id=%d amount=%s by=%s',
+        transaction_id, amount, request.user.username,
+    )
+    messages.success(request, f'Payment of {amount:,.2f} reversed.')
+    return redirect('debtor-detail', pk=debtor_id)

@@ -65,6 +65,11 @@ class DebtorTransaction(models.Model):
         ('debit', 'Credit Sale / Invoice'),
         ('credit', 'Payment Received'),
     ]
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mpesa', 'M-Pesa'),
+        ('card', 'Card'),
+    ]
 
     debtor = models.ForeignKey(
         Debtor, on_delete=models.CASCADE, related_name='transactions',
@@ -76,6 +81,19 @@ class DebtorTransaction(models.Model):
     amount_paid = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
         help_text="How much of this invoice has been paid (debit transactions only)",
+    )
+    order = models.OneToOneField(
+        'menu.Order', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='credit_invoice',
+        help_text='Order that created this invoice, when applicable.',
+    )
+    payment_method = models.CharField(
+        max_length=10, choices=PAYMENT_METHOD_CHOICES, blank=True,
+        help_text='Tender used for payment transactions.',
+    )
+    payment_reference = models.CharField(
+        max_length=50, blank=True,
+        help_text='M-Pesa code, card authorization, or other tender reference.',
     )
     description = models.CharField(max_length=250)
     reference = models.CharField(

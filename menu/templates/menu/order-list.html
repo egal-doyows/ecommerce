@@ -391,6 +391,7 @@
             <form method="post" action="{% url 'order-settle-credit' order.id %}" class="ol-settle-form" id="settle-{{ order.id }}">
                 {% csrf_token %}
                 <span style="font-size:12px;font-weight:600;color:var(--pos-muted);">Payment</span>
+                <input type="number" name="payment_amount" step="0.01" min="0.01" max="{{ order.credit_remaining }}" value="{{ order.credit_remaining }}" required style="width:130px;">
                 <select name="payment_method" required data-settle-method>
                     <option value="cash">Cash</option>
                     <option value="mpesa">M-Pesa</option>

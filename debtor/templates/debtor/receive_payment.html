@@ -87,6 +87,20 @@
                 </div>
 
                 <div class="adm-form-group">
+                    <label class="adm-form-label">Payment Method</label>
+                    <select name="payment_method" class="adm-input" id="paymentMethod" required>
+                        <option value="cash">Cash</option>
+                        <option value="mpesa">M-Pesa</option>
+                        <option value="card">Card</option>
+                    </select>
+                </div>
+
+                <div class="adm-form-group" id="paymentReferenceGroup" style="display:none;">
+                    <label class="adm-form-label" id="paymentReferenceLabel">Payment Reference</label>
+                    <input type="text" name="payment_reference" class="adm-input" id="paymentReference" maxlength="50">
+                </div>
+
+                <div class="adm-form-group">
                     <label class="adm-form-label">Note (optional)</label>
                     <input type="text" name="payment_note" class="adm-input" placeholder="e.g. Cheque #1234, M-Pesa ref">
                 </div>
@@ -106,11 +120,23 @@
                 const currencySymbol = '{{ currency_symbol }}';
                 const amountInput = document.getElementById('paymentAmount');
                 const btnLabel = document.getElementById('btnLabel');
+                const methodInput = document.getElementById('paymentMethod');
+                const referenceGroup = document.getElementById('paymentReferenceGroup');
+                const referenceInput = document.getElementById('paymentReference');
+                const referenceLabel = document.getElementById('paymentReferenceLabel');
                 amountInput.addEventListener('input', function() {
                     const amt = parseFloat(this.value) || 0;
                     btnLabel.textContent = amt > 0
                         ? 'Confirm Payment — ' + currencySymbol + ' ' + amt.toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})
                         : 'Confirm Payment';
+                });
+                methodInput.addEventListener('change', function() {
+                    const needsReference = this.value !== 'cash';
+                    referenceGroup.style.display = needsReference ? 'block' : 'none';
+                    referenceInput.required = this.value === 'mpesa';
+                    referenceInput.maxLength = this.value === 'mpesa' ? 4 : 50;
+                    referenceLabel.textContent = this.value === 'mpesa' ? 'Last 4 M-Pesa Characters' : 'Card Reference (optional)';
+                    if (!needsReference) referenceInput.value = '';
                 });
             </script>
             {% else %}

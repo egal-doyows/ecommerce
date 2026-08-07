@@ -293,12 +293,13 @@ def api_update_order_status(request, order_id):
                 return JsonResponse({'error': 'M-Pesa code must be 4 alphanumeric characters'}, status=400)
         if payment_method == 'credit':
             debtor_id = data.get('debtor_id')
-            if debtor_id:
-                from debtor.models import Debtor
-                try:
-                    debtor = Debtor.objects.get(pk=debtor_id, is_active=True)
-                except Debtor.DoesNotExist:
-                    return JsonResponse({'error': 'Debtor not found'}, status=400)
+            if not debtor_id:
+                return JsonResponse({'error': 'A debtor is required for credit payment'}, status=400)
+            from debtor.models import Debtor
+            try:
+                debtor = Debtor.objects.get(pk=debtor_id, is_active=True)
+            except Debtor.DoesNotExist:
+                return JsonResponse({'error': 'Debtor not found'}, status=400)
 
     from django.db.models import Q
     with transaction.atomic():

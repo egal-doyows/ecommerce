@@ -162,7 +162,16 @@
                 {% else %}
                     <td style="text-align:right;color:var(--adm-muted);">—</td>
                     <td style="text-align:right;font-weight:700;color:var(--adm-success);">{{ restaurant.currency_symbol }} {{ txn.amount|floatformat:2|intcomma }}</td>
-                    <td><span class="adm-badge adm-badge-success">Payment</span></td>
+                    <td>
+                        <span class="adm-badge adm-badge-success">{{ txn.get_payment_method_display|default:"Payment" }}</span>
+                        {% if txn.payment_reference %}<small style="display:block;color:var(--adm-muted);margin-top:4px;">{{ txn.payment_reference }}</small>{% endif %}
+                        {% if request.user.is_superuser %}
+                        <form method="post" action="{% url 'debtor-payment-reverse' txn.id %}" style="margin-top:6px;" onsubmit="return confirm('Reverse this payment and reopen its invoice balance?');">
+                            {% csrf_token %}
+                            <button type="submit" class="adm-btn adm-btn-outline" style="padding:4px 8px;font-size:11px;">Reverse</button>
+                        </form>
+                        {% endif %}
+                    </td>
                 {% endif %}
             </tr>
             {% endfor %}

@@ -74,6 +74,7 @@ def _record_order_accounting(order, user):
         from debtor.models import DebtorTransaction
         kwargs = {
             'debtor': order.debtor,
+            'order': order,
             'transaction_type': 'debit',
             'amount': order.get_total(),
             'description': f'Order #{order.id} — Table {order.table.number if order.table else "N/A"}',
@@ -150,11 +151,15 @@ def _apply_split_payment(request, order, user):
 def _credit_invoice_for_order(order):
     """The debtor invoice (debit txn) created when this order was paid on credit."""
     from debtor.models import DebtorTransaction
-    return (
-        DebtorTransaction.objects
-        .filter(reference=str(order.id), transaction_type='debit')
-        .order_by('-id').first()
-    )
+    invoice = DebtorTransaction.objects.filter(order=order, transaction_type='debit').first()
+    if invoice is not None:
+        return invoice
+    # Compatibility for invoices created before the explicit order link.
+    return DebtorTransaction.objects.filter(
+        debtor_id=order.debtor_id,
+        reference=str(order.id),
+        transaction_type='debit',
+    ).order_by('-id').first()
 
 
 def _order_refund_blocked_reason(order):
@@ -665,13 +670,26 @@ def order_list(request):
     invoices_by_order = {}
     if credit_paid_ids:
         for inv in DebtorTransaction.objects.filter(
-            transaction_type='debit',
-            reference__in=[str(i) for i in credit_paid_ids],
+            transaction_type='debit', order_id__in=credit_paid_ids,
         ):
-            try:
-                invoices_by_order[int(inv.reference)] = inv
-            except (TypeError, ValueError):
-                continue
+            invoices_by_order[inv.order_id] = inv
+        # Compatibility for legacy invoices not yet linked to an order.
+        missing_ids = set(credit_paid_ids) - set(invoices_by_order)
+        if missing_ids:
+            orders_by_id = {
+                o.id: o for o in base_qs.filter(id__in=missing_ids).only('id', 'debtor_id')
+            }
+            for inv in DebtorTransaction.objects.filter(
+                transaction_type='debit', order__isnull=True,
+                reference__in=[str(i) for i in missing_ids],
+            ):
+                try:
+                    order_id = int(inv.reference)
+                except (TypeError, ValueError):
+                    continue
+                order = orders_by_id.get(order_id)
+                if order and inv.debtor_id == order.debtor_id:
+                    invoices_by_order[order_id] = inv
     unsettled_ids = [oid for oid, inv in invoices_by_order.items() if inv.remaining > 0]
 
     credit_qs = base_qs.filter(id__in=unsettled_ids)
@@ -918,10 +936,10 @@ def order_update_status(request, order_id):
 @login_required(login_url='waiter-login')
 @shift_required
 def credit_order_settle(request, order_id):
-    """Settle a credit order in full (cash or M-Pesa).
+    """Record a full or partial credit-order payment by cash, M-Pesa, or card.
 
     Servers can mark their own credit orders as paid when the customer
-    returns to settle. Creates a credit DebtorTransaction allocated against
+    returns to pay. Creates a credit DebtorTransaction allocated against
     the original invoice and credits the cash account — same accounting
     path as the manager-level receive_payment view.
     """
@@ -940,12 +958,10 @@ def credit_order_settle(request, order_id):
         messages.error(request, 'This order is not on credit.')
         return redirect('order-list')
 
-    from debtor.models import DebtorTransaction, DebtorPaymentAllocation
-    try:
-        invoice = DebtorTransaction.objects.get(
-            transaction_type='debit', reference=str(order.id),
-        )
-    except DebtorTransaction.DoesNotExist:
+    from django.core.exceptions import ValidationError
+    from debtor.services import record_debtor_payment
+    invoice = _credit_invoice_for_order(order)
+    if invoice is None:
         messages.error(request, 'Could not find the invoice for this order.')
         return redirect('order-list')
 
@@ -956,6 +972,16 @@ def credit_order_settle(request, order_id):
     payment_method = request.POST.get('payment_method', '')
     if payment_method not in ('cash', 'mpesa', 'card'):
         messages.error(request, 'Choose cash, M-Pesa, or card.')
+        return redirect('order-list')
+
+    payment_amount = request.POST.get('payment_amount', '')
+    try:
+        payment_amount = Decimal(payment_amount).quantize(Decimal('0.01'))
+    except Exception:
+        messages.error(request, 'Enter a valid payment amount.')
+        return redirect('order-list')
+    if payment_amount <= 0 or payment_amount > invoice.remaining:
+        messages.error(request, f'Payment must be between 0.01 and {invoice.remaining:.2f}.')
         return redirect('order-list')
 
     mpesa_code = ''
@@ -969,48 +995,25 @@ def credit_order_settle(request, order_id):
         card_reference = request.POST.get('card_reference', '').strip()[:50]
 
     settle_ref = mpesa_code or card_reference
-    with transaction.atomic():
-        # Re-lock and re-check under the row lock so two concurrent settles
-        # (double-click, server + manager) can't both credit the cash account.
-        invoice = DebtorTransaction.objects.select_for_update().get(pk=invoice.pk)
-        if invoice.remaining <= 0:
-            messages.info(request, f'Order #{order.id} is already fully paid.')
-            return redirect('order-list')
-        amount = invoice.remaining
-        payment_txn = DebtorTransaction.objects.create(
+    try:
+        record_debtor_payment(
             debtor=order.debtor,
-            transaction_type='credit',
-            amount=amount,
-            description=(
-                f'Order #{order.id} settled by {request.user.username} '
-                f'({payment_method}{" " + settle_ref if settle_ref else ""})'
-            ),
-            reference=str(order.id),
+            invoice=invoice,
+            amount=payment_amount,
+            method=payment_method,
+            reference=settle_ref,
+            note=f'Order #{order.id} payment by {request.user.username}',
             created_by=request.user,
         )
-        DebtorPaymentAllocation.objects.create(
-            payment=payment_txn, invoice=invoice, amount=amount,
-        )
-        invoice.amount_paid = invoice.amount
-        invoice.save(update_fields=['amount_paid'])
-
-        from administration.models import Account, Transaction as AcctTransaction
-        cash_account = Account.get_by_type('cash')
-        AcctTransaction.objects.create(
-            account=cash_account,
-            transaction_type='credit',
-            amount=amount,
-            description=f'Debtor payment — {order.debtor.name} (Order #{order.id})',
-            reference_type='debtor_payment',
-            reference_id=payment_txn.id,
-            created_by=request.user,
-        )
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+        return redirect('order-list')
 
     logging.getLogger('audit').info(
         "Credit order settled: order_id=%d debtor='%s' amount=%s method=%s by=%s",
-        order.id, order.debtor.name, amount, payment_method, request.user.username,
+        order.id, order.debtor.name, payment_amount, payment_method, request.user.username,
     )
-    messages.success(request, f'Order #{order.id} marked as paid.')
+    messages.success(request, f'Payment of {payment_amount:,.2f} recorded for order #{order.id}.')
     return redirect('order-list')
 
 
