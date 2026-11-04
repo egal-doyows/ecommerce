@@ -6,6 +6,14 @@ from .models import CustomerFeedback
 
 
 class FeedbackTests(TestCase):
+    def test_form_renders_five_distinct_rating_reactions(self):
+        response = self.client.get(reverse('feedback-submit'))
+
+        for reaction in ['😠', '😕', '😐', '😊', '🤩']:
+            self.assertContains(response, reaction, count=1)
+        for label in ['Poor', 'Fair', 'Okay', 'Great', 'Loved it']:
+            self.assertContains(response, label, count=1)
+
     def test_customer_can_submit_feedback(self):
         response = self.client.post(reverse('feedback-submit'), {
             'rating': '5',
