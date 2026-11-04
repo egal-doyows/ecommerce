@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'reports',
     'careers',
     'ml',
+    'feedback',
 ]
 
 CRISPY_TEMPLATE_PACK = 'bootstrap4'

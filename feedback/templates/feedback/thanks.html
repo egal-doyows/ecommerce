@@ -1,0 +1,20 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2A1A10">
+    <title>Thank you · {{ settings.name|default:'Bean & Bite' }}</title>
+    <link rel="stylesheet" href="{% static 'vendor/css/inter-font.css' %}">
+    <link rel="stylesheet" href="{% static 'feedback/css/feedback.css' %}">
+</head>
+<body class="fb-page"><main class="fb-shell fb-thanks-shell">
+    <section class="fb-card fb-thanks">
+        <div class="fb-thanks-icon" aria-hidden="true">✓</div>
+        <span class="fb-eyebrow">Feedback received</span>
+        <h1>Thank you for sharing.</h1>
+        <p>Your feedback is with our team and helps us serve you better.</p>
+        <a href="{% url 'public-menu' %}" class="fb-submit fb-link-button"><span>Explore our menu</span><span aria-hidden="true">→</span></a>
+        <a href="{% url 'public-home' %}" class="fb-home-link">Back to {{ settings.name|default:'Bean & Bite' }}</a>
+    </section>
+</main></body>
+</html>

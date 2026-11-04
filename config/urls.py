@@ -43,6 +43,7 @@ urlpatterns = [
     # Public marketing site lives at the root.
     path('', include('public_site.urls')),
     path('work-with-us/', include('careers.urls')),
+    path('feedback/', include('feedback.urls')),
 
     # SEO endpoints (sitemap.xml; robots.txt + site.webmanifest are in public_site.urls).
     path('sitemap.xml', sitemap, {'sitemaps': public_sitemaps}, name='django.contrib.sitemaps.views.sitemap'),

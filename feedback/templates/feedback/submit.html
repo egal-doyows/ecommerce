@@ -1,0 +1,79 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2A1A10">
+    <title>Share your experience · {{ settings.name|default:'Bean & Bite' }}</title>
+    <link rel="icon" href="{% static 'public_site/img/favicon.ico' %}" sizes="any">
+    <link rel="stylesheet" href="{% static 'vendor/css/inter-font.css' %}">
+    <link rel="stylesheet" href="{% static 'feedback/css/feedback.css' %}">
+</head>
+<body class="fb-page">
+<main class="fb-shell">
+    <section class="fb-card" aria-labelledby="feedback-title">
+        <header class="fb-header">
+            <a href="{% url 'public-home' %}" class="fb-logo-link" aria-label="{{ settings.name|default:'Bean & Bite' }} home">
+                {% if settings.logo %}<img src="{{ settings.logo.url }}" alt="{{ settings.name }}" class="fb-logo">
+                {% else %}<img src="{% static 'public_site/img/logo.png' %}" alt="Bean & Bite" class="fb-logo">{% endif %}
+            </a>
+            <span class="fb-eyebrow">Your voice matters</span>
+            <h1 id="feedback-title">How was your visit?</h1>
+            <p>It takes less than a minute. Your honest feedback helps us make every visit better.</p>
+        </header>
+
+        <form method="post" class="fb-form" id="feedbackForm" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}<div class="fb-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+            <fieldset class="fb-fieldset">
+                <legend>Tap to rate your experience <span aria-hidden="true">*</span></legend>
+                <div class="fb-rating" role="radiogroup" aria-label="Rating out of 5">
+                    {% for value, label in form.rating.field.choices %}
+                    <label class="fb-rating-choice">
+                        <input type="radio" name="rating" value="{{ value }}" {% if form.rating.value|stringformat:'s' == value|stringformat:'s' %}checked{% endif %} required>
+                        <span class="fb-rating-face" aria-hidden="true">{% if value == 1 %}😠{% elif value == 2 %}😕{% elif value == 3 %}😐{% elif value == 4 %}😊{% else %}🤩{% endif %}</span>
+                        <span class="fb-rating-label">{% if value == 1 %}Poor{% elif value == 2 %}Fair{% elif value == 3 %}Okay{% elif value == 4 %}Great{% else %}Loved it{% endif %}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% if form.rating.errors %}<div class="fb-field-error" role="alert">{{ form.rating.errors|striptags }}</div>{% endif %}
+            </fieldset>
+
+            <fieldset class="fb-fieldset fb-compact">
+                <legend>How did you visit? <span class="fb-optional">Optional</span></legend>
+                <div class="fb-chips">
+                    {% for value, label in form.visit_type.field.choices %}{% if value %}
+                    <label><input type="radio" name="visit_type" value="{{ value }}" {% if form.visit_type.value == value %}checked{% endif %}><span>{{ label }}</span></label>
+                    {% endif %}{% endfor %}
+                </div>
+            </fieldset>
+
+            <div class="fb-field">
+                <label for="{{ form.liked_most.id_for_label }}">What did you enjoy most? <span class="fb-optional">Optional</span></label>
+                {{ form.liked_most }}
+                <small class="fb-counter"><span id="likedCount">0</span>/240</small>
+            </div>
+
+            <div class="fb-field">
+                <label for="{{ form.improvement.id_for_label }}">What could we do better? <span class="fb-optional">Optional</span></label>
+                {{ form.improvement }}
+            </div>
+
+            <details class="fb-contact">
+                <summary>Would you like a reply? <span>Leave your details <b aria-hidden="true">+</b></span></summary>
+                <div class="fb-contact-fields">
+                    <div class="fb-field"><label for="{{ form.name.id_for_label }}">Name</label>{{ form.name }}</div>
+                    <div class="fb-field"><label for="{{ form.contact.id_for_label }}">Phone or email</label>{{ form.contact }}</div>
+                </div>
+            </details>
+
+            <button type="submit" class="fb-submit"><span>Send feedback</span><span aria-hidden="true">→</span></button>
+            <p class="fb-privacy">We only use your details to respond to this feedback.</p>
+        </form>
+    </section>
+    <p class="fb-footer">Made with care by {{ settings.name|default:'Bean & Bite' }}</p>
+</main>
+<script src="{% static 'feedback/js/feedback.js' %}"></script>
+</body>
+</html>
